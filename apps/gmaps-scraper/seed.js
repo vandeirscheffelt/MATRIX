@@ -44,15 +44,34 @@ async function seedDatabase() {
   // 3. Montar as Filas (Execuções)
   console.log('\n⚙️ Montando Fila de Execuções (Bairro x Categoria)...');
 
-  const execucoesLote = [];
-
   // Pegar as listas atuais pra garantir que temos os IDs do banco
-  const { data: catRow } = await db.from('categorias').select('id, nome');
-  const { data: locRow } = await db.from('localidades').select('id, termo_busca');
+  // Busca em páginas de 1000 para suportar 41k+ localidades
+  let locRow = [];
+  let locPage = 0;
+  const PAGE_SIZE = 1000;
+  while (true) {
+    const { data, error } = await db.from('localidades').select('id, termo_busca').range(locPage * PAGE_SIZE, (locPage + 1) * PAGE_SIZE - 1);
+    if (error) { console.error('Erro ao buscar localidades:', error); return; }
+    if (!data || data.length === 0) break;
+    locRow = locRow.concat(data);
+    if (data.length < PAGE_SIZE) break;
+    locPage++;
+  }
 
+  const { data: catRow } = await db.from('categorias').select('id, nome');
+
+  console.log(`  > ${locRow.length} localidades × ${catRow.length} categorias = ${locRow.length * catRow.length} combinações totais`);
+
+  // Monta e insere em lotes de 500 com upsert (ignora duplicatas via unique constraint)
+  const LOTE_SIZE = 500;
+  let inseridas = 0;
+  let ignoradas = 0;
+  let loteNum = 0;
+
+  const todasCombinacoes = [];
   locRow.forEach(local => {
     catRow.forEach(categoria => {
-      execucoesLote.push({
+      todasCombinacoes.push({
         localidade_id: local.id,
         categoria_id: categoria.id,
         status: 'pendente',
@@ -61,20 +80,26 @@ async function seedDatabase() {
     });
   });
 
-  // Insere a Fila Bruta na execucoes
-  const { error: errExec } = await db
-    .from('execucoes')
-    .insert(execucoesLote);
+  for (let i = 0; i < todasCombinacoes.length; i += LOTE_SIZE) {
+    const lote = todasCombinacoes.slice(i, i + LOTE_SIZE);
+    loteNum++;
 
-  if (errExec) {
-    if (errExec.code === '23505') {
-       console.log('⚠️ As execuções já parecem estar preenchidas na fila. Ignorando.');
+    const { error: errExec } = await db
+      .from('execucoes')
+      .upsert(lote, { onConflict: 'localidade_id,categoria_id', ignoreDuplicates: true });
+
+    if (errExec) {
+      console.error(`Erro no lote ${loteNum}:`, errExec.message);
     } else {
-       console.error('Erro ao inserir filas:', errExec);
+      inseridas += lote.length;
     }
-  } else {
-    console.log(`✅ A Fila (Execuções) foi semeada com muito sucesso (${execucoesLote.length} combinações geradas!).`);
+
+    if (loteNum % 50 === 0) {
+      console.log(`  > Lote ${loteNum} processado... (${inseridas}/${todasCombinacoes.length})`);
+    }
   }
+
+  console.log(`✅ Fila de execuções completa: ${inseridas} combinações enviadas (duplicatas ignoradas automaticamente).`);
 
   console.log('\n🎉 SEED COMPLETO! O banco está pronto para o Worker começar a puxar jobs.');
   process.exit(0);

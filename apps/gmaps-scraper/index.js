@@ -70,7 +70,8 @@ async function workerLoop() {
         .from('execucoes')
         .select('*, localidades!inner(termo_busca, cidade, bairro, estado), categorias!inner(nome)')
         .eq('status', 'pendente')
-        .order('prioridade', { ascending: false });
+        .order('prioridade', { ascending: false })
+        .limit(100);
 
       if (qErr) {
         console.error('Erro de conexão ao buscar fila:', qErr.message);

@@ -119,6 +119,7 @@ CREATE TABLE "03_prospecta".execucoes (
   horario_fim time without time zone NULL,
   dias_semana integer[] NULL DEFAULT '{1,2,3,4,5,6,7}'::integer[],
   CONSTRAINT execucoes_pkey PRIMARY KEY (id),
+  CONSTRAINT execucoes_localidade_categoria_unique UNIQUE (localidade_id, categoria_id),
   CONSTRAINT execucoes_categoria_id_fkey FOREIGN KEY (categoria_id) REFERENCES "03_prospecta".categorias(id),
   CONSTRAINT execucoes_localidade_id_fkey FOREIGN KEY (localidade_id) REFERENCES "03_prospecta".localidades(id)
 ) TABLESPACE pg_default;
