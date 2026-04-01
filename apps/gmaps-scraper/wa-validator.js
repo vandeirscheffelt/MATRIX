@@ -7,8 +7,9 @@ dotenv.config();
 const EVOLUTION_URL  = process.env.EVOLUTION_API_URL || 'https://evolutionapi.vps1069.panel.speedfy.host';
 const EVOLUTION_KEY  = process.env.EVOLUTION_API_KEY;
 const INSTANCE_NAME  = process.env.EVOLUTION_INSTANCE  || 'Claudia';
-const BATCH_SIZE     = 50;   // números por requisição à API (máximo recomendado)
-const DELAY_MS       = 3000; // pausa entre lotes (ms) — evita rate limit
+const BATCH_SIZE     = 5;     // números por requisição à API
+const DELAY_MS       = 6 * 60 * 1000; // 6 minutos entre lotes → ~250/dia bem distribuídos
+const DAILY_LIMIT    = 250;   // máximo de validações por execução/dia
 
 if (!EVOLUTION_KEY) {
   console.error('❌ ERRO FATAL: EVOLUTION_API_KEY não configurada no .env');
@@ -55,7 +56,8 @@ async function run() {
   console.log('🚀 wa-validator iniciado');
   console.log(`   Instância : ${INSTANCE_NAME}`);
   console.log(`   Lote       : ${BATCH_SIZE} números`);
-  console.log(`   Pausa      : ${DELAY_MS}ms entre lotes\n`);
+  console.log(`   Pausa      : ${DELAY_MS}ms entre lotes`);
+  console.log(`   Limite/dia : ${DAILY_LIMIT} validações\n`);
 
   let totalVerificados = 0;
   let totalValidos     = 0;
@@ -78,6 +80,11 @@ async function run() {
 
     if (!leads || leads.length === 0) {
       console.log('✅ Todos os leads já foram verificados! Worker encerrado.');
+      break;
+    }
+
+    if (totalVerificados >= DAILY_LIMIT) {
+      console.log(`🛑 Limite diário de ${DAILY_LIMIT} validações atingido. Encerrando.`);
       break;
     }
 
