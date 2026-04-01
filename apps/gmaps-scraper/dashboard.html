@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Prospecta — Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f1117;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 32px 24px;
+      min-height: 100vh;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    header h1 { font-size: 22px; font-weight: 700; color: #fff; }
+    header h1 span { color: #38bdf8; }
+
+    #last-update {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    #refresh-indicator {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      display: inline-block;
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .card {
+      background: #1e2333;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .card .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+
+    .card .value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .card .sub {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .card.blue   .value { color: #38bdf8; }
+    .card.green  .value { color: #4ade80; }
+    .card.yellow .value { color: #facc15; }
+    .card.red    .value { color: #f87171; }
+    .card.purple .value { color: #c084fc; }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 14px;
+    }
+
+    .progress-block { margin-bottom: 28px; }
+
+    .progress-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .progress-label { font-size: 13px; color: #cbd5e1; }
+    .progress-count { font-size: 13px; color: #94a3b8; }
+
+    .bar-bg {
+      background: #1e2333;
+      border-radius: 6px;
+      height: 10px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.6s ease;
+    }
+
+    .bar-pendente  { background: #38bdf8; }
+    .bar-andamento { background: #facc15; }
+    .bar-concluida { background: #4ade80; }
+    .bar-erro      { background: #f87171; }
+
+    .funil-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+    }
+
+    .funil-item {
+      background: #1e2333;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .funil-item .f-val {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .funil-item .f-label {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    .funil-item .f-pct {
+      font-size: 11px;
+      color: #38bdf8;
+      margin-top: 2px;
+    }
+
+    .validator-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .validator-item {
+      background: #1e2333;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .validator-item .v-val  { font-size: 24px; font-weight: 700; color: #fff; }
+    .validator-item .v-label { font-size: 11px; color: #64748b; margin-top: 4px; }
+    .validator-item .v-pct  { font-size: 11px; color: #38bdf8; margin-top: 2px; }
+    .validator-item.green .v-val { color: #4ade80; }
+    .validator-item.red   .v-val { color: #f87171; }
+    .validator-item.yellow .v-val { color: #facc15; }
+
+    .wpp-bar-wrap {
+      margin-top: 14px;
+      background: #1e2333;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .wpp-bar-bg {
+      background: #0f1117;
+      border-radius: 6px;
+      height: 14px;
+      overflow: hidden;
+      display: flex;
+      margin-top: 10px;
+    }
+
+    .wpp-seg-green  { background: #4ade80; height: 100%; transition: width 0.6s ease; }
+    .wpp-seg-red    { background: #f87171; height: 100%; transition: width 0.6s ease; }
+    .wpp-seg-gray   { background: #334155; height: 100%; transition: width 0.6s ease; }
+
+    .wpp-legend {
+      display: flex;
+      gap: 16px;
+      margin-top: 8px;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .wpp-legend span::before {
+      content: '●';
+      margin-right: 4px;
+    }
+
+    .wpp-legend .lg-green::before { color: #4ade80; }
+    .wpp-legend .lg-red::before   { color: #f87171; }
+    .wpp-legend .lg-gray::before  { color: #334155; }
+
+    #error-msg {
+      display: none;
+      background: #2d1515;
+      border: 1px solid #f87171;
+      color: #f87171;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Prospecta <span>Dashboard</span></h1>
+  <div id="last-update"><span id="refresh-indicator"></span>Atualizando...</div>
+</header>
+
+<div id="error-msg"></div>
+
+<!-- Cards de topo -->
+<div class="grid">
+  <div class="card blue">
+    <div class="label">Total Execuções</div>
+    <div class="value" id="total-exec">—</div>
+    <div class="sub">combinações localidade × categoria</div>
+  </div>
+  <div class="card yellow">
+    <div class="label">Pendentes</div>
+    <div class="value" id="total-pendente">—</div>
+    <div class="sub" id="pct-pendente">—</div>
+  </div>
+  <div class="card green">
+    <div class="label">Concluídas</div>
+    <div class="value" id="total-concluida">—</div>
+    <div class="sub" id="pct-concluida">—</div>
+  </div>
+  <div class="card purple">
+    <div class="label">Em Andamento</div>
+    <div class="value" id="total-andamento">—</div>
+    <div class="sub">processando agora</div>
+  </div>
+  <div class="card green">
+    <div class="label">Total Leads</div>
+    <div class="value" id="total-leads">—</div>
+    <div class="sub">empresas extraídas</div>
+  </div>
+</div>
+
+<!-- Barra de progresso geral -->
+<div class="progress-block">
+  <div class="section-title">Progresso Geral</div>
+
+  <div class="progress-row">
+    <span class="progress-label">Pendentes</span>
+    <span class="progress-count" id="bar-pendente-count">—</span>
+  </div>
+  <div class="bar-bg"><div class="bar-fill bar-pendente" id="bar-pendente" style="width:0%"></div></div>
+
+  <div class="progress-row">
+    <span class="progress-label">Em Andamento</span>
+    <span class="progress-count" id="bar-andamento-count">—</span>
+  </div>
+  <div class="bar-bg"><div class="bar-fill bar-andamento" id="bar-andamento" style="width:0%"></div></div>
+
+  <div class="progress-row">
+    <span class="progress-label">Concluídas</span>
+    <span class="progress-count" id="bar-concluida-count">—</span>
+  </div>
+  <div class="bar-bg"><div class="bar-fill bar-concluida" id="bar-concluida" style="width:0%"></div></div>
+
+  <div class="progress-row">
+    <span class="progress-label">Erro</span>
+    <span class="progress-count" id="bar-erro-count">—</span>
+  </div>
+  <div class="bar-bg"><div class="bar-fill bar-erro" id="bar-erro" style="width:0%"></div></div>
+</div>
+
+<!-- Funil de leads -->
+<div class="section-title">Funil de Leads</div>
+<div class="funil-grid">
+  <div class="funil-item">
+    <div class="f-val" id="f-total">—</div>
+    <div class="f-label">Total Leads</div>
+  </div>
+  <div class="funil-item">
+    <div class="f-val" id="f-elegiveis">—</div>
+    <div class="f-label">Elegíveis WhatsApp</div>
+    <div class="f-pct" id="f-elegiveis-pct"></div>
+  </div>
+  <div class="funil-item">
+    <div class="f-val" id="f-disparados">—</div>
+    <div class="f-label">Disparados</div>
+    <div class="f-pct" id="f-disparados-pct"></div>
+  </div>
+  <div class="funil-item">
+    <div class="f-val" id="f-responderam">—</div>
+    <div class="f-label">Responderam</div>
+    <div class="f-pct" id="f-responderam-pct"></div>
+  </div>
+  <div class="funil-item">
+    <div class="f-val" id="f-conversas">—</div>
+    <div class="f-label">Conversas</div>
+    <div class="f-pct" id="f-conversas-pct"></div>
+  </div>
+  <div class="funil-item">
+    <div class="f-val" id="f-convertidos">—</div>
+    <div class="f-label">Convertidos</div>
+    <div class="f-pct" id="f-convertidos-pct"></div>
+  </div>
+</div>
+
+<!-- Validação WhatsApp -->
+<div style="margin-top: 32px;">
+  <div class="section-title">Validação WhatsApp</div>
+
+  <div class="validator-grid">
+    <div class="validator-item">
+      <div class="v-val" id="v-total">—</div>
+      <div class="v-label">Total Elegíveis</div>
+    </div>
+    <div class="validator-item green">
+      <div class="v-val" id="v-ativos">—</div>
+      <div class="v-label">WhatsApp Ativo</div>
+      <div class="v-pct" id="v-ativos-pct"></div>
+    </div>
+    <div class="validator-item red">
+      <div class="v-val" id="v-inativos">—</div>
+      <div class="v-label">Fixo / Inativo</div>
+      <div class="v-pct" id="v-inativos-pct"></div>
+    </div>
+    <div class="validator-item yellow">
+      <div class="v-val" id="v-pendentes">—</div>
+      <div class="v-label">Aguardando Validação</div>
+      <div class="v-pct" id="v-pendentes-pct"></div>
+    </div>
+  </div>
+
+  <div class="wpp-bar-wrap">
+    <div style="font-size:12px; color:#94a3b8;">Distribuição dos números validados</div>
+    <div class="wpp-bar-bg">
+      <div class="wpp-seg-green" id="wpp-bar-green" style="width:0%"></div>
+      <div class="wpp-seg-red"   id="wpp-bar-red"   style="width:0%"></div>
+      <div class="wpp-seg-gray"  id="wpp-bar-gray"  style="width:0%"></div>
+    </div>
+    <div class="wpp-legend">
+      <span class="lg-green">WhatsApp ativo</span>
+      <span class="lg-red">Fixo / inativo</span>
+      <span class="lg-gray">Não verificado</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://tbapcaxbawruijrigafn.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiYXBjYXhiYXdydWlqcmlnYWZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MTg3NTEsImV4cCI6MjA4NTI5NDc1MX0.bocnd-c7kiyaSYrqr6SD6908cQ399X52ge_FQHuLy9I';
+
+  const { createClient } = supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function fmt(n) {
+    if (n === null || n === undefined) return '—';
+    return Number(n).toLocaleString('pt-BR');
+  }
+
+  function pct(part, total) {
+    if (!total) return '0%';
+    return (part / total * 100).toFixed(1) + '%';
+  }
+
+  function setBar(id, value, total) {
+    const width = total ? Math.min(100, (value / total) * 100) : 0;
+    document.getElementById(id).style.width = width + '%';
+  }
+
+  async function loadData() {
+    try {
+      // Execuções por status — conta no banco via head+exact para evitar limite de 1000 linhas
+      const statusList = ['pendente', 'em_andamento', 'concluida', 'erro'];
+      const counts = { pendente: 0, em_andamento: 0, concluida: 0, erro: 0 };
+
+      await Promise.all(statusList.map(async (s) => {
+        const { count, error } = await db
+          .schema('03_prospecta')
+          .from('execucoes')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', s);
+        if (!error) counts[s.replace('em_andamento', 'em_andamento')] = count || 0;
+      }));
+
+      // Busca também status distintos não previstos
+      const { count: totalExact } = await db
+        .schema('03_prospecta')
+        .from('execucoes')
+        .select('*', { count: 'exact', head: true });
+
+      const total = totalExact || (counts.pendente + counts.em_andamento + counts.concluida + counts.erro);
+
+      document.getElementById('total-exec').textContent      = fmt(total);
+      document.getElementById('total-pendente').textContent  = fmt(counts.pendente);
+      document.getElementById('total-concluida').textContent = fmt(counts.concluida);
+      document.getElementById('total-andamento').textContent = fmt(counts.em_andamento);
+      document.getElementById('pct-pendente').textContent    = pct(counts.pendente, total) + ' do total';
+      document.getElementById('pct-concluida').textContent   = pct(counts.concluida, total) + ' concluído';
+
+      document.getElementById('bar-pendente-count').textContent  = fmt(counts.pendente);
+      document.getElementById('bar-andamento-count').textContent = fmt(counts.em_andamento);
+      document.getElementById('bar-concluida-count').textContent = fmt(counts.concluida);
+      document.getElementById('bar-erro-count').textContent      = fmt(counts.erro);
+
+      setBar('bar-pendente',  counts.pendente,    total);
+      setBar('bar-andamento', counts.em_andamento, total);
+      setBar('bar-concluida', counts.concluida,   total);
+      setBar('bar-erro',      counts.erro,         total);
+
+      // Funil de leads
+      const { data: funil, error: funilErr } = await db
+        .schema('03_prospecta')
+        .from('vw_funil')
+        .select('*')
+        .single();
+
+      if (!funilErr && funil) {
+        const tl = funil.total_leads || 0;
+        document.getElementById('total-leads').textContent    = fmt(tl);
+        document.getElementById('f-total').textContent        = fmt(tl);
+        document.getElementById('f-elegiveis').textContent    = fmt(funil.elegiveis_wpp);
+        document.getElementById('f-disparados').textContent   = fmt(funil.disparados);
+        document.getElementById('f-responderam').textContent  = fmt(funil.responderam);
+        document.getElementById('f-conversas').textContent    = fmt(funil.conversas_iniciadas);
+        document.getElementById('f-convertidos').textContent  = fmt(funil.convertidos);
+
+        document.getElementById('f-elegiveis-pct').textContent   = pct(funil.elegiveis_wpp, tl);
+        document.getElementById('f-disparados-pct').textContent  = pct(funil.disparados, tl);
+        document.getElementById('f-responderam-pct').textContent = funil.taxa_resposta_pct ? funil.taxa_resposta_pct + '%' : '—';
+        document.getElementById('f-conversas-pct').textContent   = pct(funil.conversas_iniciadas, tl);
+        document.getElementById('f-convertidos-pct').textContent = funil.taxa_conversao_pct ? funil.taxa_conversao_pct + '%' : '—';
+      }
+
+      // Validação WhatsApp
+      const [{ count: vAtivos }, { count: vInativos }, { count: vPendentes }] = await Promise.all([
+        db.schema('03_prospecta').from('lead_empresas').select('*', { count: 'exact', head: true }).eq('wpp_verificado', true),
+        db.schema('03_prospecta').from('lead_empresas').select('*', { count: 'exact', head: true }).eq('wpp_verificado', false),
+        db.schema('03_prospecta').from('lead_empresas').select('*', { count: 'exact', head: true }).is('wpp_verificado', null),
+      ]);
+
+      const vTotal = (vAtivos || 0) + (vInativos || 0) + (vPendentes || 0);
+
+      document.getElementById('v-total').textContent      = fmt(vTotal);
+      document.getElementById('v-ativos').textContent     = fmt(vAtivos);
+      document.getElementById('v-inativos').textContent   = fmt(vInativos);
+      document.getElementById('v-pendentes').textContent  = fmt(vPendentes);
+
+      document.getElementById('v-ativos-pct').textContent    = vTotal ? pct(vAtivos,    vTotal) + ' do total' : '';
+      document.getElementById('v-inativos-pct').textContent  = vTotal ? pct(vInativos,  vTotal) + ' do total' : '';
+      document.getElementById('v-pendentes-pct').textContent = vTotal ? pct(vPendentes, vTotal) + ' restantes' : '';
+
+      document.getElementById('wpp-bar-green').style.width = vTotal ? pct(vAtivos,    vTotal) : '0%';
+      document.getElementById('wpp-bar-red').style.width   = vTotal ? pct(vInativos,  vTotal) : '0%';
+      document.getElementById('wpp-bar-gray').style.width  = vTotal ? pct(vPendentes, vTotal) : '0%';
+
+      document.getElementById('error-msg').style.display = 'none';
+      document.getElementById('last-update').innerHTML =
+        '<span id="refresh-indicator"></span>Atualizado às ' +
+        new Date().toLocaleTimeString('pt-BR');
+
+    } catch (e) {
+      const el = document.getElementById('error-msg');
+      el.style.display = 'block';
+      el.textContent = 'Erro ao carregar dados: ' + e.message;
+    }
+  }
+
+  loadData();
+  setInterval(loadData, 30000); // atualiza a cada 30s
+</script>
+</body>
+</html>
