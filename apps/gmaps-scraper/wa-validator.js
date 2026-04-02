@@ -60,41 +60,47 @@ async function checkBatch(numbers) {
 
 // ─── Worker principal ─────────────────────────────────────────────────────────
 
-async function run() {
-  console.log('🚀 wa-validator iniciado');
-  console.log(`   Instância : ${INSTANCE_NAME}`);
-  console.log(`   Lote       : ${BATCH_SIZE} números`);
-  console.log(`   Pausa      : ${DELAY_MS}ms entre lotes`);
-  console.log(`   Limite/dia : ${DAILY_LIMIT} validações\n`);
+/** Retorna quantos ms faltam para meia-noite */
+function msAteMeiaNoite() {
+  const agora = new Date();
+  const meiaNoite = new Date(agora);
+  meiaNoite.setHours(24, 0, 0, 0);
+  return meiaNoite - agora;
+}
 
-  let totalVerificados = 0;
-  let totalValidos     = 0;
-  let totalInvalidos   = 0;
+async function run() {
+  console.log('🚀 wa-validator iniciado (modo contínuo)');
+  console.log(`   Lote        : ${BATCH_SIZE} números`);
+  console.log(`   Pausa       : ${DELAY_MS / 1000}s entre lotes`);
+  console.log(`   Limite/dia  : ${DAILY_LIMIT} validações\n`);
 
   while (true) {
-    // 1. Busca próximo lote ainda não verificado
-    const { data: leads, error } = await supabase
-      .from('lead_empresas')
-      .select('id, telefone_wpp')
-      .is('wpp_verificado', null)
-      .not('telefone_wpp', 'is', null)
-      .limit(BATCH_SIZE);
+    let totalVerificados = 0;
+    let totalValidos     = 0;
+    let totalInvalidos   = 0;
 
-    if (error) {
-      console.error('❌ Erro ao buscar leads:', error.message);
-      await sleep(10_000);
-      continue;
-    }
+    console.log(`\n📅 Novo ciclo diário iniciado — ${new Date().toLocaleDateString('pt-BR')}`);
 
-    if (!leads || leads.length === 0) {
-      console.log('✅ Todos os leads já foram verificados! Worker encerrado.');
-      break;
-    }
+    while (totalVerificados < DAILY_LIMIT) {
+      // 1. Busca próximo lote ainda não verificado
+      const { data: leads, error } = await supabase
+        .from('lead_empresas')
+        .select('id, telefone_wpp')
+        .is('wpp_verificado', null)
+        .not('telefone_wpp', 'is', null)
+        .limit(BATCH_SIZE);
 
-    if (totalVerificados >= DAILY_LIMIT) {
-      console.log(`🛑 Limite diário de ${DAILY_LIMIT} validações atingido. Encerrando.`);
-      break;
-    }
+      if (error) {
+        console.error('❌ Erro ao buscar leads:', error.message);
+        await sleep(10_000);
+        continue;
+      }
+
+      if (!leads || leads.length === 0) {
+        console.log('✅ Todos os leads pendentes foram verificados. Aguardando novos leads...');
+        await sleep(msAteMeiaNoite());
+        break;
+      }
 
     console.log(`📦 Processando lote de ${leads.length} leads...`);
 
@@ -164,14 +170,21 @@ async function run() {
       `   ✔ Lote concluído — válidos: ${totalValidos} | inválidos: ${totalInvalidos} | total: ${totalVerificados}`
     );
 
-    // 5. Pausa entre lotes
-    await sleep(DELAY_MS);
-  }
+      // 5. Pausa entre lotes
+      await sleep(DELAY_MS);
+    }
 
-  console.log('\n📊 Resumo final:');
-  console.log(`   Verificados : ${totalVerificados}`);
-  console.log(`   WhatsApp OK : ${totalValidos}`);
-  console.log(`   Sem WPP     : ${totalInvalidos}`);
+    // Resumo do dia
+    console.log('\n📊 Resumo do dia:');
+    console.log(`   Verificados : ${totalVerificados}`);
+    console.log(`   WhatsApp OK : ${totalValidos}`);
+    console.log(`   Sem WPP     : ${totalInvalidos}`);
+
+    // Aguarda meia-noite para reiniciar o contador
+    const espera = msAteMeiaNoite();
+    console.log(`\n💤 Limite diário atingido. Reiniciando em ${Math.round(espera / 3600000)}h...\n`);
+    await sleep(espera);
+  }
 }
 
 run().catch(err => {
