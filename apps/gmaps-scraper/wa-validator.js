@@ -4,15 +4,14 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const EVOLUTION_URL  = process.env.EVOLUTION_API_URL || 'https://evolutionapi.vps1069.panel.speedfy.host';
-const EVOLUTION_KEY  = process.env.EVOLUTION_API_KEY;
-const INSTANCE_NAME  = process.env.EVOLUTION_INSTANCE  || 'Claudia';
-const BATCH_SIZE     = 5;     // números por requisição à API
-const DELAY_MS       = 6 * 60 * 1000; // 6 minutos entre lotes → ~250/dia bem distribuídos
-const DAILY_LIMIT    = 250;   // máximo de validações por execução/dia
+const META_TOKEN       = process.env.META_TOKEN;
+const META_PHONE_ID    = process.env.META_PHONE_ID || '973258712535207';
+const BATCH_SIZE       = 50;   // Meta suporta até 50 por requisição
+const DELAY_MS         = 2000; // 2 segundos entre lotes
+const DAILY_LIMIT      = 1000; // limite conservador
 
-if (!EVOLUTION_KEY) {
-  console.error('❌ ERRO FATAL: EVOLUTION_API_KEY não configurada no .env');
+if (!META_TOKEN) {
+  console.error('❌ ERRO FATAL: META_TOKEN não configurado no .env');
   process.exit(1);
 }
 
@@ -31,23 +30,32 @@ function normalizeNumber(raw) {
   return digits;
 }
 
-/** Verifica um lote de números na Evolution API */
+/** Verifica um lote de números na Meta Cloud API */
 async function checkBatch(numbers) {
-  const res = await fetch(`${EVOLUTION_URL}/chat/whatsappNumbers/${INSTANCE_NAME}`, {
+  const res = await fetch(`https://graph.facebook.com/v19.0/${META_PHONE_ID}/contacts`, {
     method: 'POST',
     headers: {
-      'apikey': EVOLUTION_KEY,
+      'Authorization': `Bearer ${META_TOKEN}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ numbers }),
+    body: JSON.stringify({
+      blocking: 'no_wait',
+      contacts: numbers,
+      force_check: true,
+    }),
   });
 
   if (!res.ok) {
     const txt = await res.text();
-    throw new Error(`Evolution API ${res.status}: ${txt}`);
+    throw new Error(`Meta API ${res.status}: ${txt}`);
   }
 
-  return res.json(); // [{ jid, exists, number }]
+  const json = await res.json();
+  // Normaliza para o mesmo formato que o restante do código espera: [{ number, exists }]
+  return (json.contacts || []).map(c => ({
+    number: c.input.replace(/\D/g, ''),
+    exists: c.status === 'valid',
+  }));
 }
 
 // ─── Worker principal ─────────────────────────────────────────────────────────
@@ -93,28 +101,28 @@ async function run() {
     // 2. Normaliza números e monta mapa id → número
     const mapa = {}; // numero_normalizado → id
     const numeros = [];
+    const invalidosImediatos = []; // ids inválidos antes mesmo de chamar a API
+    const agora2 = new Date().toISOString();
 
     for (const lead of leads) {
       const norm = normalizeNumber(lead.telefone_wpp);
       if (!norm) {
-        await supabase
-          .from('lead_empresas')
-          .update({ wpp_verificado: false, wpp_verificado_em: new Date().toISOString() })
-          .eq('id', lead.id);
+        invalidosImediatos.push({ id: lead.id, wpp_verificado: false, wpp_verificado_em: agora2 });
         totalInvalidos++;
         continue;
       }
-      // Se número duplicado no lote, marca o anterior como false e usa o mais recente
       if (mapa[norm]) {
-        await supabase
-          .from('lead_empresas')
-          .update({ wpp_verificado: false, wpp_verificado_em: new Date().toISOString() })
-          .eq('id', mapa[norm]);
+        invalidosImediatos.push({ id: mapa[norm], wpp_verificado: false, wpp_verificado_em: agora2 });
         totalInvalidos++;
       } else {
         numeros.push(norm);
       }
       mapa[norm] = lead.id;
+    }
+
+    // Persiste inválidos imediatos em massa
+    if (invalidosImediatos.length > 0) {
+      await supabase.from('lead_empresas').upsert(invalidosImediatos, { onConflict: 'id' });
     }
 
     if (numeros.length === 0) {
@@ -131,25 +139,26 @@ async function run() {
       continue;
     }
 
-    // 4. Atualiza o banco em paralelo
-    const updates = resultados.map(({ number, exists }) => {
+    // 4. Atualiza o banco em massa (1 chamada)
+    const agora = new Date().toISOString();
+    const upsertPayload = [];
+
+    for (const { number, exists } of resultados) {
       const id = mapa[number];
-      if (!id) return Promise.resolve();
+      if (!id) continue;
 
       const status = exists === true;
       if (status) totalValidos++; else totalInvalidos++;
       totalVerificados++;
 
-      return supabase
-        .from('lead_empresas')
-        .update({
-          wpp_verificado: status,
-          wpp_verificado_em: new Date().toISOString(),
-        })
-        .eq('id', id);
-    });
+      upsertPayload.push({ id, wpp_verificado: status, wpp_verificado_em: agora });
+    }
 
-    await Promise.all(updates);
+    if (upsertPayload.length > 0) {
+      await supabase
+        .from('lead_empresas')
+        .upsert(upsertPayload, { onConflict: 'id' });
+    }
 
     console.log(
       `   ✔ Lote concluído — válidos: ${totalValidos} | inválidos: ${totalInvalidos} | total: ${totalVerificados}`

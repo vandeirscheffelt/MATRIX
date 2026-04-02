@@ -81,7 +81,6 @@ async function workerLoop() {
 
       // 2. Procura um Job que seja de Hoje e do Horário Certo
       let activeJob = null;
-      const todayDayIndex = new Date().getDay() + 1; // 1 = Dom, 7 = Sabado (depende do padrão do banco, costuma ser 1..7 ou 0..6)
 
       for (const job of queue) {
         // Validação da Janela Operacional
@@ -151,13 +150,10 @@ async function workerLoop() {
       const itemsToScrape = items.slice(0, maxResults);
       console.log(`  > Varrendo contatos de ${itemsToScrape.length} locais encontrados...`);
 
-      let cadastrosFeitos = 0;
+      const payloads = [];
 
       for (let i = 0; i < itemsToScrape.length; i++) {
           const item = itemsToScrape[i];
-
-          // Dica: Poderíamos fazer uma query leve no supabase do "nome" pra pular tab (Deduplicação de Nome do plano anterior se você preferir otimização master depois)
-          
           try {
               const localPage = await browser.newPage();
               await localPage.goto(item.url, { waitUntil: 'domcontentloaded' });
@@ -177,47 +173,45 @@ async function workerLoop() {
 
               await localPage.close();
 
-              if (!telefone) {
-                continue; // Google não tem telefone cadastrado
-              }
+              if (!telefone) continue;
 
-              // ============================
-              // INSERÇÃO DIRETA (A MÁGICA)
-              // ============================
-              // O Supabase vai rejeitar automaticamente se o telefone já existir via Constraint
-              
-              // O seu schema definiu limite de 15 caracteres no DB para varchar. O Google traz espaços e parênteses grandes.
-              // Vamos extirpar qualquer letra/símbolo e deixar só os números crus para o Whatsapp:
-              const telefoneLimpo = telefone.replace(/\D/g, ''); 
+              const telefoneLimpo = telefone.replace(/\D/g, '');
 
-              const payload = {
+              payloads.push({
                 nome: item.nome,
                 categoria: categoria,
                 cidade: activeJob.localidades.cidade,
                 bairro: activeJob.localidades.bairro,
                 uf: activeJob.localidades.estado,
-                telefone_wpp: telefoneLimpo.substring(0, 15), 
+                telefone_wpp: telefoneLimpo.substring(0, 15),
                 telefone_raw: telefone,
                 website: website,
                 gmaps_url: item.url
-              };
-
-              const { error: insertErr } = await supabase.schema('03_prospecta').from('lead_empresas').insert(payload);
-
-              if (insertErr) {
-                 if (insertErr.code === '23505') { // Chave Duplicada PGSQL
-                     console.log(`    > 🚫 Bloqueado: ${item.nome} (O banco de dados já possui o telefone ${telefone})`);
-                 } else {
-                     console.log(`    > 🐞 Erro ao inserir ${item.nome}:`, insertErr.message);
-                 }
-              } else {
-                 console.log(`    > ✅ Registrado Novo Lead: ${item.nome} | ${telefone}`);
-                 cadastrosFeitos++;
-              }
+              });
 
           } catch (e) {
               // Timeouts da aba
           }
+      }
+
+      // ============================
+      // INSERÇÃO EM MASSA (1 chamada ao banco)
+      // ============================
+      let cadastrosFeitos = 0;
+
+      if (payloads.length > 0) {
+        const { data: inserted, error: insertErr } = await supabase
+          .schema('03_prospecta')
+          .from('lead_empresas')
+          .upsert(payloads, { onConflict: 'telefone_wpp', ignoreDuplicates: true })
+          .select('id');
+
+        if (insertErr) {
+          console.log(`    > 🐞 Erro no insert em massa:`, insertErr.message);
+        } else {
+          cadastrosFeitos = inserted?.length ?? 0;
+          console.log(`    > ✅ ${cadastrosFeitos} leads novos inseridos (${payloads.length - cadastrosFeitos} duplicatas ignoradas)`);
+        }
       }
 
       await browser.close();
@@ -225,7 +219,7 @@ async function workerLoop() {
       // ============================
       // CONCLUIR E FECHAR O JOB
       // ============================
-      const { error: endErr } = await supabase.schema('03_prospecta')
+      await supabase.schema('03_prospecta')
         .from('execucoes')
         .update({
           status: 'concluida',
