@@ -203,14 +203,23 @@ async function workerLoop() {
         const { data: inserted, error: insertErr } = await supabase
           .schema('03_prospecta')
           .from('lead_empresas')
-          .upsert(payloads, { ignoreDuplicates: true })
+          .insert(payloads)
           .select('id');
 
         if (insertErr) {
-          console.log(`    > 🐞 Erro no insert em massa:`, insertErr.message);
+          if (insertErr.code === '23505') {
+            // Lote tinha duplicatas — insere um por um para salvar os novos
+            for (const payload of payloads) {
+              const { error: e } = await supabase.schema('03_prospecta').from('lead_empresas').insert(payload);
+              if (!e) cadastrosFeitos++;
+            }
+            console.log(`    > ✅ ${cadastrosFeitos} leads novos (lote com duplicatas — fallback individual)`);
+          } else {
+            console.log(`    > 🐞 Erro no insert em massa:`, insertErr.message);
+          }
         } else {
           cadastrosFeitos = inserted?.length ?? 0;
-          console.log(`    > ✅ ${cadastrosFeitos} leads novos inseridos (${payloads.length - cadastrosFeitos} duplicatas ignoradas)`);
+          console.log(`    > ✅ ${cadastrosFeitos} leads novos inseridos`);
         }
       }
 
