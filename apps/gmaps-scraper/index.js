@@ -203,7 +203,7 @@ async function workerLoop() {
         const { data: inserted, error: insertErr } = await supabase
           .schema('03_prospecta')
           .from('lead_empresas')
-          .upsert(payloads, { onConflict: 'telefone_wpp', ignoreDuplicates: true })
+          .upsert(payloads, { ignoreDuplicates: true })
           .select('id');
 
         if (insertErr) {
