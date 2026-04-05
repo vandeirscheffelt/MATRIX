@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --env-file=../../.env src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "lint": "eslint src"
@@ -15,8 +15,11 @@
     "@boilerplate/database": "workspace:*",
     "@fastify/cors": "^9.0.0",
     "@fastify/helmet": "^11.0.0",
+    "@fastify/multipart": "^9.4.0",
     "@fastify/rate-limit": "^9.0.0",
+    "@supabase/supabase-js": "^2.101.0",
     "fastify": "^4.27.0",
+    "stripe": "^16.0.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {

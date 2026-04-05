@@ -1,57 +1,344 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  schemas   = ["atendente_ia"]
 }
 
 // =============================================================================
-// Users — espelha auth.users do Supabase
+// SchAiKron — Atendente IA
+// Schema: atendente_ia (isolado, não misturar com public)
 // =============================================================================
-model User {
+
+// -----------------------------------------------------------------------------
+// Tenant principal
+// -----------------------------------------------------------------------------
+
+model Empresa {
   id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  avatarUrl String?  @map("avatar_url")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  nome      String
+  slug      String   @unique
+  criadoEm  DateTime @default(now()) @map("criado_em")
 
-  subscription Subscription?
+  usuarios         Usuario[]
+  subscription     Subscription?
+  profissionais    Profissional[]
+  instancia        InstanciaWhatsApp?
+  configBot        ConfigBot?
+  numerosGerente   NumeroGerente[]
+  leads            Lead[]
+  conversas        Conversa[]
+  agendamentos     Agendamento[]
+  chatHistories    ChatHistory[]
+  eventos          AnalyticsEvento[]
 
-  @@map("users")
+  @@map("empresas")
+  @@schema("atendente_ia")
 }
 
-// =============================================================================
-// Subscriptions — gerenciado pelo Stripe webhook
-// =============================================================================
-model Subscription {
-  id                   String             @id @default(uuid())
-  userId               String             @unique @map("user_id")
-  stripeCustomerId     String             @unique @map("stripe_customer_id")
-  stripeSubscriptionId String             @unique @map("stripe_subscription_id")
-  stripePriceId        String             @map("stripe_price_id")
-  planId               String             @map("plan_id")
-  status               SubscriptionStatus
-  currentPeriodStart   DateTime           @map("current_period_start")
-  currentPeriodEnd     DateTime           @map("current_period_end")
-  cancelAtPeriodEnd    Boolean            @default(false) @map("cancel_at_period_end")
-  createdAt            DateTime           @default(now()) @map("created_at")
-  updatedAt            DateTime           @updatedAt @map("updated_at")
+// -----------------------------------------------------------------------------
+// Usuários da empresa (FK para auth.users do Supabase)
+// -----------------------------------------------------------------------------
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Usuario {
+  id        String   @id // mesmo UUID do auth.users
+  empresaId String   @map("empresa_id")
+  role      RoleUsuario @default(ADMIN)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  empresa       Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  profissional  Profissional?
+
+  @@map("usuarios")
+  @@schema("atendente_ia")
+}
+
+enum RoleUsuario {
+  ADMIN
+  PROFISSIONAL
+
+  @@map("role_usuario_enum")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
+// Plano / Trial / Stripe
+// -----------------------------------------------------------------------------
+
+model Subscription {
+  id                     String             @id @default(uuid())
+  empresaId              String             @unique @map("empresa_id")
+  stripeCustomerId       String?            @map("stripe_customer_id")
+  stripeSubscriptionId   String?            @map("stripe_subscription_id")
+  status                 StatusSubscription @default(TRIAL)
+  trialEndsAt            DateTime?          @map("trial_ends_at")
+  periodEndsAt           DateTime?          @map("period_ends_at")
+  criadoEm               DateTime           @default(now()) @map("criado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
+  @@schema("atendente_ia")
 }
 
-enum SubscriptionStatus {
-  active
-  canceled
-  past_due
-  trialing
-  incomplete
+enum StatusSubscription {
+  TRIAL
+  ACTIVE
+  CANCELED
+  PAST_DUE
 
-  @@map("subscription_status")
+  @@map("status_subscription_enum")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
+// Profissionais e Agenda
+// -----------------------------------------------------------------------------
+
+model Profissional {
+  id                String   @id @default(uuid())
+  empresaId         String   @map("empresa_id")
+  usuarioId         String?  @unique @map("usuario_id") // nullable — profissional sem login
+  nome              String
+  duracaoPadraoMin  Int      @default(60) @map("duracao_padrao_min")
+  ativo             Boolean  @default(true)
+  criadoEm          DateTime @default(now()) @map("criado_em")
+
+  empresa       Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  usuario       Usuario?       @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  gradeHorarios GradeHorario[]
+  bloqueios     Bloqueio[]
+  agendamentos  Agendamento[]
+
+  @@map("profissionais")
+  @@schema("atendente_ia")
+}
+
+model GradeHorario {
+  id              String   @id @default(uuid())
+  profissionalId  String   @map("profissional_id")
+  diaSemana       Int      @map("dia_semana") // 0=domingo ... 6=sábado
+  horaInicio      String   @map("hora_inicio") // "08:00"
+  horaFim         String   @map("hora_fim")    // "18:00"
+
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+
+  @@map("grade_horarios")
+  @@schema("atendente_ia")
+}
+
+model Bloqueio {
+  id              String   @id @default(uuid())
+  profissionalId  String   @map("profissional_id")
+  dataInicio      DateTime @map("data_inicio")
+  dataFim         DateTime @map("data_fim")
+  motivo          String?
+
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+
+  @@map("bloqueios")
+  @@schema("atendente_ia")
+}
+
+model Agendamento {
+  id              String             @id @default(uuid())
+  empresaId       String             @map("empresa_id")
+  profissionalId  String             @map("profissional_id")
+  leadId          String?            @map("lead_id")
+  inicio          DateTime
+  fim             DateTime
+  status          StatusAgendamento  @default(CONFIRMADO)
+  criadoEm        DateTime           @default(now()) @map("criado_em")
+
+  empresa      Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([empresaId, inicio])
+  @@index([profissionalId, inicio])
+  @@map("agendamentos")
+  @@schema("atendente_ia")
+}
+
+enum StatusAgendamento {
+  CONFIRMADO
+  CANCELADO
+  REMARCADO
+  REALIZADO
+  NO_SHOW
+
+  @@map("status_agendamento_enum")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
+// WhatsApp — Instância Evolution API
+// -----------------------------------------------------------------------------
+
+model InstanciaWhatsApp {
+  id              String   @id @default(uuid())
+  empresaId       String   @unique @map("empresa_id")
+  nomeInstancia   String   @unique @map("nome_instancia")
+  token           String
+  status          StatusInstancia @default(DISCONNECTED)
+  qrCodeBase64    String?  @map("qr_code_base64") @db.Text
+  qrExpiresAt     DateTime? @map("qr_expires_at")
+  criadoEm        DateTime @default(now()) @map("criado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@map("instancias_whatsapp")
+  @@schema("atendente_ia")
+}
+
+enum StatusInstancia {
+  DISCONNECTED
+  CONNECTING
+  CONNECTED
+
+  @@map("status_instancia_enum")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
+// Configuração do Bot
+// -----------------------------------------------------------------------------
+
+model ConfigBot {
+  id               String   @id @default(uuid())
+  empresaId        String   @unique @map("empresa_id")
+  prompt           String   @db.Text
+  tom              TomBot   @default(FORMAL)
+  palavraPausa     String   @default("#humano") @map("palavra_pausa")
+  palavraRetorno   String   @default("#bot") @map("palavra_retorno")
+  tempoRetornoMin  Int?     @map("tempo_retorno_min") // null = usa palavra, número = usa tempo
+  faq              Json     @default("[]")
+  botAtivo         Boolean  @default(true) @map("bot_ativo")
+  criadoEm         DateTime @default(now()) @map("criado_em")
+  atualizadoEm     DateTime @updatedAt @map("atualizado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@map("config_bot")
+  @@schema("atendente_ia")
+}
+
+enum TomBot {
+  FORMAL
+  INFORMAL
+
+  @@map("tom_bot_enum")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
+// Número do Gerente (segundo número)
+// -----------------------------------------------------------------------------
+
+model NumeroGerente {
+  id               String          @id @default(uuid())
+  empresaId        String          @map("empresa_id")
+  telefone         String
+  resumoAtivo      Boolean         @default(false) @map("resumo_ativo")
+  resumoIntervalo  IntervaloResumo? @map("resumo_intervalo")
+  resumoHorario    String?         @map("resumo_horario") // "08:00"
+  criadoEm         DateTime        @default(now()) @map("criado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@map("numeros_gerente")
+  @@schema("atendente_ia")
+}
+
+enum IntervaloResumo {
+  DIARIO
+  SEMANAL
+
+  @@map("intervalo_resumo_enum")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
+// Leads e Conversas
+// -----------------------------------------------------------------------------
+
+model Lead {
+  id        String   @id @default(uuid())
+  empresaId String   @map("empresa_id")
+  telefone  String
+  nomeWpp   String?  @map("nome_wpp")
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  empresa      Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  conversa     Conversa?
+  agendamentos Agendamento[]
+
+  @@unique([empresaId, telefone])
+  @@map("leads")
+  @@schema("atendente_ia")
+}
+
+model Conversa {
+  id          String       @id @default(uuid())
+  leadId      String       @unique @map("lead_id")
+  empresaId   String       @map("empresa_id")
+  statusIa    StatusIa     @default(ATIVO) @map("status_ia")
+  pausadoEm   DateTime?    @map("pausado_em")
+  retornoEm   DateTime?    @map("retorno_em") // preenchido se usar tempo automático
+  atualizadoEm DateTime    @updatedAt @map("atualizado_em")
+
+  lead    Lead    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@map("conversas")
+  @@schema("atendente_ia")
+}
+
+enum StatusIa {
+  ATIVO
+  PAUSADO
+
+  @@map("status_ia_enum")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
+// Histórico de Conversa (usado pelo n8n Postgres Chat Memory)
+// -----------------------------------------------------------------------------
+
+model ChatHistory {
+  id        BigInt   @id @default(autoincrement())
+  sessionId String   @map("session_id") // telefone do lead
+  empresaId String   @map("empresa_id")
+  message   Json
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, empresaId])
+  @@map("chat_histories")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
+// Analytics
+// -----------------------------------------------------------------------------
+
+model AnalyticsEvento {
+  id        String   @id @default(uuid())
+  empresaId String   @map("empresa_id")
+  tipo      String   // 'agendamento' | 'cancelamento' | 'pausa_ia' | etc
+  payload   Json?
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, tipo])
+  @@map("analytics_eventos")
+  @@schema("atendente_ia")
 }

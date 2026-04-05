@@ -5,6 +5,45 @@
 
 ---
 
+## Modo de operação obrigatório — Skill Master (HIERARQUIA_DE_SKILLS_v1)
+
+**Sempre que o usuário pedir execução de qualquer tarefa**, identificar a natureza e declarar as skills antes de responder.
+
+### Fluxo obrigatório
+```
+INPUT → DETECTOR DE FASE → SELETOR DE SKILLS → EXECUÇÃO GUIADA → OUTPUT PADRONIZADO
+```
+
+### Identificação obrigatória
+- **técnica** (backend, banco, integração, deploy, bug) → priorizar `senior-backend`, `api-integration-specialist`, `database-schema-designer`
+- **exploratória** (ideias, estratégia, marketing) → `brainstorming`, `micro-saas-launcher`, `marketing-*`
+- Em dúvida → assumir técnica, executar, refinar depois
+
+### Estrutura obrigatória de resposta
+```
+🎯 Skill Primária: [nome]
+🧩 Skill Secundária (opcional): [nome]
+📍 Fase: [fase]
+
+🚀 Execução:
+[solução direta]
+
+💡 Refinamento (opcional):
+[melhorias]
+```
+
+> `brainstorming` NUNCA pode ser skill primária em tarefas técnicas.
+
+### Regra de precedência final
+> A skill primária e a fase devem ser declaradas **antes** de qualquer leitura de arquivo, análise de contexto ou pergunta ao usuário.
+> O pedido do usuário sozinho é suficiente para definir skill e fase.
+> É proibido abrir arquivos ou analisar código antes dessa declaração.
+
+Referência completa: `.claude/projects/.../memory/skill_master_template.md`
+Lista de skills: `.claude/projects/.../memory/skills_installed.md`
+
+---
+
 ## O que é este workspace
 
 **Matrix** é o workspace principal — uma fábrica de SaaS com automações de IA.
@@ -115,17 +154,22 @@ MATRIX_REDIS_URL=redis://127.0.0.1:6379
 
 Toda proposta de criação de tabela deve incluir o schema. Nunca criar tabelas direto no `public` sem justificativa.
 
+**Regra canônica:** cada produto/app recebe seu próprio schema com nome curto e descritivo.
+Nunca usar `app` como schema genérico — ele não escala para múltiplos produtos.
+
 | Schema | Finalidade |
 |--------|-----------|
 | `public` | Apenas tabelas genéricas sem dono claro (evitar) |
 | `auth` | Gerenciado pelo Supabase Auth — não mexer |
-| `app` | Tabelas core do produto (ex: `app.profiles`, `app.subscriptions`) |
-| `billing` | Tabelas de pagamento/Stripe (ex: `billing.invoices`, `billing.plans`) |
+| `billing` | Tabelas de pagamento/Stripe compartilhadas (ex: `billing.invoices`) |
 | `whatsapp` | Tabelas relacionadas a automações WhatsApp/n8n |
 | `analytics` | Eventos, logs de uso, métricas |
+| `expenses` | App de controle de gastos pessoais |
+| `calo` | Sistema de venda de calopsitas B2B |
+| *(novo app)* | Criar schema com nome curto do produto |
 
-> ⚠️ Ao propor qualquer `CREATE TABLE`, sempre incluir o schema no nome — ex: `CREATE TABLE app.profiles (...)`.
-> Criar o schema antes se ainda não existir: `CREATE SCHEMA IF NOT EXISTS app;`
+> ⚠️ Ao propor qualquer `CREATE TABLE`, sempre incluir o schema — ex: `CREATE TABLE calo.chicks (...)`.
+> Criar o schema antes se ainda não existir: `CREATE SCHEMA IF NOT EXISTS calo;`
 
 ---
 
