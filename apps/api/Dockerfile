@@ -20,6 +20,8 @@ COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=deps /app/packages/database/node_modules ./packages/database/node_modules
 COPY . .
 RUN packages/database/node_modules/.bin/prisma generate --schema=packages/database/prisma/schema.prisma
+RUN pnpm --filter @boilerplate/database build
+RUN pnpm --filter @boilerplate/billing build
 RUN pnpm --filter @matrix/api build
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
@@ -34,15 +36,12 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 
 # Workspace packages (symlinked from apps/api/node_modules)
-COPY --from=deps /app/packages/auth/node_modules ./packages/auth/node_modules
 COPY --from=deps /app/packages/billing/node_modules ./packages/billing/node_modules
 COPY --from=deps /app/packages/database/node_modules ./packages/database/node_modules
 
-COPY --from=builder /app/packages/auth/src ./packages/auth/src
-COPY --from=builder /app/packages/auth/package.json ./packages/auth/package.json
-COPY --from=builder /app/packages/billing/src ./packages/billing/src
+COPY --from=builder /app/packages/billing/dist ./packages/billing/dist
 COPY --from=builder /app/packages/billing/package.json ./packages/billing/package.json
-COPY --from=builder /app/packages/database/src ./packages/database/src
+COPY --from=builder /app/packages/database/dist ./packages/database/dist
 COPY --from=builder /app/packages/database/package.json ./packages/database/package.json
 
 COPY --from=builder /app/apps/api/dist ./apps/api/dist

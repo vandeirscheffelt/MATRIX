@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.ts",
-    "./server": "./src/server.ts",
-    "./middleware": "./src/middleware.ts",
-    "./types": "./src/types.ts"
+    ".": "./dist/index.js",
+    "./server": "./dist/server.js",
+    "./middleware": "./dist/middleware.js",
+    "./types": "./dist/types.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.44.0",
@@ -20,5 +20,8 @@
   "devDependencies": {
     "typescript": "^5.4.0",
     "@types/node": "^20.0.0"
+  },
+  "scripts": {
+    "build": "tsc"
   }
 }
