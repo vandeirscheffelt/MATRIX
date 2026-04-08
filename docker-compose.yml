@@ -36,7 +36,7 @@ services:
     container_name: matrix-calo-admin
     restart: unless-stopped
     ports:
-      - "3002:3002"
+      - "3002:3000"
     env_file:
       - apps/calo-admin/.env.production
     networks:
