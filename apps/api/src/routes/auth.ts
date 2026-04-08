@@ -1,53 +1,73 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { createServiceRoleClient } from '@boilerplate/auth/server'
+import { createClient } from '@supabase/supabase-js'
 import { prisma } from '@boilerplate/database/client'
+import { requireAuth } from '../lib/auth.js'
 
-const bearerSchema = z.string().min(1)
-
-// Middleware: valida JWT do Supabase e injeta userId no request
-async function requireAuth(request: any, reply: any) {
-  const authHeader = request.headers.authorization ?? ''
-  const token = authHeader.replace('Bearer ', '')
-
-  const parse = bearerSchema.safeParse(token)
-  if (!parse.success) return reply.code(401).send({ error: 'Token ausente' })
-
-  const supabase = createServiceRoleClient()
-  const { data: { user }, error } = await supabase.auth.getUser(token)
-
-  if (error || !user) return reply.code(401).send({ error: 'Token inválido' })
-
-  request.userId = user.id
-  request.userEmail = user.email
+function supabaseServiceRole() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
 }
 
+const registerBody = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  nomeEmpresa: z.string().min(1),
+  slug: z.string().min(2).regex(/^[a-z0-9-]+$/),
+})
+
 export async function authRoutes(app: FastifyInstance) {
-  // GET /auth/me — retorna dados do usuário logado
-  app.get('/me', { preHandler: requireAuth }, async (request: any) => {
-    const user = await prisma.user.findUnique({ where: { id: request.userId } })
-    if (!user) return app.httpErrors?.notFound('Usuário não encontrado')
-    return user
-  })
+  // POST /auth/register — cria conta Supabase + empresa + trial
+  app.post('/register', async (request, reply) => {
+    const body = registerBody.safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
-  // POST /auth/sync — cria/atualiza user local após signup no Supabase
-  app.post('/sync', {
-    preHandler: requireAuth,
-    schema: {
-      body: {
-        type: 'object',
-        properties: { name: { type: 'string' } },
-      },
-    },
-  }, async (request: any) => {
-    const { name } = request.body as { name?: string }
+    const { email, password, nomeEmpresa, slug } = body.data
 
-    const user = await prisma.user.upsert({
-      where: { id: request.userId },
-      create: { id: request.userId, email: request.userEmail, name },
-      update: { name },
+    const supabase = supabaseServiceRole()
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
     })
 
-    return user
+    if (authError || !authData.user) {
+      return reply.code(400).send({ error: authError?.message ?? 'Erro ao criar usuário' })
+    }
+
+    // Cria empresa + usuário + trial de 24h em transação
+    const trialEndsAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+
+    await prisma.$transaction(async (tx: typeof prisma) => {
+      const empresa = await tx.empresa.create({
+        data: { nome: nomeEmpresa, slug },
+      })
+
+      await tx.usuario.create({
+        data: { id: authData.user!.id, empresaId: empresa.id, role: 'ADMIN' },
+      })
+
+      await tx.subscription.create({
+        data: { empresaId: empresa.id, status: 'TRIAL', trialEndsAt },
+      })
+    })
+
+    return reply.code(201).send({ message: 'Conta criada. Trial de 24h ativo.' })
+  })
+
+  // GET /auth/me
+  app.get('/me', { preHandler: requireAuth }, async (request: any) => {
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: request.userId },
+      include: {
+        empresa: {
+          include: { subscription: true },
+        },
+      },
+    })
+    return usuario
   })
 }

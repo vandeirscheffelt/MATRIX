@@ -1,0 +1,422 @@
+{
+  "name": "LIA — Atendente Calo (WhatsApp)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lia-calo",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-evo",
+      "name": "Webhook Evolution",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "ok",
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "Responder 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [460, 120]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\n\nconst event = body.event ?? '';\nconst data  = body.data  ?? {};\nconst key   = data.key   ?? {};\n\nconst remoteJid   = key.remoteJid  ?? '';\nconst fromMe      = key.fromMe     ?? false;\nconst pushName    = data.pushName  ?? 'Cliente';\nconst instance    = body.instance  ?? '';\nconst messageType = data.messageType ?? '';\n\nconst msg = data.message ?? {};\n\n// Extrai texto\nconst texto =\n  msg.conversation ||\n  msg.extendedTextMessage?.text ||\n  msg.imageMessage?.caption ||\n  '';\n\n// Dados do áudio (se houver)\nconst isAudio = ['audioMessage', 'pttMessage'].includes(messageType);\nconst audioData = isAudio ? (msg.audioMessage ?? msg.pttMessage ?? null) : null;\n\nconst numero  = remoteJid.replace(/@.+/, '');\nconst isGroup = remoteJid.includes('@g.us');\n\n// Passa a mensagem original completa para download de mídia\nreturn [{\n  json: {\n    event, fromMe, isGroup, pushName,\n    numero, remoteJid, instance,\n    messageType, isAudio, audioData,\n    texto: texto.trim(),\n    // Para download via Evolution API\n    rawMessage: data.message,\n    rawKey: key,\n  }\n}];"
+      },
+      "id": "normalizer",
+      "name": "Normalizar mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "no-from-me",
+              "leftValue": "={{ $json.fromMe }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "equals" }
+            },
+            {
+              "id": "no-group",
+              "leftValue": "={{ $json.isGroup }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "equals" }
+            },
+            {
+              "id": "has-content",
+              "leftValue": "={{ $json.texto !== '' || $json.isAudio === true }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "filtro",
+      "name": "Filtrar mensagens válidas",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.isAudio }}",
+                    "rightValue": true,
+                    "operator": { "type": "boolean", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "extra" }
+      },
+      "id": "switch-tipo",
+      "name": "Tipo de mensagem",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://127.0.0.1:8080/message/downloadMediaMessage/{{ $json.instance }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"key\": {{ JSON.stringify($json.rawKey) }},\n    \"message\": {{ JSON.stringify($json.rawMessage) }}\n  }\n}",
+        "options": {}
+      },
+      "id": "download-audio",
+      "name": "Download áudio (Evolution)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 160],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SUBSTITUIR_ID_CREDENCIAL_EVO",
+          "name": "Evolution API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Converte base64 retornado pela Evolution API para arquivo binário\nconst item = $input.first();\nconst base64 = item.json.base64 ?? item.json.data ?? '';\nconst mimeType = item.json.mimetype ?? 'audio/ogg';\n\nif (!base64) throw new Error('Evolution API não retornou base64 do áudio');\n\nconst buffer = Buffer.from(base64, 'base64');\n\nreturn [{\n  json: { ...item.json },\n  binary: {\n    audio: {\n      data: base64,\n      mimeType,\n      fileName: 'audio.ogg',\n      fileExtension: 'ogg',\n    }\n  }\n}];"
+      },
+      "id": "prepare-audio",
+      "name": "Preparar arquivo de áudio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 160]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "binaryPropertyName": "audio",
+        "options": {
+          "language": "pt"
+        }
+      },
+      "id": "whisper",
+      "name": "Transcrever áudio (Whisper)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1500, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge: pega o texto transcrito e injeta no item original da sessão\nconst transcription = $input.first().json.text ?? '';\n\n// Recupera dados da sessão do nó anterior\nconst sessao = $('Dados da sessão').first().json;\n\nreturn [{\n  json: {\n    ...sessao,\n    texto: transcription,\n    isAudioTranscribed: true,\n  }\n}];"
+      },
+      "id": "merge-transcricao",
+      "name": "Montar texto transcrito",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1700, 160]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "1", "name": "sessionId", "value": "={{ 'calo_' + $json.numero }}", "type": "string" },
+            { "id": "2", "name": "numero",    "value": "={{ $json.numero }}",    "type": "string" },
+            { "id": "3", "name": "nome",      "value": "={{ $json.pushName }}",  "type": "string" },
+            { "id": "4", "name": "texto",     "value": "={{ $json.texto }}",     "type": "string" },
+            { "id": "5", "name": "instance",  "value": "={{ $json.instance }}",  "type": "string" },
+            { "id": "6", "name": "remoteJid", "value": "={{ $json.remoteJid }}", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-dados",
+      "name": "Dados da sessão",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1100, 360]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.texto }}",
+        "options": {
+          "systemMessage": "Você é a Lia, atendente virtual especializada na venda de calopsitas do Calo Sistema.\n\nCliente: {{ $json.nome }} | WhatsApp: {{ $json.numero }}\n\n=====================================\n🎯 COMPORTAMENTO\n=====================================\n- Seja amigável, leve e natural\n- Fale como uma pessoa real (NUNCA como robô)\n- Use emojis com moderação (🐥💚😊)\n- Respostas curtas e claras (evitar textos longos)\n- Sempre avance a conversa (não fique passiva)\n\n=====================================\n📚 FONTES DE VERDADE\n=====================================\nUse APENAS os dados retornados pela tool `listar_filhotes`.\nNUNCA invente informação, preço ou disponibilidade.\n\n=====================================\n🧠 ESTRATÉGIA DE CONVERSA\n=====================================\n1. Responder a dúvida do cliente\n2. Validar interesse\n3. Reforçar valor (manso, saudável, criado com carinho)\n4. Conduzir para RESERVA\n\n=====================================\n🔥 DETECÇÃO DE INTENÇÃO\n=====================================\nQuando o cliente disser: \"quero\", \"tem disponível?\", \"como faço pra comprar?\", \"faz entrega?\", \"quero reservar\", \"quanto custa?\"\n→ conduza para reserva\n\n=====================================\n💰 MOMENTO DE OFERTA\n=====================================\nQuando o cliente demonstrar interesse:\n1. NÃO envie link direto\n2. Primeiro ofereça a reserva:\n\"Consigo reservar ela pra você com um sinal de R$50 💚 Quer que eu te envie o link pra garantir?\"\n\n=====================================\n💳 COLETA DE DADOS PARA RESERVA\n=====================================\nAntes de chamar `criar_reserva`, colete de forma natural:\n1. Nome completo\n2. E-mail (opcional)\n3. Endereço (cidade + estado no mínimo)\n4. Qual filhote deseja (ID do catálogo)\n\n=====================================\n💳 ENVIO DO LINK STRIPE\n=====================================\nDepois de criar a reserva, envie:\n\"Perfeito! 🙌\nAqui está o link para garantir a reserva com o sinal de R$50:\n[checkout_url]\nAssim que confirmar, já deixo ela separadinha pra você 💚🐥\"\n\n=====================================\n📦 SOBRE ENTREGA E FRETE\n=====================================\nO frete é calculado após a confirmação da reserva, com base no endereço do cliente.\nDiga ao cliente que o valor exato do frete será informado após o sinal, e que ele é cobrado à parte no pagamento final.\nExemplo: \"O frete é calculado após a reserva com base na sua cidade. Assim que confirmar o sinal, te passo o valor exato 😊\"\n\n=====================================\n📋 CONSULTAR PEDIDO\n=====================================\nSe o cliente perguntar sobre um pedido já feito (\"meu pagamento confirmou?\", \"cadê minha reserva?\", \"já foi aprovado?\"):\n→ use a tool `consultar_pedido` para verificar o status real\n\nStatus possíveis:\n- reserved: sinal aguardando pagamento\n- paid: sinal pago, reserva confirmada ✅\n- cancelled: reserva expirada ou cancelada\n\n=====================================\n🐥 SOBRE AS CALOPSITAS\n=====================================\nSempre reforce: são mansas, criadas com carinho, saudáveis, prontas para um novo lar. Sem exagero.\n\n=====================================\n🚫 O QUE NÃO FAZER\n=====================================\n- Não pressionar o cliente\n- Não repetir mensagens\n- Não mandar link sem contexto\n- Não responder de forma genérica\n- Não ignorar perguntas\n\n=====================================\n📌 REGRA DE OURO\n=====================================\nPrimeiro ajude. Depois conecte. Depois venda."
+        }
+      },
+      "id": "agent-lia",
+      "name": "Lia",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [2120, 300]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o"
+        },
+        "options": { "temperature": 0.7 }
+      },
+      "id": "openai-model",
+      "name": "GPT-4o",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1940, 520]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Dados da sessão').item.json.sessionId }}",
+        "tableName": "calo.chat_histories"
+      },
+      "id": "memory",
+      "name": "Memória Postgres",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [2120, 520]
+    },
+    {
+      "parameters": {
+        "name": "listar_filhotes",
+        "description": "Lista todos os filhotes de calopsita disponíveis para venda. Retorna id, nome, mutação, gênero, preço em centavos, data de nascimento, descrição e fotos. Use sempre que o cliente perguntar sobre disponibilidade, preços ou tipos de calopsitas.",
+        "method": "GET",
+        "url": "https://api.scheffelt.xyz/calo/public/filhotes",
+        "authentication": "none",
+        "sendQuery": false,
+        "sendBody": false,
+        "options": {}
+      },
+      "id": "tool-filhotes",
+      "name": "listar_filhotes",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [2300, 520]
+    },
+    {
+      "parameters": {
+        "name": "consultar_pedido",
+        "description": "Consulta o último pedido ou reserva do cliente pelo número de WhatsApp. Use quando o cliente perguntar sobre o status do pagamento, se a reserva foi confirmada, ou quanto ainda falta pagar. Retorna: status do pedido (reserved/paid/cancelled), valor do sinal pago, saldo restante e data de expiração da reserva.",
+        "method": "GET",
+        "url": "=https://api.scheffelt.xyz/calo/public/pedido/{{ $('Dados da sessão').item.json.numero }}",
+        "authentication": "none",
+        "sendQuery": false,
+        "sendBody": false,
+        "options": {}
+      },
+      "id": "tool-pedido",
+      "name": "consultar_pedido",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [2660, 520]
+    },
+    {
+      "parameters": {
+        "name": "criar_reserva",
+        "description": "Cria uma reserva para um filhote e retorna o link de pagamento Stripe (sinal de R$50). Use somente após coletar: nome completo, endereço, chick_id do filhote escolhido. O whatsapp é preenchido automaticamente.",
+        "method": "POST",
+        "url": "https://api.scheffelt.xyz/calo/public/reserva",
+        "authentication": "none",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={\n  \"whatsapp\": \"{{ $('Dados da sessão').item.json.numero }}\",\n  \"nome\": \"{nome_do_cliente}\",\n  \"email\": \"{email_opcional}\",\n  \"endereco\": \"{endereco_do_cliente}\",\n  \"chick_id\": \"{id_do_filhote}\"\n}",
+        "options": {}
+      },
+      "id": "tool-reserva",
+      "name": "criar_reserva",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [2480, 520]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendText",
+        "instanceName": "={{ $('Dados da sessão').item.json.instance }}",
+        "remoteJid": "={{ $('Dados da sessão').item.json.remoteJid }}",
+        "messageText": "={{ $json.output }}",
+        "options": {}
+      },
+      "id": "enviar-evo",
+      "name": "Enviar via WhatsApp",
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [2340, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "reserva-criada",
+              "leftValue": "={{ $json.output.includes('checkout.stripe.com') }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-reserva",
+      "name": "Reserva foi criada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2560, 300]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendText",
+        "instanceName": "={{ $('Dados da sessão').item.json.instance }}",
+        "remoteJid": "=5561995683105@s.whatsapp.net",
+        "messageText": "=🐥 *Nova reserva via WhatsApp!*\n\n👤 Cliente: {{ $('Dados da sessão').item.json.nome }}\n📱 WhatsApp: {{ $('Dados da sessão').item.json.numero }}\n\n🔗 Link Stripe enviado para o cliente.\n\n📋 Verifique o painel: https://admin.calo.scheffelt.xyz/reservas",
+        "options": {}
+      },
+      "id": "notificar-dono",
+      "name": "Notificar dono",
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [2780, 220]
+    },
+    {
+      "parameters": {
+        "content": "## 🐥 LIA — Atendente Calo\n\n**Fluxo:**\n```\nEvolution API → Webhook\n  → Normalizar\n  → Filtrar (fromMe / grupo / vazio)\n  → Switch: Texto ou Áudio?\n     → Áudio: download → preparar → Whisper → texto\n     → Texto: direto\n  → Unir fluxos → Lia (GPT-4o + Memória)\n     Tools:\n       listar_filhotes  → GET /calo/public/filhotes\n       criar_reserva    → POST /calo/public/reserva\n       consultar_pedido → GET /calo/public/pedido/:numero\n  → Enviar resposta\n  → Se gerou link Stripe → Notificar dono\n```\n\n**⚙️ Configurações obrigatórias após importar:**\n1. **GPT-4o** → credencial OpenAI\n2. **Memória Postgres** → credencial Postgres\n3. **Enviar via WhatsApp** e **Notificar dono** → credencial Evolution API\n4. **Download áudio** → credencial Evolution API (Header Auth: apikey)\n5. **Transcrever áudio** → credencial OpenAI\n6. ✅ URLs da API já apontam para `api.scheffelt.xyz`\n7. ✅ Evolution API já usa `127.0.0.1:8080` (interno VPS)\n8. **Notificar dono**: trocar `SUBSTITUIR_NUMERO_DONO` pelo seu número\n\n**Configurar no painel Evolution API:**\n- URL webhook → https://SEU_N8N/webhook/lia-calo\n- Eventos: messages.upsert",
+        "height": 420,
+        "width": 480,
+        "color": 4
+      },
+      "id": "sticky-note",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, -160]
+    },
+    {
+      "parameters": {
+        "content": "## 🎙️ Fluxo de Áudio\n\n1. **Download áudio** — chama Evolution API\n   para obter o base64 do arquivo\n2. **Preparar arquivo** — converte base64\n   para binário (audio.ogg)\n3. **Whisper** — transcreve para português\n4. **Montar texto** — injeta transcrição\n   no fluxo principal como se fosse texto",
+        "height": 220,
+        "width": 300,
+        "color": 6
+      },
+      "id": "sticky-audio",
+      "name": "Sticky Note Áudio",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1100, -60]
+    }
+  ],
+  "connections": {
+    "Webhook Evolution": {
+      "main": [
+        [
+          { "node": "Responder 200",       "type": "main", "index": 0 },
+          { "node": "Normalizar mensagem", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Normalizar mensagem": {
+      "main": [[ { "node": "Filtrar mensagens válidas", "type": "main", "index": 0 } ]]
+    },
+    "Filtrar mensagens válidas": {
+      "main": [
+        [ { "node": "Tipo de mensagem", "type": "main", "index": 0 } ]
+      ]
+    },
+    "Tipo de mensagem": {
+      "main": [
+        [ { "node": "Download áudio (Evolution)", "type": "main", "index": 0 } ],
+        [ { "node": "Dados da sessão",            "type": "main", "index": 0 } ]
+      ]
+    },
+    "Download áudio (Evolution)": {
+      "main": [[ { "node": "Preparar arquivo de áudio", "type": "main", "index": 0 } ]]
+    },
+    "Preparar arquivo de áudio": {
+      "main": [[ { "node": "Transcrever áudio (Whisper)", "type": "main", "index": 0 } ]]
+    },
+    "Transcrever áudio (Whisper)": {
+      "main": [[ { "node": "Montar texto transcrito", "type": "main", "index": 0 } ]]
+    },
+    "Montar texto transcrito": {
+      "main": [[ { "node": "Lia", "type": "main", "index": 0 } ]]
+    },
+    "Dados da sessão": {
+      "main": [[ { "node": "Lia", "type": "main", "index": 0 } ]]
+    },
+    "GPT-4o": {
+      "ai_languageModel": [[ { "node": "Lia", "type": "ai_languageModel", "index": 0 } ]]
+    },
+    "Memória Postgres": {
+      "ai_memory": [[ { "node": "Lia", "type": "ai_memory", "index": 0 } ]]
+    },
+    "listar_filhotes": {
+      "ai_tool": [[ { "node": "Lia", "type": "ai_tool", "index": 0 } ]]
+    },
+    "criar_reserva": {
+      "ai_tool": [[ { "node": "Lia", "type": "ai_tool", "index": 1 } ]]
+    },
+    "consultar_pedido": {
+      "ai_tool": [[ { "node": "Lia", "type": "ai_tool", "index": 2 } ]]
+    },
+    "Lia": {
+      "main": [[ { "node": "Enviar via WhatsApp", "type": "main", "index": 0 } ]]
+    },
+    "Enviar via WhatsApp": {
+      "main": [[ { "node": "Reserva foi criada?", "type": "main", "index": 0 } ]]
+    },
+    "Reserva foi criada?": {
+      "main": [
+        [ { "node": "Notificar dono", "type": "main", "index": 0 } ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [{ "name": "calo" }]
+}

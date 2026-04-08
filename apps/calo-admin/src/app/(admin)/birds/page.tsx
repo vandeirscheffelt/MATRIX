@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Plus, Search, Bird, Pencil, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Plus, Search, Bird, Pencil, Trash2, Upload, X } from 'lucide-react'
 import Image from 'next/image'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/Button'
@@ -14,9 +14,42 @@ import { useToast } from '@/components/ui/Toast'
 import { api } from '@/lib/api'
 import { formatCurrency } from '@/lib/utils'
 
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const ADMIN_KEY = process.env.NEXT_PUBLIC_CALO_ADMIN_KEY ?? ''
+
 const EMPTY_FORM = {
   name: '', mutation: '', gender: 'unknown', price_cents: '',
   description: '', birth_date: '', breeder_id: '', father_id: '', mother_id: '',
+}
+
+async function uploadPhoto(chickId: string, file: File): Promise<string[]> {
+  const body = new FormData()
+  body.append('photo', file)
+  const res = await fetch(`${BASE}/calo/admin/uploads/chick/${chickId}`, {
+    method: 'POST',
+    headers: { 'X-Calo-Admin-Key': ADMIN_KEY },
+    body,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err?.error ?? `HTTP ${res.status}`)
+  }
+  const json = await res.json()
+  return json.photos as string[]
+}
+
+async function deletePhoto(chickId: string, url: string): Promise<string[]> {
+  const res = await fetch(`${BASE}/calo/admin/uploads/chick/${chickId}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', 'X-Calo-Admin-Key': ADMIN_KEY },
+    body: JSON.stringify({ url }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err?.error ?? `HTTP ${res.status}`)
+  }
+  const json = await res.json()
+  return json.photos as string[]
 }
 
 export default function BirdsPage() {
@@ -31,6 +64,9 @@ export default function BirdsPage() {
   const [selected, setSelected] = useState<any>(null)
   const [form, setForm] = useState<any>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
+  const [photos, setPhotos] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const load = () => {
     setLoading(true)
@@ -49,6 +85,7 @@ export default function BirdsPage() {
   const openCreate = () => {
     setForm({ ...EMPTY_FORM, breeder_id: breeders[0]?.id ?? '' })
     setSelected(null)
+    setPhotos([])
     setModal('create')
   }
 
@@ -65,22 +102,58 @@ export default function BirdsPage() {
       mother_id: bird.mother_id ?? '',
     })
     setSelected(bird)
+    setPhotos(bird.photos ?? [])
     setModal('edit')
   }
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      const payload = { ...form, price_cents: Number(form.price_cents) }
-      if (modal === 'create') await api.birds.create(payload)
-      else await api.birds.update(selected.id, payload)
-      toast(modal === 'create' ? 'Filhote cadastrado!' : 'Filhote atualizado!')
+      const payload: any = { ...form, price_cents: Number(form.price_cents) }
+      if (!payload.father_id) delete payload.father_id
+      if (!payload.mother_id) delete payload.mother_id
+      if (!payload.breeder_id) delete payload.breeder_id
+      if (!payload.birth_date) delete payload.birth_date
+      if (modal === 'create') {
+        await api.birds.create(payload)
+        toast('Filhote cadastrado! Abra o modo edição para adicionar fotos.')
+      } else {
+        await api.birds.update(selected.id, payload)
+        toast('Filhote atualizado!')
+      }
       setModal(null)
       load()
     } catch (e: any) {
       toast(e.message, 'error')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !selected) return
+    setUploading(true)
+    try {
+      const updated = await uploadPhoto(selected.id, file)
+      setPhotos(updated)
+      toast('Foto adicionada!')
+    } catch (err: any) {
+      toast(err.message, 'error')
+    } finally {
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  const handleDeletePhoto = async (url: string) => {
+    if (!selected) return
+    try {
+      const updated = await deletePhoto(selected.id, url)
+      setPhotos(updated)
+      toast('Foto removida.')
+    } catch (err: any) {
+      toast(err.message, 'error')
     }
   }
 
@@ -209,6 +282,50 @@ export default function BirdsPage() {
                 className="w-full bg-bg-primary border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/50 resize-none" />
             </Field>
           </div>
+
+          {/* Fotos — só disponível na edição (precisa do ID) */}
+          {modal === 'edit' && (
+            <div className="col-span-2">
+              <Field label="Fotos">
+                <div className="space-y-3">
+                  {/* Grid de fotos existentes */}
+                  {photos.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {photos.map((url) => (
+                        <div key={url} className="relative group">
+                          <Image src={url} alt="foto" width={80} height={80}
+                            className="rounded-lg object-cover w-20 h-20 border border-white/[0.08]" />
+                          <button
+                            onClick={() => handleDeletePhoto(url)}
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X size={11} className="text-white" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Botão de upload */}
+                  <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp"
+                    className="hidden" onChange={handleUpload} />
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-white/[0.15] text-sm text-text-muted hover:border-accent/50 hover:text-text-secondary transition-colors disabled:opacity-50"
+                  >
+                    <Upload size={14} />
+                    {uploading ? 'Enviando...' : 'Adicionar foto'}
+                  </button>
+                </div>
+              </Field>
+            </div>
+          )}
+          {modal === 'create' && (
+            <div className="col-span-2 text-xs text-text-muted bg-white/[0.03] rounded-lg px-3 py-2">
+              Salve o filhote primeiro, depois abra a edição para adicionar fotos.
+            </div>
+          )}
         </div>
         <div className="flex justify-end gap-3 mt-5 pt-4 border-t border-white/[0.06]">
           <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>

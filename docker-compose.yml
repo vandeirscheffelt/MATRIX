@@ -1,0 +1,47 @@
+services:
+
+  # ── API Fastify ──────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: matrix-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    env_file:
+      - apps/api/.env.production
+    networks:
+      - matrix
+
+  # ── Web (catálogo público) ───────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: matrix-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - apps/web/.env.production
+    networks:
+      - matrix
+
+  # ── Calo Admin ───────────────────────────────────────────────────────────────
+  calo-admin:
+    build:
+      context: apps/calo-admin
+      dockerfile: Dockerfile
+    container_name: matrix-calo-admin
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    env_file:
+      - apps/calo-admin/.env.production
+    networks:
+      - matrix
+
+networks:
+  matrix:
+    driver: bridge

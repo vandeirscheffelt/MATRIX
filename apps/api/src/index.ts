@@ -20,7 +20,10 @@ const app = Fastify({ logger: true })
 await app.register(helmet)
 await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } })
 await app.register(cors, {
-  origin: process.env.WEB_URL ?? 'http://localhost:3000',
+  origin: [
+    process.env.WEB_URL ?? 'http://localhost:3000',
+    process.env.ADMIN_URL ?? 'http://localhost:3002',
+  ],
   credentials: true,
 })
 await app.register(rateLimit, { max: 100, timeWindow: '1 minute' })
@@ -57,9 +60,14 @@ const { requireCaloAdmin } = await import('./lib/calo-auth.js')
 await app.register(birdsRoutes, { prefix: '/calo/birds' })
 await app.register(ordersRoutes, { prefix: '/calo/orders' })
 
+// Rotas públicas para a IA (WhatsApp)
+const { whatsappReservaRoutes } = await import('./routes/calo/whatsapp-reserva.js')
+await app.register(whatsappReservaRoutes, { prefix: '/calo/public' })
+
 // Rotas admin — requerem X-Calo-Admin-Key
 await app.register(async (admin) => {
   admin.addHook('preHandler', requireCaloAdmin)
+  await admin.register(birdsRoutes,      { prefix: '/calo/admin/birds' })
   await admin.register(ordersListRoutes, { prefix: '/calo/admin/orders' })
   await admin.register(buyersRoutes,     { prefix: '/calo/admin/buyers' })
   await admin.register(breedersRoutes,   { prefix: '/calo/admin/breeders' })
