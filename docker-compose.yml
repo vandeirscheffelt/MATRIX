@@ -31,8 +31,8 @@ services:
   # ── Calo Admin ───────────────────────────────────────────────────────────────
   calo-admin:
     build:
-      context: apps/calo-admin
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/calo-admin/Dockerfile
     container_name: matrix-calo-admin
     restart: unless-stopped
     ports:
