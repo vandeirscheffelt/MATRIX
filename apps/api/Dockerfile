@@ -27,8 +27,24 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Root node_modules (pnpm virtual store + workspace symlinks)
 COPY --from=deps /app/node_modules ./node_modules
+
+# App node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+
+# Workspace packages (symlinked from apps/api/node_modules)
+COPY --from=deps /app/packages/auth/node_modules ./packages/auth/node_modules
+COPY --from=deps /app/packages/billing/node_modules ./packages/billing/node_modules
+COPY --from=deps /app/packages/database/node_modules ./packages/database/node_modules
+
+COPY --from=builder /app/packages/auth/src ./packages/auth/src
+COPY --from=builder /app/packages/auth/package.json ./packages/auth/package.json
+COPY --from=builder /app/packages/billing/src ./packages/billing/src
+COPY --from=builder /app/packages/billing/package.json ./packages/billing/package.json
+COPY --from=builder /app/packages/database/src ./packages/database/src
+COPY --from=builder /app/packages/database/package.json ./packages/database/package.json
+
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 
