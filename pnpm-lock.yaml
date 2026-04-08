@@ -369,6 +369,9 @@ importers:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.37
+      next:
+        specifier: ^14.2.0
+        version: 14.2.35(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(sass@1.98.0)
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
@@ -14766,6 +14769,32 @@ snapshots:
       - '@babel/core'
       - babel-plugin-macros
 
+  next@14.2.35(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(sass@1.98.0):
+    dependencies:
+      '@next/env': 14.2.35
+      '@swc/helpers': 0.5.5
+      busboy: 1.6.0
+      caniuse-lite: 1.0.30001782
+      graceful-fs: 4.2.11
+      postcss: 8.4.31
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      styled-jsx: 5.1.1(react@19.2.4)
+    optionalDependencies:
+      '@next/swc-darwin-arm64': 14.2.33
+      '@next/swc-darwin-x64': 14.2.33
+      '@next/swc-linux-arm64-gnu': 14.2.33
+      '@next/swc-linux-arm64-musl': 14.2.33
+      '@next/swc-linux-x64-gnu': 14.2.33
+      '@next/swc-linux-x64-musl': 14.2.33
+      '@next/swc-win32-arm64-msvc': 14.2.33
+      '@next/swc-win32-ia32-msvc': 14.2.33
+      '@next/swc-win32-x64-msvc': 14.2.33
+      sass: 1.98.0
+    transitivePeerDependencies:
+      - '@babel/core'
+      - babel-plugin-macros
+
   next@16.2.2(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(sass@1.98.0):
     dependencies:
       '@next/env': 16.2.2
@@ -16302,6 +16331,11 @@ snapshots:
     dependencies:
       client-only: 0.0.1
       react: 18.3.1
+
+  styled-jsx@5.1.1(react@19.2.4):
+    dependencies:
+      client-only: 0.0.1
+      react: 19.2.4
 
   styled-jsx@5.1.6(@babel/core@7.29.0)(react@19.2.4):
     dependencies:
