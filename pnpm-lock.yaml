@@ -296,31 +296,6 @@ importers:
         specifier: 5.3.3
         version: 5.3.3
 
-  apps/lovable-proxy/backend:
-    dependencies:
-      '@anthropic-ai/sdk':
-        specifier: ^0.82.0
-        version: 0.82.0(zod@3.25.76)
-      '@fastify/cors':
-        specifier: ^9.0.1
-        version: 9.0.1
-      dotenv:
-        specifier: ^16.4.5
-        version: 16.6.1
-      fastify:
-        specifier: ^4.29.1
-        version: 4.29.1
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.5
-        version: 20.19.37
-      tsx:
-        specifier: ^4.7.1
-        version: 4.21.0
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
   apps/web:
     dependencies:
       '@boilerplate/auth':
@@ -335,6 +310,9 @@ importers:
       '@boilerplate/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      clsx:
+        specifier: ^2.1.0
+        version: 2.1.1
       lucide-react:
         specifier: ^1.7.0
         version: 1.7.0(react@18.3.1)
@@ -347,6 +325,9 @@ importers:
       react-dom:
         specifier: ^18.3.0
         version: 18.3.1(react@18.3.1)
+      tailwind-merge:
+        specifier: ^2.3.0
+        version: 2.6.1
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -485,15 +466,6 @@ packages:
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
-
-  '@anthropic-ai/sdk@0.82.0':
-    resolution: {integrity: sha512-xdHTjL1GlUlDugHq/I47qdOKp/ROPvuHl7ROJCgUQigbvPu7asf9KcAcU1EqdrP2LuVhEKaTs7Z+ShpZDRzHdQ==}
-    hasBin: true
-    peerDependencies:
-      zod: ^3.25.0 || ^4.0.0
-    peerDependenciesMeta:
-      zod:
-        optional: true
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
@@ -8176,12 +8148,6 @@ snapshots:
     dependencies:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.31
-
-  '@anthropic-ai/sdk@0.82.0(zod@3.25.76)':
-    dependencies:
-      json-schema-to-ts: 3.1.1
-    optionalDependencies:
-      zod: 3.25.76
 
   '@babel/code-frame@7.29.0':
     dependencies:
