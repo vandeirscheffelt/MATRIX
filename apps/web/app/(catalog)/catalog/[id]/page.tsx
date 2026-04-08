@@ -1,29 +1,10 @@
 import { notFound } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowLeft, Bird } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { ReserveButton } from '@/components/catalog/ReserveButton'
 import { StatusBadge } from '@/components/catalog/StatusBadge'
 import { PhotoGallery } from '@/components/catalog/PhotoGallery'
-
-function ParentCard({ label, parent }: { label: string; parent: { name?: string; mutation: string; photos?: string[] } }) {
-  const photo = parent.photos?.[0] ?? null
-  return (
-    <div className="flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
-      <div className="relative w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden bg-zinc-800">
-        {photo
-          ? <Image src={photo} alt={parent.name ?? parent.mutation} fill className="object-cover" />
-          : <div className="w-full h-full flex items-center justify-center"><Bird size={16} className="text-zinc-600" /></div>
-        }
-      </div>
-      <div className="min-w-0">
-        <p className="text-[10px] text-zinc-500 uppercase tracking-wider leading-none mb-1">{label}</p>
-        <p className="text-sm font-medium text-zinc-100 truncate">{parent.name ?? parent.mutation}</p>
-        {parent.name && <p className="text-xs text-zinc-500 truncate">{parent.mutation}</p>}
-      </div>
-    </div>
-  )
-}
+import { ParentSection } from '@/components/catalog/ParentSection'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -111,19 +92,7 @@ export default async function BirdDetailPage({ params }: { params: { id: string 
           <ReserveButton bird={bird} />
 
           {/* Genética */}
-          {(bird.father || bird.mother) && (
-            <div className="pt-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">Genética</h2>
-              <div className="grid grid-cols-2 gap-3">
-                {bird.father && (
-                  <ParentCard label="Pai" parent={bird.father} />
-                )}
-                {bird.mother && (
-                  <ParentCard label="Mãe" parent={bird.mother} />
-                )}
-              </div>
-            </div>
-          )}
+          <ParentSection father={bird.father} mother={bird.mother} />
         </div>
       </main>
     </div>
