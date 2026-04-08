@@ -1,5 +1,5 @@
 export { createClient } from './client'
-export { createServerSupabaseClient, createServiceRoleClient } from './server'
+// Server-only exports: import from '@boilerplate/auth/server' instead
 export { updateSession } from './middleware'
 export { signUp, signIn, signOut, resetPassword, updatePassword, getUser } from './actions'
 export type {
