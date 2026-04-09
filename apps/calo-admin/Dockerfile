@@ -5,8 +5,7 @@ RUN npm install -g pnpm
 FROM base AS deps
 WORKDIR /app
 COPY apps/calo-admin/package.json ./
-COPY apps/calo-admin/pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 FROM base AS builder
