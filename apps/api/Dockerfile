@@ -39,6 +39,9 @@ COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=deps /app/packages/billing/node_modules ./packages/billing/node_modules
 COPY --from=deps /app/packages/database/node_modules ./packages/database/node_modules
 
+# Prisma generated client (only exists after prisma generate in builder)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
 COPY --from=builder /app/packages/billing/dist ./packages/billing/dist
 COPY --from=builder /app/packages/billing/package.json ./packages/billing/package.json
 COPY --from=builder /app/packages/database/dist ./packages/database/dist
