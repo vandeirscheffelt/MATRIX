@@ -33,6 +33,11 @@ services:
     build:
       context: .
       dockerfile: apps/calo-admin/Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: https://tbapcaxbawruijrigafn.supabase.co
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiYXBjYXhiYXdydWlqcmlnYWZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MTg3NTEsImV4cCI6MjA4NTI5NDc1MX0.bocnd-c7kiyaSYrqr6SD6908cQ399X52ge_FQHuLy9I
+        NEXT_PUBLIC_API_URL: https://api.scheffelt.xyz
+        NEXT_PUBLIC_CALO_ADMIN_KEY: f2a13946db2aef7c075dd369a8e050aaf36f05d572b65899107bbc73bed8482e
     container_name: matrix-calo-admin
     restart: unless-stopped
     ports:
