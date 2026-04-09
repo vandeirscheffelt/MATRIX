@@ -1,5 +1,5 @@
-import { geocodeAddress } from './geocode'
-import { haversineKm } from './distance'
+import { geocodeAddress } from './geocode.js'
+import { haversineKm } from './distance.js'
 
 export interface ShippingConfig {
   /** Preço por km em reais (ex: 0.50) */

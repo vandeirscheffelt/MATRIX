@@ -1,4 +1,4 @@
-export { calculateShipping } from './calculate'
-export type { ShippingConfig, ShippingResult } from './calculate'
-export { geocodeAddress } from './geocode'
-export { haversineKm } from './distance'
+export { calculateShipping } from './calculate.js'
+export type { ShippingConfig, ShippingResult } from './calculate.js'
+export { geocodeAddress } from './geocode.js'
+export { haversineKm } from './distance.js'

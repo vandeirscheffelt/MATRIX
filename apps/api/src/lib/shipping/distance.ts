@@ -1,4 +1,4 @@
-import type { Coordinates } from './geocode'
+import type { Coordinates } from './geocode.js'
 
 const EARTH_RADIUS_KM = 6371
 
