@@ -1,6 +1,8 @@
 'use client'
 
-import { Menu } from 'lucide-react'
+import { Menu, LogOut } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 
 interface HeaderProps {
   title: string
@@ -10,6 +12,14 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle, action, onMenuClick }: HeaderProps) {
+  const router = useRouter()
+  const supabase = createClient()
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] bg-bg-primary sticky top-0 z-10">
       <div className="flex items-center gap-4">
@@ -24,7 +34,16 @@ export function Header({ title, subtitle, action, onMenuClick }: HeaderProps) {
           {subtitle && <p className="text-sm text-text-secondary mt-0.5">{subtitle}</p>}
         </div>
       </div>
-      {action && <div>{action}</div>}
+      <div className="flex items-center gap-3">
+        {action && <div>{action}</div>}
+        <button
+          onClick={handleLogout}
+          title="Sair"
+          className="text-text-secondary hover:text-red-400 transition-colors p-1"
+        >
+          <LogOut size={18} />
+        </button>
+      </div>
     </header>
   )
 }
