@@ -1,4 +1,5 @@
 FROM node:20-alpine AS base
+RUN apk add --no-cache openssl
 RUN npm install -g pnpm
 
 # ── Dependências ──────────────────────────────────────────────────────────────
@@ -20,6 +21,7 @@ COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=deps /app/packages/database/node_modules ./packages/database/node_modules
 COPY . .
 RUN packages/database/node_modules/.bin/prisma generate --schema=packages/database/prisma/schema.prisma
+RUN ls packages/database/generated/client/
 RUN pnpm --filter @boilerplate/database build
 RUN pnpm --filter @boilerplate/billing build
 RUN pnpm --filter @matrix/api build
