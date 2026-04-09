@@ -69,3 +69,6 @@ coverage/
 *.tgz
 *.tar.gz
 *.zip
+
+# Prisma generated client
+packages/database/generated/
