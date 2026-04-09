@@ -3,12 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "main": "./dist/index.js",
-  "exports": {
-    ".": "./dist/index.js",
-    "./stripe": "./dist/stripe.js",
-    "./webhooks": "./dist/webhooks.js",
-    "./types": "./dist/types.js"
-  },
   "dependencies": {
     "stripe": "^16.0.0"
   },

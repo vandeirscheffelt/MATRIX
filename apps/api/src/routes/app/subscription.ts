@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { prisma } from '@boilerplate/database/client'
-import { createCheckoutSession, createPortalSession } from '@boilerplate/billing/stripe'
+import { prisma } from '@boilerplate/database'
+import { createCheckoutSession, createPortalSession } from '@boilerplate/billing'
 import { requireAuth } from '../../lib/auth.js'
 
 const checkoutBody = z.object({

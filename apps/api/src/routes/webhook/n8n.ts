@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { prisma } from '@boilerplate/database/client'
+import { prisma } from '@boilerplate/database'
 
 // Segredo compartilhado entre Fastify e n8n
 function requireWebhookSecret(request: any, reply: any) {

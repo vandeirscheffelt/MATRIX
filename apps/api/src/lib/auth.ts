@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { createClient } from '@supabase/supabase-js'
-import { prisma } from '@boilerplate/database/client'
+import { prisma } from '@boilerplate/database'
 
 function supabaseServiceRole() {
   return createClient(

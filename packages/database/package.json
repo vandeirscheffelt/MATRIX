@@ -3,11 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "main": "./dist/index.js",
-  "exports": {
-    ".": "./dist/index.js",
-    "./client": "./dist/client.js",
-    "./types": "./dist/types.js"
-  },
   "dependencies": {
     "@prisma/client": "^5.14.0",
     "@supabase/supabase-js": "^2.44.0"

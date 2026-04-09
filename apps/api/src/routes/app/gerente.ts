@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { prisma } from '@boilerplate/database/client'
+import { prisma } from '@boilerplate/database'
 import { requireAuth, requireActiveSubscription } from '../../lib/auth.js'
 
 const gerenteBody = z.object({

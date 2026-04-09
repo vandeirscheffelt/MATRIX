@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { prisma } from '@boilerplate/database/client'
+import { prisma } from '@boilerplate/database'
 import { requireAuth, requireActiveSubscription } from '../../lib/auth.js'
 
 const EVO_BASE_URL = process.env.EVOLUTION_API_URL!

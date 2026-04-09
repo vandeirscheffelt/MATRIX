@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { createClient } from '@supabase/supabase-js'
-import { prisma } from '@boilerplate/database/client'
+import { prisma } from '@boilerplate/database'
 import { requireAuth } from '../lib/auth.js'
 
 function supabaseServiceRole() {
