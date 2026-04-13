@@ -1,0 +1,21 @@
+{
+  "name": "paperclip-plugin-github-search",
+  "version": "1.0.0",
+  "description": "Plugin Paperclip para o Almoxarife buscar módulos e arquivos no repositório Matrix (GitHub API)",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "paperclipPlugin": {
+    "manifest": "./dist/manifest-src/manifest.cjs",
+    "worker": "./dist/worker.js"
+  },
+  "dependencies": {
+    "@paperclipai/plugin-sdk": "^2026.403.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^5.9.3"
+  }
+}

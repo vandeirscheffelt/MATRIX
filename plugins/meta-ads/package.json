@@ -1,0 +1,22 @@
+{
+  "name": "paperclip-plugin-meta-ads",
+  "version": "1.0.0",
+  "description": "Plugin Paperclip para verificar e monitorar campanhas Meta Ads",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "paperclipPlugin": {
+    "manifest": "./dist/manifest-src/manifest.cjs",
+    "worker": "./dist/worker-src/worker.js"
+  },
+  "dependencies": {
+    "@paperclipai/plugin-sdk": "^2026.403.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

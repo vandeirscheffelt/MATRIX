@@ -111,16 +111,27 @@ UI:         shadcn/ui padronizado                   (@boilerplate/ui)
 
 ```
 Matrix/
-├── apps/
+├── apps/               # Produtos SaaS deployáveis
 │   ├── web/            # Next.js App Router (frontend)
 │   ├── api/            # Fastify (backend)
 │   └── gmaps-scraper/  # Scraper Google Maps
 │
-├── packages/
+├── packages/           # Módulos reutilizáveis (@boilerplate/*)
 │   ├── auth/           # @boilerplate/auth (Supabase)
 │   ├── billing/        # @boilerplate/billing (Stripe)
 │   ├── ui/             # @boilerplate/ui (shadcn)
 │   └── database/       # @boilerplate/database (Prisma + Supabase)
+│
+├── plugins/            # Plugins Paperclip (músculos dos agentes)
+│   ├── 00_REGRA_DOS_PLUGINS.md
+│   ├── PLUGIN_GUIDE.md
+│   └── meta-ads/       # Plugin Meta Ads (instalado)
+│
+├── paperclip-org/      # Cérebro da holding — prompts e hierarquia de agentes
+│   ├── 00_REGRA_DOS_AGENTES.md
+│   ├── 01_C_Level/
+│   ├── 02_Managers/
+│   └── 03_Specialists/
 │
 ├── infra/
 │   ├── nginx/          # config OpenResty/Nginx

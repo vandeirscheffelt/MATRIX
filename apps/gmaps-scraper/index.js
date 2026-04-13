@@ -124,7 +124,8 @@ async function workerLoop() {
       const searchQuery = `${categoria} em ${localidade}`;
       console.log(`\n🗺️ Iniciando: "${searchQuery}"`);
 
-      const browser = await puppeteer.launch({
+      let browser;
+      browser = await puppeteer.launch({
           headless: "new",
           args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
@@ -223,8 +224,6 @@ async function workerLoop() {
         }
       }
 
-      await browser.close();
-
       // ============================
       // CONCLUIR E FECHAR O JOB
       // ============================
@@ -247,6 +246,8 @@ async function workerLoop() {
     } catch (globalE) {
       console.error('Falha severa no ciclo. Reiniciando logica em 10s...', globalE);
       await new Promise(r => setTimeout(r, 10000));
+    } finally {
+      if (browser) await browser.close().catch(() => {});
     }
   }
 }
