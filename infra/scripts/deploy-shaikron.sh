@@ -24,8 +24,13 @@ log "Código atualizado ($(git rev-parse --short HEAD))"
 # 2. Nginx
 info "Configurando nginx..."
 cp "$NGINX_CONF" "$NGINX_DEST"
-nginx -t && nginx -s reload
-log "Nginx recarregado"
+# Tenta reload pelo PID direto (OpenResty sem binário no PATH padrão)
+NGINX_PID=$(cat /run/nginx.pid 2>/dev/null || pgrep -f "nginx: master" | head -1)
+if [ -n "$NGINX_PID" ]; then
+  kill -HUP "$NGINX_PID" && log "Nginx recarregado (HUP pid $NGINX_PID)"
+else
+  warn "Não foi possível recarregar nginx — conf copiada, reinicie manualmente"
+fi
 
 # 3. Build + deploy do container
 info "Build da imagem Docker..."
