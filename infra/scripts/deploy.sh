@@ -67,10 +67,18 @@ deploy_wpp() {
   log "matrix-wpp reiniciado"
 }
 
+deploy_shaikron() {
+  info "Build: apps/api (Shaikron)..."
+  pnpm --filter @matrix/api build
+  pm2 restart shaikron-api --update-env 2>/dev/null || pm2 start ecosystem.shaikron.config.js
+  log "shaikron-api reiniciado"
+}
+
 case "$TARGET" in
-  web)  deploy_web ;;
-  api)  deploy_api ;;
-  wpp)  deploy_wpp ;;
+  web)      deploy_web ;;
+  api)      deploy_api ;;
+  wpp)      deploy_wpp ;;
+  shaikron) deploy_shaikron ;;
   all)
     deploy_web
     deploy_api

@@ -31,6 +31,14 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
   ;(request as any).role = usuario.role
 }
 
+// Bloqueia se não for ADMIN_GLOBAL
+export async function requireAdminGlobal(request: FastifyRequest, reply: FastifyReply) {
+  const role = (request as any).role
+  if (role !== 'ADMIN_GLOBAL') {
+    return reply.code(403).send({ error: 'Acesso restrito a administradores globais' })
+  }
+}
+
 // Bloqueia se trial expirado e sem assinatura ativa
 export async function requireActiveSubscription(request: FastifyRequest, reply: FastifyReply) {
   const empresaId = (request as any).empresaId as string

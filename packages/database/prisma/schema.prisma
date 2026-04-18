@@ -30,6 +30,7 @@ model Empresa {
   usuarios         Usuario[]
   subscription     Subscription?
   profissionais    Profissional[]
+  servicos         Servico[]
   instancia        InstanciaWhatsApp?
   configBot        ConfigBot?
   numerosGerente   NumeroGerente[]
@@ -38,6 +39,9 @@ model Empresa {
   agendamentos     Agendamento[]
   chatHistories    ChatHistory[]
   eventos          AnalyticsEvento[]
+  faqEntries       FaqEntry[]
+  faqSugestoes     FaqSugestao[]
+  keywords         Keyword[]
 
   @@map("empresas")
   @@schema("atendente_ia")
@@ -63,6 +67,8 @@ model Usuario {
 enum RoleUsuario {
   ADMIN
   PROFISSIONAL
+  ADMIN_GLOBAL
+  ACCOUNT_OWNER
 
   @@map("role_usuario_enum")
   @@schema("atendente_ia")
@@ -111,13 +117,46 @@ model Profissional {
   ativo             Boolean  @default(true)
   criadoEm          DateTime @default(now()) @map("criado_em")
 
-  empresa       Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  usuario       Usuario?       @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
-  gradeHorarios GradeHorario[]
-  bloqueios     Bloqueio[]
-  agendamentos  Agendamento[]
+  empresa              Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  usuario              Usuario?              @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  gradeHorarios        GradeHorario[]
+  bloqueios            Bloqueio[]
+  agendamentos         Agendamento[]
+  profissionalServicos ProfissionalServico[]
 
   @@map("profissionais")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
+// Serviços oferecidos pela empresa
+// -----------------------------------------------------------------------------
+
+model Servico {
+  id        String   @id @default(uuid())
+  empresaId String   @map("empresa_id")
+  nome      String
+  duracaoMin Int     @default(60) @map("duracao_min")
+  ordem     Int      @default(0)
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  empresa              Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  profissionalServicos ProfissionalServico[]
+
+  @@map("servicos")
+  @@schema("atendente_ia")
+}
+
+model ProfissionalServico {
+  profissionalId String @map("profissional_id")
+  servicoId      String @map("servico_id")
+
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  servico      Servico      @relation(fields: [servicoId], references: [id], onDelete: Cascade)
+
+  @@id([profissionalId, servicoId])
+  @@map("profissional_servicos")
   @@schema("atendente_ia")
 }
 
@@ -212,17 +251,24 @@ enum StatusInstancia {
 // -----------------------------------------------------------------------------
 
 model ConfigBot {
-  id               String   @id @default(uuid())
-  empresaId        String   @unique @map("empresa_id")
-  prompt           String   @db.Text
-  tom              TomBot   @default(FORMAL)
-  palavraPausa     String   @default("#humano") @map("palavra_pausa")
-  palavraRetorno   String   @default("#bot") @map("palavra_retorno")
-  tempoRetornoMin  Int?     @map("tempo_retorno_min") // null = usa palavra, número = usa tempo
-  faq              Json     @default("[]")
-  botAtivo         Boolean  @default(true) @map("bot_ativo")
-  criadoEm         DateTime @default(now()) @map("criado_em")
-  atualizadoEm     DateTime @updatedAt @map("atualizado_em")
+  id                   String   @id @default(uuid())
+  empresaId            String   @unique @map("empresa_id")
+  prompt               String   @db.Text
+  tom                  TomBot   @default(FORMAL)
+  palavraPausa         String   @default("#humano") @map("palavra_pausa")
+  palavraRetorno       String   @default("#bot") @map("palavra_retorno")
+  tempoRetornoMin      Int?     @map("tempo_retorno_min")
+  faq                  Json     @default("[]")
+  botAtivo             Boolean  @default(true) @map("bot_ativo")
+  idioma               String   @default("pt-BR")
+  tipoNegocio          String?  @map("tipo_negocio")
+  contextoOperacional  String?  @map("contexto_operacional") @db.Text
+  identidade           String   @default("assistente_virtual")
+  disponibilidade      String   @default("horario_comercial")
+  horarioInicio        String   @default("08:00") @map("horario_inicio")
+  horarioFim           String   @default("18:00") @map("horario_fim")
+  criadoEm             DateTime @default(now()) @map("criado_em")
+  atualizadoEm         DateTime @updatedAt @map("atualizado_em")
 
   empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
@@ -286,18 +332,47 @@ model Lead {
 }
 
 model Conversa {
-  id          String       @id @default(uuid())
-  leadId      String       @unique @map("lead_id")
-  empresaId   String       @map("empresa_id")
-  statusIa    StatusIa     @default(ATIVO) @map("status_ia")
-  pausadoEm   DateTime?    @map("pausado_em")
-  retornoEm   DateTime?    @map("retorno_em") // preenchido se usar tempo automático
-  atualizadoEm DateTime    @updatedAt @map("atualizado_em")
+  id              String       @id @default(uuid())
+  leadId          String       @unique @map("lead_id")
+  empresaId       String       @map("empresa_id")
+  statusIa        StatusIa     @default(ATIVO) @map("status_ia")
+  pausadoEm       DateTime?    @map("pausado_em")
+  retornoEm       DateTime?    @map("retorno_em")
+  arquivada       Boolean      @default(false)
+  resolvidaEm     DateTime?    @map("resolvida_em")
+  ultimaMensagem  String?      @map("ultima_mensagem") @db.Text
+  ultimaAtividade DateTime?    @map("ultima_atividade")
+  atualizadoEm    DateTime     @updatedAt @map("atualizado_em")
 
-  lead    Lead    @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  lead          Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  empresa       Empresa            @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  mensagens     MensagemConversa[]
+  faqSugestoes  FaqSugestao[]
 
   @@map("conversas")
+  @@schema("atendente_ia")
+}
+
+model MensagemConversa {
+  id          String   @id @default(uuid())
+  conversaId  String   @map("conversa_id")
+  origem      OrigemMensagem
+  conteudo    String   @db.Text
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  conversa Conversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+
+  @@index([conversaId, criadoEm])
+  @@map("mensagens_conversa")
+  @@schema("atendente_ia")
+}
+
+enum OrigemMensagem {
+  LEAD
+  BOT
+  HUMANO
+
+  @@map("origem_mensagem_enum")
   @@schema("atendente_ia")
 }
 
@@ -324,6 +399,98 @@ model ChatHistory {
 
   @@index([sessionId, empresaId])
   @@map("chat_histories")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
+// FAQ
+// -----------------------------------------------------------------------------
+
+model FaqEntry {
+  id        String   @id @default(uuid())
+  empresaId String   @map("empresa_id")
+  pergunta  String
+  resposta  String
+  origem    String   @default("manual") // 'manual' | 'sugestao_ia'
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId])
+  @@map("faq_entries")
+  @@schema("atendente_ia")
+}
+
+model FaqSugestao {
+  id                String    @id @default(uuid())
+  empresaId         String    @map("empresa_id")
+  pergunta          String
+  respostaSugerida  String    @map("resposta_sugerida")
+  status            String    @default("pendente") // 'pendente' | 'aprovada' | 'rejeitada'
+  origemConversaId  String?   @map("origem_conversa_id")
+  criadoEm          DateTime  @default(now()) @map("criado_em")
+
+  empresa  Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  conversa Conversa? @relation(fields: [origemConversaId], references: [id], onDelete: SetNull)
+
+  @@index([empresaId, status])
+  @@map("faq_sugestoes")
+  @@schema("atendente_ia")
+}
+
+model Keyword {
+  id        String   @id @default(uuid())
+  empresaId String   @map("empresa_id")
+  palavra   String
+  origem    String   @default("manual") // 'manual' | 'sugestao_ia'
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, palavra])
+  @@map("keywords")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
+// Admin — Pricing, Produtos e Módulos
+// -----------------------------------------------------------------------------
+
+model PricingVersion {
+  id          String    @id @default(uuid())
+  nome        String
+  descricao   String?
+  ativa       Boolean   @default(false)
+  payload     Json      @default("{}")
+  criadoEm    DateTime  @default(now()) @map("criado_em")
+  ativadoEm   DateTime? @map("ativado_em")
+
+  @@map("pricing_versions")
+  @@schema("atendente_ia")
+}
+
+model ExternalProduct {
+  id        String   @id @default(uuid())
+  nome      String
+  descricao String?
+  url       String?
+  ativo     Boolean  @default(true)
+  ordem     Int      @default(0)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  @@map("external_products")
+  @@schema("atendente_ia")
+}
+
+model InternalModule {
+  id        String   @id @default(uuid())
+  nome      String
+  descricao String?
+  chave     String   @unique
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  @@map("internal_modules")
   @@schema("atendente_ia")
 }
 
