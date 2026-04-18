@@ -8,21 +8,14 @@ services:
     build:
       context: ../../../          # raiz do monorepo
       dockerfile: apps/api/Dockerfile
-    ports:
-      - "3004:3001"
+    network_mode: host
     environment:
       NODE_ENV: production
-      PORT: 3001
+      PORT: 3004
     env_file:
       - /var/www/matrix/.env      # carrega o .env da VPS (nunca commitar)
-    networks:
-      - shaikron-net
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
-
-networks:
-  shaikron-net:
-    driver: bridge
