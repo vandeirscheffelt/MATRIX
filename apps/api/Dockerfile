@@ -6,9 +6,9 @@ RUN npm install -g pnpm@9
 FROM base AS deps
 WORKDIR /app
 
-# Manifests do monorepo
+# Manifests e configs do monorepo
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY turbo.json ./
+COPY turbo.json tsconfig.base.json ./
 
 # Manifests de todos os packages usados pela API
 COPY apps/api/package.json ./apps/api/
