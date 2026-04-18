@@ -11,9 +11,10 @@ COMPOSE_FILE="${APP_DIR}/infra/docker/shaikron/docker-compose.yml"
 NGINX_CONF="${APP_DIR}/infra/nginx/shaikron.conf"
 NGINX_DEST="/etc/nginx/conf.d/shaikron.conf"
 
-GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
+GREEN='\033[0;32m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'; NC='\033[0m'
 log()  { echo -e "${GREEN}[✓]${NC} $1"; }
 info() { echo -e "${BLUE}[→]${NC} $1"; }
+warn() { echo -e "${YELLOW}[!]${NC} $1"; }
 
 # 1. Pull do código
 info "Atualizando código..."
