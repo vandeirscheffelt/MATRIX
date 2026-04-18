@@ -1,6 +1,6 @@
 # Atendente IA — Status de Desenvolvimento do Backend
 > Sessão iniciada em: 2026-04-17
-> Última atualização: 2026-04-17 — Todas as 4 fases concluídas ✅
+> Última atualização: 2026-04-18 — HTTPS ativo em app.shaikron.scheffelt.xyz, todos os hooks wired ✅
 > Atualizar sempre que um item for concluído ou iniciado.
 
 ---
@@ -146,6 +146,44 @@ STRIPE_WEBHOOK_SECRET_SHAIKRON=whsec_xxx    # Secret do webhook /webhook/stripe/
 
 ---
 
+## FASE 5 — Deploy + Frontend ✅ CONCLUÍDA
+
+### Infra / Deploy
+| Item | Status |
+|------|--------|
+| Dockerfile multi-stage (deps → builder → runner) | ✅ |
+| `infra/docker/shaikron/docker-compose.yml` porta 3004 | ✅ |
+| `infra/nginx/shaikron.conf` → `api.shaikron.scheffelt.xyz` | ✅ |
+| `infra/scripts/deploy-shaikron.sh` | ✅ |
+| Container `shaikron-api` rodando na VPS Speedfy | ✅ |
+| `GET /health` respondendo `{"status":"ok"}` | ✅ |
+
+### Frontend (`apps/shaikron-web/`)
+| Item | Status |
+|------|--------|
+| Copiar Lovable → `apps/shaikron-web/` | ✅ |
+| `src/lib/supabase.ts` — cliente Supabase | ✅ |
+| `src/lib/apiClient.ts` — HTTP client com JWT automático | ✅ |
+| `AuthContext` — login/logout real (Supabase) | ✅ |
+| Google OAuth funcionando (redirect URL configurada) | ✅ |
+| `useServices` — fetch real `/app/servicos` | ✅ |
+| `useSettings` — fetch real `/app/config` | ✅ |
+| `useConversations` — wiring real | ✅ |
+| `useProfessionals` — wiring real | ✅ |
+| `useAvailability` / `useAppointments` — wiring real | ✅ |
+| Deploy do frontend na VPS (Docker + nginx:alpine, porta 3005) | ✅ |
+
+### Próximos passos (ordem sugerida)
+1. Wiring `useConversations` → `/app/conversas`
+2. Wiring `useProfessionals` → `/app/profissionais`
+3. Wiring `useAvailability` + `useAppointments` → `/app/agenda`
+4. Dashboard real → `/app/dashboard/overview`
+5. Billing page → `/app/billing/status` + checkout
+6. Deploy do frontend (Vercel ou container na VPS)
+7. DNS `app.shaikron.scheffelt.xyz` apontando para o frontend
+
+---
+
 ## Arquivos criados nesta sessão
 
 ```
@@ -188,3 +226,46 @@ packages/database/prisma/
 5. **FAQ hoje é JSON** no `ConfigBot` — migrar na Fase 2 antes de implementar IA02
 6. **Trial de 3 dias** inicia automaticamente no signup — não requer cartão
 7. **Admin routes** protegidas por role `ADMIN_GLOBAL`, não por `empresaId`
+
+## O que ainda falta:
+A ordem é:
+
+Frontend na VPS → app.shaikron.scheffelt.xyz acessível no browser
+Testar o fluxo completo → login, onboarding, conversas, agenda
+Ajustar n8n → os fluxos de WhatsApp precisam chamar os endpoints da API (api.shaikron.scheffelt.xyz) para:
+Criar/atualizar leads e conversas
+Salvar mensagens no histórico
+Verificar se a IA está pausada antes de responder
+Acionar o motor de agendamento
+Enviar resumos para o gerente
+---
+
+## Infraestrutura de Deploy (2026-04-18)
+
+### OpenResty (Speedfy/icontainer) — como recarregar
+- Confs: `/etc/icontainer/apps/openresty/openresty/conf/conf.d/`
+- Certs SSL: `conf/conf.d/certs/shaikron-fullchain.pem` + `shaikron-privkey.pem`
+- Cert expira: **2026-07-17** — ao renovar, recopiar para `conf/conf.d/certs/` e rodar o reload
+- **Reload obrigatório:** `nsenter -t $(pgrep -f openresty | head -1) -m -u -i -n -p -- /usr/local/openresty/nginx/sbin/nginx -s reload`
+- ⚠️ `kill -HUP` **não funciona** neste ambiente
+
+### URLs ativas
+| Serviço | URL | Status |
+|---------|-----|--------|
+| Frontend | https://app.shaikron.scheffelt.xyz | ✅ HTTPS |
+| API | https://api.shaikron.scheffelt.xyz | ✅ HTTPS |
+
+---
+
+## Próximos passos (pós-deploy)
+
+1. **Testar fluxo completo** — login, dashboard, conversas, agenda, serviços
+2. **Dashboard real** → `/app/dashboard/overview` (wiring frontend pendente)
+3. **Billing page** → checkout Stripe + portal
+4. **Ajustar n8n** — fluxos de WhatsApp chamar endpoints de `api.shaikron.scheffelt.xyz`:
+   - Criar/atualizar leads e conversas
+   - Salvar mensagens no histórico
+   - Verificar se a IA está pausada antes de responder
+   - Acionar motor de agendamento
+   - Enviar resumos para o gerente
+5. **Renovação do cert SSL** — certbot DNS challenge, expiração 2026-07-17
