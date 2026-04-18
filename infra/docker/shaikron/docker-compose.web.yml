@@ -1,0 +1,27 @@
+version: '3.9'
+
+services:
+  shaikron-web:
+    image: shaikron-web:latest
+    container_name: shaikron-web
+    restart: unless-stopped
+    build:
+      context: ../../../
+      dockerfile: apps/shaikron-web/Dockerfile
+      args:
+        VITE_API_BASE_URL: https://api.shaikron.scheffelt.xyz
+        VITE_SUPABASE_URL: https://tbapcaxbawruijrigafn.supabase.co
+        VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiYXBjYXhiYXdydWlqcmlnYWZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MTg3NTEsImV4cCI6MjA4NTI5NDc1MX0.bocnd-c7kiyaSYrqr6SD6908cQ399X52ge_FQHuLy9I
+    ports:
+      - "3005:80"
+    networks:
+      - shaikron-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+networks:
+  shaikron-net:
+    external: true
