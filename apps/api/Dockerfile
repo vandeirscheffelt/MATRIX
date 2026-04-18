@@ -27,8 +27,7 @@ COPY packages/billing ./packages/billing
 COPY packages/database ./packages/database
 
 # Gerar Prisma Client
-RUN pnpm --filter @boilerplate/database exec prisma generate \
-    --schema=packages/database/prisma/schema.prisma
+RUN cd packages/database && npx prisma generate --schema=prisma/schema.prisma
 
 # Build dos packages em ordem de dependência
 RUN pnpm --filter @boilerplate/database build
