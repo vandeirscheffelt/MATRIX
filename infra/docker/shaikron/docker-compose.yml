@@ -9,7 +9,7 @@ services:
       context: ../../../          # raiz do monorepo
       dockerfile: apps/api/Dockerfile
     ports:
-      - "3001:3001"
+      - "3004:3001"
     environment:
       NODE_ENV: production
       PORT: 3001
