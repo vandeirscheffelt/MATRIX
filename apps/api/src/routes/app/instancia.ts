@@ -18,7 +18,8 @@ async function evoRequest(path: string, method = 'GET', body?: object) {
     const text = await res.text()
     throw new Error(`Evolution API error ${res.status}: ${text}`)
   }
-  return res.json()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return res.json() as Promise<any>
 }
 
 export async function instanciaRoutes(app: FastifyInstance) {

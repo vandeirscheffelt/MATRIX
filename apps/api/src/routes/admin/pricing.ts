@@ -23,7 +23,7 @@ export async function pricingRoutes(app: FastifyInstance) {
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     return reply.code(201).send(
-      await prisma.pricingVersion.create({ data: body.data })
+      await prisma.pricingVersion.create({ data: body.data as any })
     )
   })
 
@@ -35,7 +35,7 @@ export async function pricingRoutes(app: FastifyInstance) {
     const exists = await prisma.pricingVersion.findUnique({ where: { id: request.params.id } })
     if (!exists) return reply.code(404).send({ error: 'Versão não encontrada' })
 
-    return prisma.pricingVersion.update({ where: { id: request.params.id }, data: body.data })
+    return prisma.pricingVersion.update({ where: { id: request.params.id }, data: body.data as any })
   })
 
   // POST /admin/pricing-versions/:id/apply — ativa esta versão, desativa as demais
