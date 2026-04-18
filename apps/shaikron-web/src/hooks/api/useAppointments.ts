@@ -67,6 +67,7 @@ export function useAppointments() {
     professionals,
     getProfessional,
     getSlotsForDate: availability.getSlotsForDate,
+    loadSlotsForDate: availability.loadSlotsForDate,
     getAiSuggestions: availability.getAiSuggestions,
     blockSlot: availability.blockSlot,
     unblockSlot: availability.unblockSlot,

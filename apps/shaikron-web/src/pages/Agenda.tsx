@@ -48,7 +48,7 @@ export default function Agenda() {
 
   const weekStart = useMemo(() => startOfWeek(selectedDate, { weekStartsOn: 1 }), [selectedDate]);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
-  const daySlots = useMemo(() => getSlotsForDate(selectedDate), [getSlotsForDate, selectedDate]);
+  const daySlots = getSlotsForDate(selectedDate);
 
   const filteredPros = filterPro === "all" ? professionals : professionals.filter(p => p.id === filterPro);
 

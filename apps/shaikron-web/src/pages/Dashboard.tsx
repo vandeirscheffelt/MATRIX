@@ -21,7 +21,7 @@ export default function Dashboard() {
   const { conversations } = useConversations();
 
   const today = useMemo(() => new Date(), []);
-  const todaySlots = useMemo(() => getSlotsForDate(today), [getSlotsForDate, today]);
+  const todaySlots = getSlotsForDate(today);
 
   const bookedSlots = useMemo(
     () => todaySlots.filter((s) => s.status === "booked").sort((a, b) => a.time.localeCompare(b.time)),
