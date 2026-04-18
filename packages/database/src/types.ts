@@ -11,7 +11,7 @@ export type {
   NumeroGerente,
   ChatHistory,
   AnalyticsEvento,
-} from '@prisma/client'
+} from '../generated/client'
 
 export {
   StatusSubscription,
@@ -21,4 +21,4 @@ export {
   RoleUsuario,
   TomBot,
   IntervaloResumo,
-} from '@prisma/client'
+} from '../generated/client'
