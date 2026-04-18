@@ -35,6 +35,11 @@ await app.register(cors, {
   origin: [
     process.env.WEB_URL ?? 'http://localhost:3000',
     process.env.ADMIN_URL ?? 'http://localhost:3002',
+    'https://app.shaikron.scheffelt.xyz',
+    'https://admin.calo.scheffelt.xyz',
+    'https://calo.scheffelt.xyz',
+    'http://localhost:5173',
+    'http://localhost:5174',
   ],
   credentials: true,
 })
