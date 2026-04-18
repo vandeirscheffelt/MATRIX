@@ -25,3 +25,4 @@ services:
 networks:
   shaikron-net:
     external: true
+    name: shaikron_shaikron-net
