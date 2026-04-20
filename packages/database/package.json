@@ -5,12 +5,12 @@
   "main": "./dist/index.js",
   "dependencies": {
     "@prisma/client": "^5.14.0",
-    "@supabase/supabase-js": "^2.44.0"
+    "@supabase/supabase-js": "^2.44.0",
+    "@types/node": "^20.0.0"
   },
   "devDependencies": {
     "prisma": "^5.14.0",
-    "typescript": "^5.4.0",
-    "@types/node": "^20.0.0"
+    "typescript": "^5.4.0"
   },
   "scripts": {
     "build": "tsc",
