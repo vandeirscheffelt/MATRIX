@@ -201,6 +201,7 @@ export default function Onboarding() {
         api.patch("/app/config/disponibilidade-ia", { disponibilidade: f.aiAvailability === "same" ? "horario_comercial" : f.aiAvailability === "24/7" ? "24_7" : "personalizado" }).catch(() => null),
         api.patch("/app/config/comandos-controle", { palavraPausa: f.cmdTakeover, palavraRetorno: f.cmdResume }).catch(() => null),
         api.patch("/app/config/auto-retomada", { tempoRetornoMin: f.autoResumeMinutes }).catch(() => null),
+        api.put("/app/faq", f.faqs.filter(faq => faq.question.trim() && faq.answer.trim()).map(faq => ({ pergunta: faq.question, resposta: faq.answer }))).catch(() => null),
       ]);
       toast.success("Configurações salvas com sucesso!");
     } catch {

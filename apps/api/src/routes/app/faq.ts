@@ -55,6 +55,20 @@ export async function faqRoutes(app: FastifyInstance) {
     return reply.code(204).send()
   })
 
+  // PUT /app/faq — replace all FAQs for this empresa
+  app.put('/', { preHandler }, async (request: any, reply) => {
+    const body = z.array(faqBody).safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    await prisma.$transaction([
+      prisma.faqEntry.deleteMany({ where: { empresaId: request.empresaId } }),
+      ...body.data.map(faq =>
+        prisma.faqEntry.create({ data: { empresaId: request.empresaId, ...faq } })
+      ),
+    ])
+    return reply.code(204).send()
+  })
+
   // GET /app/faq/sugestoes
   app.get('/sugestoes', { preHandler }, async (request: any) => {
     return prisma.faqSugestao.findMany({
