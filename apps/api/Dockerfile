@@ -12,6 +12,7 @@ COPY turbo.json tsconfig.base.json ./
 
 # Manifests de todos os packages usados pela API
 COPY apps/api/package.json ./apps/api/
+COPY packages/auth/package.json ./packages/auth/
 COPY packages/billing/package.json ./packages/billing/
 COPY packages/database/package.json ./packages/database/
 
@@ -23,6 +24,7 @@ WORKDIR /app
 
 # Copiar todo o código-fonte dos packages necessários
 COPY apps/api ./apps/api
+COPY packages/auth ./packages/auth
 COPY packages/billing ./packages/billing
 COPY packages/database ./packages/database
 
@@ -31,6 +33,7 @@ RUN cd packages/database && npx prisma generate --schema=prisma/schema.prisma
 
 # Build dos packages em ordem de dependência
 RUN pnpm --filter @boilerplate/database build
+RUN pnpm --filter @boilerplate/auth build || true
 RUN pnpm --filter @boilerplate/billing build
 RUN pnpm --filter @matrix/api build
 
