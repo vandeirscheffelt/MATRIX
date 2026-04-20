@@ -961,7 +961,7 @@ export default function Onboarding() {
           <ProfessionalSettings />
           <WhatsAppConnection />
 
-          <Button variant="glow" size="lg" className="w-full" onClick={handleSave} disabled={saving}>
+          <Button type="button" variant="glow" size="lg" className="w-full relative z-50" onClick={() => { console.log("SAVE CLICKED"); handleSave(); }} disabled={saving}>
             {saving ? "Salvando..." : t("btn.saveAndContinue")}
           </Button>
         </div>
