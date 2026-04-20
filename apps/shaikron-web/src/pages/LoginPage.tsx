@@ -140,7 +140,7 @@ export default function LoginPage() {
 
           {/* Footer */}
           <div className="mt-6 text-center space-y-2">
-            <button className="text-sm text-primary hover:underline">
+            <button className="text-sm text-primary hover:underline" onClick={() => navigate("/signup")}>
               {t("login.noAccount")}
             </button>
             <p className="text-xs text-muted-foreground">
