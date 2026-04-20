@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, Component, type ReactNode } from "react";
+import { api } from "@/lib/apiClient";
 import { X, Plus, Trash2, Bot, Clock, Shield, Wand2, Loader2, AlertCircle, User, Cpu, Sparkles, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -136,12 +137,13 @@ const LANGUAGE_OPTIONS: { value: LanguageCode; label: string }[] = [
 
 export default function Onboarding() {
   const { language, setLanguage, t } = useLanguage();
-  const { form, update, progress, missingFields } = useOnboardingForm();
+  const { form, update, reset, progress, missingFields } = useOnboardingForm();
   const [keywordInput, setKeywordInput] = useState("");
   const [suggestedKeywords, setSuggestedKeywords] = useState<string[]>([]);
   const [improvingField, setImprovingField] = useState<string | null>(null);
   const [pendingSuggestion, setPendingSuggestion] = useState<PendingSuggestion | null>(null);
   const [improveError, setImproveError] = useState<ImproveErrorState | null>(null);
+  const [saving, setSaving] = useState(false);
   const latestFormRef = useRef(form);
   const requestIdRef = useRef(0);
   const requestLockRef = useRef(false);
@@ -153,12 +155,59 @@ export default function Onboarding() {
 
   useEffect(() => {
     isMountedRef.current = true;
+    // Carrega configurações existentes do banco
+    Promise.all([
+      api.get<any>("/app/config").catch(() => null),
+      api.get<any>("/app/empresa").catch(() => null),
+      api.get<any[]>("/app/config/keywords").catch(() => []),
+      api.get<any[]>("/app/faq").catch(() => []),
+    ]).then(([config, empresa, keywords, faqs]) => {
+      if (!isMountedRef.current) return;
+      const partial: Record<string, any> = {};
+      if (empresa?.nome) partial.businessName = empresa.nome;
+      if (config?.tipoNegocio) partial.businessType = config.tipoNegocio;
+      if (config?.contextoOperacional) partial.description = config.contextoOperacional;
+      if (config?.tom) partial.tone = config.tom === "FORMAL" ? "Formal" : "Informal";
+      if (config?.horarioInicio) partial.workingHoursStart = config.horarioInicio;
+      if (config?.horarioFim) partial.workingHoursEnd = config.horarioFim;
+      if (config?.disponibilidade) partial.aiAvailability = config.disponibilidade === "horario_comercial" ? "same" : config.disponibilidade === "24_7" ? "24/7" : "custom";
+      if (config?.identidade) partial.assistantIdentity = config.identidade === "assistente_virtual" ? "virtual" : "human";
+      if (config?.palavraPausa) partial.cmdTakeover = config.palavraPausa;
+      if (config?.palavraRetorno) partial.cmdResume = config.palavraRetorno;
+      if (config?.tempoRetornoMin) partial.autoResumeMinutes = config.tempoRetornoMin;
+      if (Array.isArray(keywords) && keywords.length > 0) partial.keywords = keywords.map((k: any) => k.palavra ?? k);
+      if (Array.isArray(faqs) && faqs.length > 0) partial.faqs = faqs.map((f: any) => ({ question: f.pergunta, answer: f.resposta }));
+      reset(partial);
+    });
 
     return () => {
       isMountedRef.current = false;
       requestLockRef.current = false;
       requestIdRef.current += 1;
     };
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    try {
+      const f = latestFormRef.current;
+      await Promise.all([
+        api.put("/app/empresa", { nome: f.businessName }).catch(() => null),
+        api.patch("/app/config/tipo-negocio", { tipoNegocio: f.businessType }).catch(() => null),
+        api.patch("/app/config/contexto-operacional", { contexto: f.description }).catch(() => null),
+        api.patch("/app/config/tom", { tom: f.tone === "Formal" || f.tone === "Professional" ? "FORMAL" : "INFORMAL" }).catch(() => null),
+        api.patch("/app/config/identidade", { identidade: f.assistantIdentity === "virtual" ? "assistente_virtual" : "atendente_humano" }).catch(() => null),
+        api.patch("/app/config/horario-comercial", { horarioInicio: f.workingHoursStart, horarioFim: f.workingHoursEnd }).catch(() => null),
+        api.patch("/app/config/disponibilidade-ia", { disponibilidade: f.aiAvailability === "same" ? "horario_comercial" : f.aiAvailability === "24/7" ? "24_7" : "personalizado" }).catch(() => null),
+        api.patch("/app/config/comandos-controle", { palavraPausa: f.cmdTakeover, palavraRetorno: f.cmdResume }).catch(() => null),
+        api.patch("/app/config/auto-retomada", { tempoRetornoMin: f.autoResumeMinutes }).catch(() => null),
+      ]);
+      toast.success("Configurações salvas com sucesso!");
+    } catch {
+      toast.error("Erro ao salvar configurações.");
+    } finally {
+      setSaving(false);
+    }
   }, []);
 
   const queueSuggestion = useCallback((suggestion: PendingSuggestion, noChangesMessage: string) => {
@@ -242,22 +291,24 @@ export default function Onboarding() {
     }
   };
 
-  const handleImproveDescription = useCallback(() => {
+  const handleImproveDescription = useCallback(async () => {
     const formSnapshot = buildFormSnapshot();
-
-    void runImproveRequest({
-      field: "description",
-      label: "Business Description",
-      original: formSnapshot.description,
-      noChangesMessage: t("suggest.descLooksGood"),
-      delay: 800,
-      run: () => (
-        formSnapshot.description.trim().length > 20
-          ? expandDescription(formSnapshot)
-          : generateDescription(formSnapshot)
-      ),
-    });
-  }, [buildFormSnapshot, runImproveRequest]);
+    if (improvingField || pendingSuggestion) return;
+    setImprovingField("description");
+    setImproveError(null);
+    try {
+      // Salva o contexto atual antes de pedir melhoria
+      await api.patch("/app/config/contexto-operacional", { contexto: formSnapshot.description || " " }).catch(() => null);
+      const result = await api.post<{ contexto: string }>("/app/config/melhorar-contexto");
+      if (!result?.contexto) throw new Error("Sem retorno da IA");
+      queueSuggestion({ field: "description", label: "Contexto Operacional", original: formSnapshot.description, suggested: result.contexto }, t("suggest.descLooksGood"));
+    } catch {
+      setImproveError({ field: "description", message: t("error.improveText") });
+      toast.error(t("error.improveText"));
+    } finally {
+      setImprovingField(null);
+    }
+  }, [buildFormSnapshot, improvingField, pendingSuggestion, queueSuggestion, t]);
 
   const handleImproveFaq = useCallback((index: number) => {
     const formSnapshot = buildFormSnapshot();
@@ -910,8 +961,8 @@ export default function Onboarding() {
           <ProfessionalSettings />
           <WhatsAppConnection />
 
-          <Button variant="glow" size="lg" className="w-full">
-            {t("btn.saveAndContinue")}
+          <Button variant="glow" size="lg" className="w-full" onClick={handleSave} disabled={saving}>
+            {saving ? "Salvando..." : t("btn.saveAndContinue")}
           </Button>
         </div>
 

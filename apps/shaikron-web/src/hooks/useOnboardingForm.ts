@@ -67,6 +67,10 @@ export function useOnboardingForm() {
     setForm(prev => ({ ...prev, [field]: value }));
   }, []);
 
+  const reset = useCallback((partial: Partial<OnboardingFormState>) => {
+    setForm(prev => ({ ...prev, ...partial }));
+  }, []);
+
   const progress = useMemo(() => {
     let score = 0;
     if (form.businessName.trim()) score += FIELD_WEIGHTS.businessName;
@@ -89,5 +93,5 @@ export function useOnboardingForm() {
     return missing;
   }, [form]);
 
-  return { form, update, progress, missingFields };
+  return { form, update, reset, progress, missingFields };
 }
