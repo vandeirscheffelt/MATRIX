@@ -10,7 +10,6 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@boilerplate/auth": "workspace:*",
     "@boilerplate/billing": "workspace:*",
     "@boilerplate/database": "workspace:*",
     "@fastify/cors": "^9.0.0",

@@ -17,9 +17,6 @@ importers:
 
   apps/api:
     dependencies:
-      '@boilerplate/auth':
-        specifier: workspace:*
-        version: link:../../packages/auth
       '@boilerplate/billing':
         specifier: workspace:*
         version: link:../../packages/billing
