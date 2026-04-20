@@ -15,7 +15,7 @@ COPY apps/api/package.json ./apps/api/
 COPY packages/billing/package.json ./packages/billing/
 COPY packages/database/package.json ./packages/database/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 FROM deps AS builder
