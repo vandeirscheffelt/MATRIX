@@ -13,6 +13,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [remember, setRemember] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -42,6 +43,11 @@ export default function SignupPage() {
         },
       });
       if (signUpError) throw signUpError;
+      if (remember) {
+        localStorage.setItem("schaikron_remembered_email", email);
+      } else {
+        localStorage.removeItem("schaikron_remembered_email");
+      }
       setDone(true);
     } catch (err: any) {
       setError(err.message || "Erro ao criar conta.");
@@ -151,6 +157,19 @@ export default function SignupPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
               />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="remember"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                className="h-4 w-4 rounded border-border accent-primary"
+              />
+              <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
+                Lembrar meu e-mail
+              </Label>
             </div>
 
             {error && <p className="text-sm text-destructive">{error}</p>}
