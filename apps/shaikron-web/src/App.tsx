@@ -22,6 +22,7 @@ import ModulesManagerPage from "./pages/ModulesManagerPage.tsx";
 import OtherModulesPage from "./pages/OtherModulesPage.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
 import SignupPage from "./pages/SignupPage.tsx";
+import ResetPasswordPage from "./pages/ResetPasswordPage.tsx";
 import BillingSuccessPage from "./pages/BillingSuccessPage.tsx";
 import BillingCancelPage from "./pages/BillingCancelPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -43,6 +44,7 @@ const App = () => (
                 <Routes>
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/signup" element={<SignupPage />} />
+                  <Route path="/reset-password" element={<ResetPasswordPage />} />
                   <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                   <Route path="/agenda" element={<ProtectedRoute><AgendaPage /></ProtectedRoute>} />
                   <Route path="/conversations" element={<ProtectedRoute><ConversationsPage /></ProtectedRoute>} />

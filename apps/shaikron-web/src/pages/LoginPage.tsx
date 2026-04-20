@@ -17,6 +17,29 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(() => !!localStorage.getItem("schaikron_remembered_email"));
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setLoginError("Digite seu e-mail acima para receber o link de redefinição.");
+      return;
+    }
+    setResetLoading(true);
+    setLoginError(null);
+    try {
+      const { supabase } = await import("@/lib/supabase");
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setResetSent(true);
+    } catch (err: any) {
+      setLoginError(err.message || "Erro ao enviar e-mail.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     const { supabase } = await import("@/lib/supabase");
@@ -118,18 +141,33 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="remember"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-                className="h-4 w-4 rounded border-border accent-primary"
-              />
-              <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
-                {t("login.rememberEmail")}
-              </Label>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="remember"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  className="h-4 w-4 rounded border-border accent-primary"
+                />
+                <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
+                  {t("login.rememberEmail")}
+                </Label>
+              </div>
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline disabled:opacity-50"
+                onClick={handleForgotPassword}
+                disabled={resetLoading}
+              >
+                {resetLoading ? "Enviando..." : "Esqueci minha senha"}
+              </button>
             </div>
+            {resetSent && (
+              <p className="text-sm text-green-500">
+                Link enviado para <strong>{email}</strong>. Verifique sua caixa de entrada.
+              </p>
+            )}
             {loginError && (
               <p className="text-sm text-destructive">{loginError}</p>
             )}
