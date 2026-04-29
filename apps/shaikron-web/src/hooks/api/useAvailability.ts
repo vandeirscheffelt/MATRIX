@@ -50,6 +50,7 @@ export function useAvailability() {
             : s.status === "AGENDADO" ? "booked"
             : "blocked") as SlotStatus,
           client: s.leadNome,
+          appointmentId: s.agendamentoId,
         }))
       );
       // API returned nothing — build default free slots so the grid never goes blank

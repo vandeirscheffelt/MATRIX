@@ -130,10 +130,10 @@ export default function Agenda() {
     }
   }, [newClient, newService, currentModalSlot, pickedPro, pickedTime, api, toast, closeModal]);
 
-  const handleCancel = useCallback(async (date: Date, time: string, proId: string) => {
+  const handleCancel = useCallback(async (date: Date, time: string, proId: string, appointmentId?: string) => {
     setActionLoading(true);
     try {
-      await api.cancelAppointment(date, time, proId);
+      await api.cancelAppointment(date, time, proId, appointmentId);
       toast({ title: t("agenda.appointmentCancelled"), description: `${getProfessional(proId).name} · ${time} · ${format(date, "MMM d")}` });
       closeModal();
     } catch (e: any) {
@@ -698,7 +698,7 @@ export default function Agenda() {
                       try {
                         setNewClient(currentModalSlot.slot.client ?? "");
                         setNewService(currentModalSlot.slot.service ?? "");
-                        await api.cancelAppointment(currentModalSlot.date, currentModalSlot.slot.time, pro.id);
+                        await api.cancelAppointment(currentModalSlot.date, currentModalSlot.slot.time, pro.id, currentModalSlot.slot.appointmentId);
                         setModalMode("create-manual");
                       } catch (e: any) {
                         toast({ title: t("admin.error"), description: e.message, variant: "destructive" });
@@ -708,7 +708,7 @@ export default function Agenda() {
                     }}>
                       {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRightLeft className="h-4 w-4" />} {t("agenda.reschedule")}
                     </Button>
-                    <Button variant="destructive" className="flex-1 gap-2" disabled={isActionBusy} onClick={() => handleCancel(currentModalSlot.date, currentModalSlot.slot.time, pro.id)}>
+                    <Button variant="destructive" className="flex-1 gap-2" disabled={isActionBusy} onClick={() => handleCancel(currentModalSlot.date, currentModalSlot.slot.time, pro.id, currentModalSlot.slot.appointmentId)}>
                       {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />} Cancel
                     </Button>
                   </div>

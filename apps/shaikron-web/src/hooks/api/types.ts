@@ -47,6 +47,7 @@ export interface TimeSlot {
   client?: string;
   service?: string;
   duration?: number; // in minutes
+  appointmentId?: string;
 }
 
 export interface AiSuggestion {

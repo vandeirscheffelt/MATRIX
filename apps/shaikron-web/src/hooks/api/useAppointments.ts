@@ -12,17 +12,26 @@ export function useAppointments() {
 
   const clearError = useCallback(() => setError(null), []);
 
+  function buildIso(date: Date, time: string) {
+    const dateStr = date.toISOString().split("T")[0];
+    // Use explicit UTC (Z) to match backend slot times which are also UTC
+    const inicio = new Date(`${dateStr}T${time}:00Z`);
+    const fim = new Date(inicio.getTime() + 60 * 60 * 1000);
+    return { inicio: inicio.toISOString(), fim: fim.toISOString() };
+  }
+
   const autoScheduleAppointment = useCallback(async (req: AutoBookRequest): Promise<AutoBookResponse> => {
     setLoading(true);
     setError(null);
     try {
       const suggestions = await availability.getAiSuggestions(req.date);
       if (suggestions.length === 0) throw new Error("Nenhum horário disponível para esta data.");
-      // Prefer the slot the user already selected, if it's still free
       const preferred = req.preferredTime && req.preferredProfessionalId
         ? suggestions.find(s => s.time === req.preferredTime && s.professionalId === req.preferredProfessionalId)
         : undefined;
       const best = preferred ?? suggestions[0];
+      const { inicio, fim } = buildIso(req.date, best.time);
+      await api.post("/app/agendamentos", { profissionalId: best.professionalId, inicio, fim });
       availability.applySlotUpdate(req.date, best.time, best.professionalId, {
         status: "booked", client: req.client, service: req.service,
       });
@@ -38,13 +47,8 @@ export function useAppointments() {
     setLoading(true);
     setError(null);
     try {
-      await api.post("/app/agendamentos", {
-        profissionalId: req.professionalId,
-        data: req.date.toISOString().split("T")[0],
-        horaInicio: req.time,
-        clienteNome: req.client,
-        servicoNome: req.service,
-      });
+      const { inicio, fim } = buildIso(req.date, req.time);
+      await api.post("/app/agendamentos", { profissionalId: req.professionalId, inicio, fim });
       availability.applySlotUpdate(req.date, req.time, req.professionalId, {
         status: "booked", client: req.client, service: req.service,
       });
@@ -55,10 +59,11 @@ export function useAppointments() {
     }
   }, [availability]);
 
-  const cancelAppointment = useCallback(async (date: Date, time: string, professionalId: string): Promise<void> => {
+  const cancelAppointment = useCallback(async (date: Date, time: string, professionalId: string, appointmentId?: string): Promise<void> => {
     setLoading(true);
     setError(null);
     try {
+      if (appointmentId) await api.delete(`/app/agendamentos/${appointmentId}`);
       availability.applySlotUpdate(date, time, professionalId, { status: "free", client: undefined, service: undefined });
     } catch (e: any) {
       setError(e.message); throw e;
