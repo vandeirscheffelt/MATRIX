@@ -93,7 +93,7 @@ export default function Agenda() {
       const result = await api.autoScheduleAppointment({
         date: currentModalSlot.date,
         client: newClient.trim(),
-        service: newService.trim() || "Appointment",
+        service: newService.trim() || t("agenda.appointment"),
         preferredTime: pickedTime,
         preferredProfessionalId: pickedPro,
       });
@@ -116,7 +116,7 @@ export default function Agenda() {
         time: pickedTime,
         professionalId: pickedPro,
         client: newClient.trim(),
-        service: newService.trim() || "Appointment",
+        service: newService.trim() || t("agenda.appointment"),
       });
       toast({
         title: t("agenda.appointmentSuccess"),
@@ -492,8 +492,8 @@ export default function Agenda() {
                   <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5">
                     <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
                     <div>
-                      <p className="text-sm font-semibold text-primary">Appointment scheduled automatically</p>
-                      <p className="text-xs text-primary/70 mt-0.5">AI selected the optimal slot for this appointment.</p>
+                      <p className="text-sm font-semibold text-primary">{t("agenda.appointmentScheduled")}</p>
+                      <p className="text-xs text-primary/70 mt-0.5">{t("agenda.aiSelectedOptimal")}</p>
                     </div>
                   </div>
 
@@ -505,7 +505,7 @@ export default function Agenda() {
                       </div>
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{t("agenda.service")}</p>
-                        <p className="text-sm font-medium text-foreground">{newService || "Appointment"}</p>
+                        <p className="text-sm font-medium text-foreground">{newService || t("agenda.appointment")}</p>
                       </div>
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{t("agenda.professional")}</p>
@@ -523,15 +523,15 @@ export default function Agenda() {
 
                   <div className="flex gap-2">
                     <Button variant="outline" className="flex-1 gap-2" disabled={isActionBusy} onClick={handleRescheduleFromAutoResult}>
-                      {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRightLeft className="h-4 w-4" />} Reschedule
+                      {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRightLeft className="h-4 w-4" />} {t("agenda.reschedule")}
                     </Button>
                     <Button variant="destructive" className="flex-1 gap-2" disabled={isActionBusy} onClick={handleCancelFromAutoResult}>
-                      {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />} Cancel
+                      {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />} {t("agenda.cancel")}
                     </Button>
                   </div>
 
                   <Button variant="ghost" className="w-full text-xs text-muted-foreground" onClick={closeModal}>
-                    Done
+                    {t("agenda.done")}
                   </Button>
                 </div>
               )}
@@ -540,7 +540,7 @@ export default function Agenda() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
                     <Sparkles className="h-4 w-4 text-primary shrink-0" />
-                    <p className="text-xs text-primary">AI is analyzing the best available slots for this appointment.</p>
+                    <p className="text-xs text-primary">{t("agenda.aiAnalyzing")}</p>
                   </div>
 
                   <div className="space-y-2">
@@ -574,7 +574,7 @@ export default function Agenda() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="h-2 w-2 rounded-full shrink-0" style={{ background: `hsl(${sugPro.color})` }} />
-                                <span className="text-sm font-medium text-foreground">{sugPro.name} at {s.time}</span>
+                                <span className="text-sm font-medium text-foreground">{sugPro.name} · {s.time}</span>
                                 {s.isBest && (
                                   <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-semibold text-primary">{t("agenda.best")}</span>
                                 )}
@@ -610,7 +610,7 @@ export default function Agenda() {
                       <label className="text-xs font-medium text-muted-foreground">{t("agenda.professional")}</label>
                       <Select value={pickedPro} onValueChange={setPickedPro}>
                         <SelectTrigger className="h-9 text-xs border-border bg-secondary/30">
-                          <SelectValue placeholder="Select" />
+                          <SelectValue placeholder={t("agenda.select")} />
                         </SelectTrigger>
                         <SelectContent>
                           {professionals.map(p => (
@@ -628,7 +628,7 @@ export default function Agenda() {
                       <label className="text-xs font-medium text-muted-foreground">{t("agenda.time")}</label>
                       <Select value={pickedTime} onValueChange={setPickedTime}>
                         <SelectTrigger className="h-9 text-xs border-border bg-secondary/30">
-                          <SelectValue placeholder="Select" />
+                          <SelectValue placeholder={t("agenda.select")} />
                         </SelectTrigger>
                         <SelectContent>
                           {HOURS.map(h => {
@@ -655,7 +655,7 @@ export default function Agenda() {
                       return (
                         <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
                           <Ban className="h-4 w-4 text-destructive shrink-0" />
-                          <p className="text-xs text-destructive">{getProfessional(pickedPro).name} is {target.status} at {pickedTime}. Choose a different slot.</p>
+                          <p className="text-xs text-destructive">{t("agenda.notAvailableAt", { name: getProfessional(pickedPro).name, time: pickedTime })}</p>
                         </div>
                       );
                     }
@@ -664,7 +664,7 @@ export default function Agenda() {
 
                   <div className="flex gap-2">
                     <Button className="flex-1 gap-2" onClick={confirmManual} disabled={!newClient.trim() || isActionBusy}>
-                      {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Confirm
+                      {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} {t("agenda.confirm")}
                     </Button>
                     <Button variant="ghost" size="sm" className="text-xs" onClick={() => setModalMode(aiActive ? "create-ai" : "default")}>
                       {aiActive ? t("agenda.backToAi") : t("agenda.back")}
@@ -709,7 +709,7 @@ export default function Agenda() {
                       {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRightLeft className="h-4 w-4" />} {t("agenda.reschedule")}
                     </Button>
                     <Button variant="destructive" className="flex-1 gap-2" disabled={isActionBusy} onClick={() => handleCancel(currentModalSlot.date, currentModalSlot.slot.time, pro.id, currentModalSlot.slot.appointmentId)}>
-                      {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />} Cancel
+                      {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />} {t("agenda.cancel")}
                     </Button>
                   </div>
                 </div>
@@ -720,7 +720,7 @@ export default function Agenda() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
                     <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                    <p className="text-xs text-primary font-medium">Please review and confirm this appointment.</p>
+                    <p className="text-xs text-primary font-medium">{t("agenda.confirmReview")}</p>
                   </div>
 
                   <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
@@ -731,7 +731,7 @@ export default function Agenda() {
                       </div>
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{t("agenda.service")}</p>
-                        <p className="text-sm font-medium text-foreground">{newService || "Appointment"}</p>
+                        <p className="text-sm font-medium text-foreground">{newService || t("agenda.appointment")}</p>
                       </div>
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{t("agenda.professional")}</p>
@@ -749,7 +749,7 @@ export default function Agenda() {
 
                   <div className="flex gap-2">
                     <Button className="flex-1 gap-2" variant="glow" disabled={isActionBusy} onClick={handleManualBook}>
-                      {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Confirm Appointment
+                      {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} {t("agenda.confirmAppointment")}
                     </Button>
                     <Button variant="outline" className="flex-1 gap-2" disabled={isActionBusy} onClick={() => setModalMode(confirmSource === "ai" ? "create-ai" : "create-manual")}>
                       <ArrowRightLeft className="h-4 w-4" /> {t("agenda.editSelection")}
