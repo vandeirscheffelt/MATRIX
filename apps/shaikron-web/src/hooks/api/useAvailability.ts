@@ -122,26 +122,26 @@ export function useAvailability() {
     const dateStr = date.toISOString().split("T")[0];
     const dataInicio = new Date(`${dateStr}T${time}:00Z`);
     const dataFim = new Date(dataInicio.getTime() + 60 * 60 * 1000);
-    try {
-      const res = await api.post<{ id: string }>("/app/bloqueios", {
-        profissionalId: professionalId,
-        dataInicio: dataInicio.toISOString(),
-        dataFim: dataFim.toISOString(),
-      });
-      invalidateDate(date);
-      applySlotUpdate(date, time, professionalId, { status: "blocked", appointmentId: res.id });
-    } catch {
-      applySlotUpdate(date, time, professionalId, { status: "blocked" });
-    }
-  }, [applySlotUpdate, invalidateDate]);
+    // Optimistic update first
+    applySlotUpdate(date, time, professionalId, { status: "blocked" });
+    // Persist — throws on failure so caller can show error toast
+    const res = await api.post<{ id: string }>("/app/bloqueios", {
+      profissionalId: professionalId,
+      dataInicio: dataInicio.toISOString(),
+      dataFim: dataFim.toISOString(),
+    });
+    // Store bloqueioId and reload fresh slots from API
+    applySlotUpdate(date, time, professionalId, { status: "blocked", appointmentId: res.id });
+    invalidateDate(date);
+    loadSlotsForDate(date);
+  }, [applySlotUpdate, invalidateDate, loadSlotsForDate]);
 
   const unblockSlot = useCallback(async (date: Date, time: string, professionalId: string, bloqueioId?: string) => {
-    if (bloqueioId) {
-      try { await api.delete(`/app/bloqueios/${bloqueioId}`); } catch { /* ignore */ }
-    }
-    invalidateDate(date);
     applySlotUpdate(date, time, professionalId, { status: "free", appointmentId: undefined });
-  }, [applySlotUpdate, invalidateDate]);
+    if (bloqueioId) await api.delete(`/app/bloqueios/${bloqueioId}`);
+    invalidateDate(date);
+    loadSlotsForDate(date);
+  }, [applySlotUpdate, invalidateDate, loadSlotsForDate]);
 
   return { getSlotsForDate, loadSlotsForDate, getAiSuggestions, applySlotUpdate, blockSlot, unblockSlot };
 }
