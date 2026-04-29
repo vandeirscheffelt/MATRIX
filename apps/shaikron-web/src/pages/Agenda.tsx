@@ -674,7 +674,7 @@ export default function Agenda() {
               )}
 
               {/* BOOKED */}
-              {currentModalSlot.slot.status === "booked" && (
+              {currentModalSlot.slot.status === "booked" && modalMode !== "auto-result" && (
                 <div className="space-y-4">
                   <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
                     <div className="flex items-center gap-3">
