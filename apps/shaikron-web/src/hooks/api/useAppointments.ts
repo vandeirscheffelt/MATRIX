@@ -24,12 +24,15 @@ export function useAppointments() {
     setLoading(true);
     setError(null);
     try {
-      const suggestions = await availability.getAiSuggestions(req.date);
-      if (suggestions.length === 0) throw new Error("Nenhum horário disponível para esta data.");
-      const preferred = req.preferredTime && req.preferredProfessionalId
-        ? suggestions.find(s => s.time === req.preferredTime && s.professionalId === req.preferredProfessionalId)
+      // Load all slots (not just top-3 suggestions) to find the preferred one
+      const allSlots = await availability.loadSlotsForDate(req.date);
+      const freeSlots = allSlots.filter(s => s.status === "free");
+      if (freeSlots.length === 0) throw new Error("Nenhum horário disponível para esta data.");
+      // Prefer the exact slot the user clicked, then fall back to first free
+      const preferredSlot = req.preferredTime && req.preferredProfessionalId
+        ? freeSlots.find(s => s.time === req.preferredTime && s.professionalId === req.preferredProfessionalId)
         : undefined;
-      const best = preferred ?? suggestions[0];
+      const best = preferredSlot ?? freeSlots[0];
       const { inicio, fim } = buildIso(req.date, best.time);
       await api.post("/app/agendamentos", { profissionalId: best.professionalId, inicio, fim });
       availability.applySlotUpdate(req.date, best.time, best.professionalId, {
