@@ -7,13 +7,13 @@ export function useAvailability() {
   const { professionals } = useProfessionals();
   const [slotOverrides, setSlotOverrides] = useState<Record<string, Partial<TimeSlot>>>({});
   const [slotsCache, setSlotsCache] = useState<Record<string, TimeSlot[]>>({});
-  // Ref always reflects latest cache — avoids stale closure in async functions
+  // Refs always reflect latest values — avoid stale closures in async functions
   const slotsCacheRef = useRef<Record<string, TimeSlot[]>>({});
+  const professionalsRef = useRef(professionals);
   const pendingFetches = useRef<Set<string>>(new Set());
 
-  useEffect(() => {
-    slotsCacheRef.current = slotsCache;
-  }, [slotsCache]);
+  useEffect(() => { slotsCacheRef.current = slotsCache; }, [slotsCache]);
+  useEffect(() => { professionalsRef.current = professionals; }, [professionals]);
 
   const applyOverrides = useCallback((slots: TimeSlot[]): TimeSlot[] =>
     slots.map(slot => {
@@ -42,7 +42,7 @@ export function useAvailability() {
     try {
       const data = await api.get<any>(`/app/agenda/day?date=${iso}`);
       const agendas: any[] = Array.isArray(data) ? data : [];
-      const slots: TimeSlot[] = agendas.flatMap((agenda: any) =>
+      let slots: TimeSlot[] = agendas.flatMap((agenda: any) =>
         (agenda.slots ?? []).map((s: any): TimeSlot => ({
           time: s.hora,
           professionalId: agenda.profissionalId,
@@ -52,6 +52,12 @@ export function useAvailability() {
           client: s.leadNome,
         }))
       );
+      // API returned nothing — build default free slots so the grid never goes blank
+      if (slots.length === 0) {
+        slots = professionalsRef.current.flatMap(pro =>
+          HOURS.map((time): TimeSlot => ({ time, professionalId: pro.id, status: "free" }))
+        );
+      }
       slotsCacheRef.current = { ...slotsCacheRef.current, [iso]: slots };
       setSlotsCache(prev => ({ ...prev, [iso]: slots }));
       return slots;
