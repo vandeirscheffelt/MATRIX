@@ -82,13 +82,11 @@ async function calcularAgendaDia(
 
   const grade = profissional.gradeHorarios.find(g => g.diaSemana === diaSemana)
 
-  // Profissional não trabalha neste dia
-  if (!grade) {
-    return { profissionalId, profissionalNome: profissional.nome, data: dataStr, slots: [] }
-  }
-
-  const duracaoMin = profissional.duracaoPadraoMin
-  const slotsBrutos = gerarSlots(grade.horaInicio, grade.horaFim, duracaoMin)
+  // Sem grade configurada: usa horário padrão 08:00–17:00 para exibir agendamentos existentes
+  const horaInicio = grade?.horaInicio ?? '08:00'
+  const horaFim = grade?.horaFim ?? '17:00'
+  const duracaoMin = profissional.duracaoPadraoMin ?? 60
+  const slotsBrutos = gerarSlots(horaInicio, horaFim, duracaoMin)
 
   // Agendamentos do dia (apenas CONFIRMADO e REMARCADO)
   const inicioDia = new Date(`${dataStr}T00:00:00Z`)
