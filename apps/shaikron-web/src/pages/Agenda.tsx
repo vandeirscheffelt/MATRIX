@@ -156,10 +156,10 @@ export default function Agenda() {
     }
   }, [api, toast, closeModal]);
 
-  const handleUnblock = useCallback(async (date: Date, time: string, proId: string) => {
+  const handleUnblock = useCallback(async (date: Date, time: string, proId: string, bloqueioId?: string) => {
     setActionLoading(true);
     try {
-      await api.unblockSlot(date, time, proId);
+      await api.unblockSlot(date, time, proId, bloqueioId);
       toast({ title: t("agenda.timeUnblocked"), description: `${getProfessional(proId).name} · ${time} · ${format(date, "MMM d")}` });
       closeModal();
     } catch (e: any) {
@@ -765,8 +765,8 @@ export default function Agenda() {
                     <Ban className="h-4 w-4 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">{t("agenda.timeBlocked", { name: pro.name })}</p>
                   </div>
-                  <Button variant="outline" className="w-full gap-2" disabled={isActionBusy} onClick={() => handleUnblock(currentModalSlot.date, currentModalSlot.slot.time, pro.id)}>
-                    {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlock className="h-4 w-4" />} Remove Block
+                  <Button variant="outline" className="w-full gap-2" disabled={isActionBusy} onClick={() => handleUnblock(currentModalSlot.date, currentModalSlot.slot.time, pro.id, currentModalSlot.slot.appointmentId)}>
+                    {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlock className="h-4 w-4" />} {t("agenda.removeBlock")}
                   </Button>
                 </div>
               )}

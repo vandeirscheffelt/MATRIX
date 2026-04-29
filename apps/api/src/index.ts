@@ -15,6 +15,7 @@ import { agendamentosRoutes } from './routes/app/agendamentos.js'
 import { leadsRoutes } from './routes/app/leads.js'
 import { servicosRoutes } from './routes/app/servicos.js'
 import { agendaRoutes } from './routes/app/agenda.js'
+import { bloqueiosRoutes } from './routes/app/bloqueios.js'
 import { conversasRoutes } from './routes/app/conversas.js'
 import { dashboardRoutes } from './routes/app/dashboard.js'
 import { faqRoutes } from './routes/app/faq.js'
@@ -61,6 +62,7 @@ await app.register(agendamentosRoutes, { prefix: '/app/agendamentos' })
 await app.register(leadsRoutes, { prefix: '/app/leads' })
 await app.register(servicosRoutes, { prefix: '/app/servicos' })
 await app.register(agendaRoutes, { prefix: '/app/agenda' })
+await app.register(bloqueiosRoutes, { prefix: '/app/bloqueios' })
 await app.register(conversasRoutes, { prefix: '/app/conversas' })
 await app.register(dashboardRoutes, { prefix: '/app/dashboard' })
 await app.register(faqRoutes, { prefix: '/app/faq' })

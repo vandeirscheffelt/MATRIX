@@ -111,12 +111,27 @@ export function useAvailability() {
     setSlotOverrides(prev => ({ ...prev, [key]: updates }));
   }, []);
 
-  const blockSlot = useCallback(async (_date: Date, time: string, professionalId: string) => {
-    applySlotUpdate(_date, time, professionalId, { status: "blocked" });
+  const blockSlot = useCallback(async (date: Date, time: string, professionalId: string) => {
+    const dateStr = date.toISOString().split("T")[0];
+    const dataInicio = new Date(`${dateStr}T${time}:00Z`);
+    const dataFim = new Date(dataInicio.getTime() + 60 * 60 * 1000);
+    try {
+      const res = await api.post<{ id: string }>("/app/bloqueios", {
+        profissionalId: professionalId,
+        dataInicio: dataInicio.toISOString(),
+        dataFim: dataFim.toISOString(),
+      });
+      applySlotUpdate(date, time, professionalId, { status: "blocked", appointmentId: res.id });
+    } catch {
+      applySlotUpdate(date, time, professionalId, { status: "blocked" });
+    }
   }, [applySlotUpdate]);
 
-  const unblockSlot = useCallback(async (date: Date, time: string, professionalId: string) => {
-    applySlotUpdate(date, time, professionalId, { status: "free" });
+  const unblockSlot = useCallback(async (date: Date, time: string, professionalId: string, bloqueioId?: string) => {
+    if (bloqueioId) {
+      try { await api.delete(`/app/bloqueios/${bloqueioId}`); } catch { /* ignore */ }
+    }
+    applySlotUpdate(date, time, professionalId, { status: "free", appointmentId: undefined });
   }, [applySlotUpdate]);
 
   return { getSlotsForDate, loadSlotsForDate, getAiSuggestions, applySlotUpdate, blockSlot, unblockSlot };
