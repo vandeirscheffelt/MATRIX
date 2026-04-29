@@ -5,6 +5,7 @@ import { useProfessionals } from "./useProfessionals";
 
 export function useAvailability() {
   const { professionals } = useProfessionals();
+  // Keyed as "YYYY-MM-DD__time__proId" to prevent cross-day bleed
   const [slotOverrides, setSlotOverrides] = useState<Record<string, Partial<TimeSlot>>>({});
   const [slotsCache, setSlotsCache] = useState<Record<string, TimeSlot[]>>({});
   // Refs always reflect latest values — avoid stale closures in async functions
@@ -15,9 +16,9 @@ export function useAvailability() {
   useEffect(() => { slotsCacheRef.current = slotsCache; }, [slotsCache]);
   useEffect(() => { professionalsRef.current = professionals; }, [professionals]);
 
-  const applyOverrides = useCallback((slots: TimeSlot[]): TimeSlot[] =>
+  const applyOverrides = useCallback((slots: TimeSlot[], iso: string): TimeSlot[] =>
     slots.map(slot => {
-      const key = slotKey(slot.time, slot.professionalId);
+      const key = `${iso}__${slotKey(slot.time, slot.professionalId)}`;
       const override = slotOverrides[key];
       return override ? { ...slot, ...override } : slot;
     }),
@@ -76,14 +77,15 @@ export function useAvailability() {
   const getSlotsForDate = useCallback((date: Date): TimeSlot[] => {
     const iso = date.toISOString().split("T")[0];
     const cached = slotsCache[iso];
-    if (cached) return applyOverrides(cached);
+    if (cached) return applyOverrides(cached, iso);
     // Trigger background fetch
     loadSlotsForDate(date);
     // Fallback: show all professionals as free while loading
     return applyOverrides(
       professionals.flatMap(pro =>
         HOURS.map((time): TimeSlot => ({ time, professionalId: pro.id, status: "free" }))
-      )
+      ),
+      iso
     );
   }, [slotsCache, professionals, applyOverrides, loadSlotsForDate]);
 
@@ -104,7 +106,8 @@ export function useAvailability() {
   }, [loadSlotsForDate]);
 
   const applySlotUpdate = useCallback((date: Date, time: string, professionalId: string, updates: Partial<TimeSlot>) => {
-    const key = slotKey(time, professionalId);
+    const iso = date.toISOString().split("T")[0];
+    const key = `${iso}__${slotKey(time, professionalId)}`;
     setSlotOverrides(prev => ({ ...prev, [key]: updates }));
   }, []);
 
