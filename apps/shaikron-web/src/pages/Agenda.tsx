@@ -94,6 +94,8 @@ export default function Agenda() {
         date: currentModalSlot.date,
         client: newClient.trim(),
         service: newService.trim() || "Appointment",
+        preferredTime: pickedTime,
+        preferredProfessionalId: pickedPro,
       });
       setPickedPro(result.professionalId);
       setPickedTime(result.time);
@@ -595,8 +597,8 @@ export default function Agenda() {
                 </div>
               )}
 
-              {/* ── FREE → MANUAL MODE: pick professional + time ── */}
-              {currentModalSlot.slot.status === "free" && modalMode === "create-manual" && (
+              {/* ── FREE → MANUAL MODE: pick professional + time (also used for reschedule) ── */}
+              {modalMode === "create-manual" && (
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Input placeholder={t("agenda.clientName")} value={newClient} onChange={e => setNewClient(e.target.value)} className="bg-secondary/30 border-border" />
@@ -691,11 +693,20 @@ export default function Agenda() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" className="flex-1 gap-2" disabled={isActionBusy} onClick={() => {
-                      toast({ title: t("agenda.rescheduleRequested"), description: `${pro.name} · ${currentModalSlot.slot.time}` });
-                      closeModal();
+                    <Button variant="outline" className="flex-1 gap-2" disabled={isActionBusy} onClick={async () => {
+                      setActionLoading(true);
+                      try {
+                        setNewClient(currentModalSlot.slot.client ?? "");
+                        setNewService(currentModalSlot.slot.service ?? "");
+                        await api.cancelAppointment(currentModalSlot.date, currentModalSlot.slot.time, pro.id);
+                        setModalMode("create-manual");
+                      } catch (e: any) {
+                        toast({ title: t("admin.error"), description: e.message, variant: "destructive" });
+                      } finally {
+                        setActionLoading(false);
+                      }
                     }}>
-                      <ArrowRightLeft className="h-4 w-4" /> {t("agenda.reschedule")}
+                      {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRightLeft className="h-4 w-4" />} {t("agenda.reschedule")}
                     </Button>
                     <Button variant="destructive" className="flex-1 gap-2" disabled={isActionBusy} onClick={() => handleCancel(currentModalSlot.date, currentModalSlot.slot.time, pro.id)}>
                       {isActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />} Cancel

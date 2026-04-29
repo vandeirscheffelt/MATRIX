@@ -78,6 +78,8 @@ export interface AutoBookRequest {
   date: Date;
   client: string;
   service: string;
+  preferredTime?: string;
+  preferredProfessionalId?: string;
 }
 
 export interface AutoBookResponse {

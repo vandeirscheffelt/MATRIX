@@ -18,7 +18,11 @@ export function useAppointments() {
     try {
       const suggestions = await availability.getAiSuggestions(req.date);
       if (suggestions.length === 0) throw new Error("Nenhum horário disponível para esta data.");
-      const best = suggestions[0];
+      // Prefer the slot the user already selected, if it's still free
+      const preferred = req.preferredTime && req.preferredProfessionalId
+        ? suggestions.find(s => s.time === req.preferredTime && s.professionalId === req.preferredProfessionalId)
+        : undefined;
+      const best = preferred ?? suggestions[0];
       availability.applySlotUpdate(req.date, best.time, best.professionalId, {
         status: "booked", client: req.client, service: req.service,
       });
