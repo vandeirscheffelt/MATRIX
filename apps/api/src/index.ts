@@ -25,6 +25,7 @@ import { stripeShaikronWebhookRoutes } from './routes/webhook/stripe-shaikron.js
 import { pricingRoutes } from './routes/admin/pricing.js'
 import { productsRoutes, productsPublicRoutes } from './routes/admin/products.js'
 import { modulesRoutes, modulesPublicRoutes } from './routes/admin/modules.js'
+import { tutorialsAdminRoutes, tutorialsPublicRoutes } from './routes/app/tutorials.js'
 import { n8nWebhookRoutes } from './routes/webhook/n8n.js'
 
 const app = Fastify({ logger: true })
@@ -76,6 +77,10 @@ await app.register(modulesRoutes, { prefix: '/admin/modules' })
 // Rotas públicas para tenants (sem auth de admin)
 await app.register(productsPublicRoutes, { prefix: '/products/public' })
 await app.register(modulesPublicRoutes, { prefix: '/modules/public' })
+await app.register(tutorialsPublicRoutes, { prefix: '/tutorials/public' })
+
+// Admin tutorials
+await app.register(tutorialsAdminRoutes, { prefix: '/admin/tutorials' })
 
 // Webhooks n8n — autenticados por x-webhook-secret
 await app.register(n8nWebhookRoutes, { prefix: '/webhook/n8n' })

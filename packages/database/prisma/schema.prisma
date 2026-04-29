@@ -495,6 +495,25 @@ model InternalModule {
 }
 
 // -----------------------------------------------------------------------------
+// Tutoriais
+// -----------------------------------------------------------------------------
+
+model Tutorial {
+  id          String   @id @default(uuid())
+  titulo      String
+  descricao   String?  @db.Text
+  videoUrl    String   @map("video_url")
+  categoria   String   @default("primeiros_passos")
+  ordem       Int      @default(0)
+  obrigatorio Boolean  @default(false)
+  ativo       Boolean  @default(true)
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  @@map("tutorials")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
 // Analytics
 // -----------------------------------------------------------------------------
 

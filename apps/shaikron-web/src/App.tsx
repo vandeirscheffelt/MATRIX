@@ -23,6 +23,8 @@ import ModulesManagerPage from "./pages/ModulesManagerPage.tsx";
 import OtherModulesPage from "./pages/OtherModulesPage.tsx";
 import AffiliatesPage from "./pages/AffiliatesPage.tsx";
 import AffiliatesManagerPage from "./pages/AffiliatesManagerPage.tsx";
+import TutorialsPage from "./pages/TutorialsPage.tsx";
+import TutorialsManagerPage from "./pages/TutorialsManagerPage.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
 import SignupPage from "./pages/SignupPage.tsx";
 import ResetPasswordPage from "./pages/ResetPasswordPage.tsx";
@@ -58,8 +60,10 @@ const App = () => (
                   <Route path="/admin/products" element={<ProtectedRoute adminOnly><ProductsManagerPage /></ProtectedRoute>} />
                   <Route path="/admin/modules" element={<ProtectedRoute adminOnly><ModulesManagerPage /></ProtectedRoute>} />
                   <Route path="/admin/affiliates" element={<ProtectedRoute adminOnly><AffiliatesManagerPage /></ProtectedRoute>} />
+                  <Route path="/admin/tutorials" element={<ProtectedRoute adminOnly><TutorialsManagerPage /></ProtectedRoute>} />
                   <Route path="/modules" element={<ProtectedRoute><OtherModulesPage /></ProtectedRoute>} />
                   <Route path="/affiliates" element={<ProtectedRoute><AffiliatesPage /></ProtectedRoute>} />
+                  <Route path="/tutorials" element={<ProtectedRoute><TutorialsPage /></ProtectedRoute>} />
                   <Route path="/products" element={<ProtectedRoute><OtherProductsPage /></ProtectedRoute>} />
                   <Route path="/billing/success" element={<ProtectedRoute><BillingSuccessPage /></ProtectedRoute>} />
                   <Route path="/billing/cancel" element={<ProtectedRoute><BillingCancelPage /></ProtectedRoute>} />

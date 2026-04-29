@@ -1,13 +1,11 @@
-import { LayoutDashboard, CalendarDays, MessageSquare, Settings, UserCircle, Shield, Zap, Puzzle, Package, Settings2, Handshake } from "lucide-react";
+import { LayoutDashboard, CalendarDays, MessageSquare, Settings, UserCircle, Shield, Zap, Puzzle, Package, Settings2, Handshake, GraduationCap } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Separator } from "@/components/ui/separator";
 
 export function AppSidebar() {
-  const location = useLocation();
   const { isAdmin } = useAuth();
   const { t } = useLanguage();
 
@@ -21,12 +19,14 @@ export function AppSidebar() {
     { title: t("nav.productsManager"), url: "/admin/products", icon: Package, adminOnly: true },
     { title: t("nav.modulesManager"), url: "/admin/modules", icon: Settings2, adminOnly: true },
     { title: t("nav.affiliatesManager"), url: "/admin/affiliates", icon: Handshake, adminOnly: true },
+    { title: t("nav.tutorialsManager"), url: "/admin/tutorials", icon: GraduationCap, adminOnly: true },
   ];
 
   const bottomItems = [
     { title: t("nav.otherModules"), url: "/modules", icon: Settings2 },
     { title: t("nav.otherProducts"), url: "/products", icon: Puzzle },
     { title: t("nav.affiliates"), url: "/affiliates", icon: Handshake },
+    { title: t("nav.tutorials"), url: "/tutorials", icon: GraduationCap },
   ];
 
   const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin);
