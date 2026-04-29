@@ -191,6 +191,8 @@ model Agendamento {
   empresaId       String             @map("empresa_id")
   profissionalId  String             @map("profissional_id")
   leadId          String?            @map("lead_id")
+  clienteNome     String?            @map("cliente_nome")
+  servicoNome     String?            @map("servico_nome")
   inicio          DateTime
   fim             DateTime
   status          StatusAgendamento  @default(CONFIRMADO)

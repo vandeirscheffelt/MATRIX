@@ -6,6 +6,8 @@ import { requireAuth, requireActiveSubscription } from '../../lib/auth.js'
 const agendamentoBody = z.object({
   profissionalId: z.string().uuid(),
   leadId: z.string().uuid().optional(),
+  clienteNome: z.string().optional(),
+  servicoNome: z.string().optional(),
   inicio: z.string().datetime(),
   fim: z.string().datetime(),
 })
@@ -63,6 +65,8 @@ export async function agendamentosRoutes(app: FastifyInstance) {
         empresaId: request.empresaId,
         profissionalId: body.data.profissionalId,
         leadId: body.data.leadId,
+        clienteNome: body.data.clienteNome,
+        servicoNome: body.data.servicoNome,
         inicio,
         fim,
       },

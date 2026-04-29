@@ -50,6 +50,7 @@ export function useAvailability() {
             : s.status === "AGENDADO" ? "booked"
             : "blocked") as SlotStatus,
           client: s.leadNome,
+          service: s.servicoNome,
           appointmentId: s.agendamentoId,
         }))
       );

@@ -21,6 +21,7 @@ interface Slot {
   status: SlotStatus
   agendamentoId?: string
   leadNome?: string
+  servicoNome?: string
 }
 
 interface AgendaDia {
@@ -99,6 +100,7 @@ async function calcularAgendaDia(
       inicio: { gte: inicioDia, lte: fimDia },
     },
     include: { lead: { select: { nomeWpp: true, telefone: true } } },
+    // clienteNome and servicoNome are selected automatically via Prisma
   })
 
   const slots: Slot[] = slotsBrutos.map(({ inicio, fim }) => {
@@ -130,7 +132,8 @@ async function calcularAgendaDia(
         horaFim: formatHora(fim),
         status: 'AGENDADO',
         agendamentoId: agendado.id,
-        leadNome: agendado.lead?.nomeWpp ?? agendado.lead?.telefone,
+        leadNome: agendado.lead?.nomeWpp ?? agendado.lead?.telefone ?? (agendado as any).clienteNome,
+        servicoNome: (agendado as any).servicoNome,
       }
     }
 

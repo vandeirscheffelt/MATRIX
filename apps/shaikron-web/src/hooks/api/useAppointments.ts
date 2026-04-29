@@ -34,7 +34,7 @@ export function useAppointments() {
         : undefined;
       const best = preferredSlot ?? freeSlots[0];
       const { inicio, fim } = buildIso(req.date, best.time);
-      await api.post("/app/agendamentos", { profissionalId: best.professionalId, inicio, fim });
+      await api.post("/app/agendamentos", { profissionalId: best.professionalId, inicio, fim, clienteNome: req.client, servicoNome: req.service });
       availability.applySlotUpdate(req.date, best.time, best.professionalId, {
         status: "booked", client: req.client, service: req.service,
       });
@@ -51,7 +51,7 @@ export function useAppointments() {
     setError(null);
     try {
       const { inicio, fim } = buildIso(req.date, req.time);
-      await api.post("/app/agendamentos", { profissionalId: req.professionalId, inicio, fim });
+      await api.post("/app/agendamentos", { profissionalId: req.professionalId, inicio, fim, clienteNome: req.client, servicoNome: req.service });
       availability.applySlotUpdate(req.date, req.time, req.professionalId, {
         status: "booked", client: req.client, service: req.service,
       });
