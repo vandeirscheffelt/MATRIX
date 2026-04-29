@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { type TimeSlot, type AiSuggestion, type SlotStatus, HOURS, slotKey } from "./types";
 import { api } from "@/lib/apiClient";
 import { useProfessionals } from "./useProfessionals";
@@ -6,10 +6,14 @@ import { useProfessionals } from "./useProfessionals";
 export function useAvailability() {
   const { professionals } = useProfessionals();
   const [slotOverrides, setSlotOverrides] = useState<Record<string, Partial<TimeSlot>>>({});
-  // Cache: dateStr (YYYY-MM-DD) → slots fetched from API
   const [slotsCache, setSlotsCache] = useState<Record<string, TimeSlot[]>>({});
-  // Track in-flight fetches to avoid duplicate requests
+  // Ref always reflects latest cache — avoids stale closure in async functions
+  const slotsCacheRef = useRef<Record<string, TimeSlot[]>>({});
   const pendingFetches = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    slotsCacheRef.current = slotsCache;
+  }, [slotsCache]);
 
   const applyOverrides = useCallback((slots: TimeSlot[]): TimeSlot[] =>
     slots.map(slot => {
@@ -20,10 +24,20 @@ export function useAvailability() {
     [slotOverrides]
   );
 
-  // Async fetch that updates the cache
-  const loadSlotsForDate = useCallback(async (date: Date): Promise<void> => {
+  // Async fetch — returns loaded slots directly (avoids stale closure problem)
+  const loadSlotsForDate = useCallback(async (date: Date): Promise<TimeSlot[]> => {
     const iso = date.toISOString().split("T")[0];
-    if (pendingFetches.current.has(iso)) return;
+    // Return already-cached slots immediately
+    if (slotsCacheRef.current[iso]) return slotsCacheRef.current[iso];
+    if (pendingFetches.current.has(iso)) {
+      // Wait for in-flight fetch to complete
+      await new Promise<void>(resolve => {
+        const check = setInterval(() => {
+          if (!pendingFetches.current.has(iso)) { clearInterval(check); resolve(); }
+        }, 50);
+      });
+      return slotsCacheRef.current[iso] ?? [];
+    }
     pendingFetches.current.add(iso);
     try {
       const data = await api.get<any>(`/app/agenda/day?date=${iso}`);
@@ -38,10 +52,13 @@ export function useAvailability() {
           client: s.leadNome,
         }))
       );
+      slotsCacheRef.current = { ...slotsCacheRef.current, [iso]: slots };
       setSlotsCache(prev => ({ ...prev, [iso]: slots }));
+      return slots;
     } catch {
-      // On error, store empty array so we don't retry on every render
+      slotsCacheRef.current = { ...slotsCacheRef.current, [iso]: [] };
       setSlotsCache(prev => ({ ...prev, [iso]: [] }));
+      return [];
     } finally {
       pendingFetches.current.delete(iso);
     }
@@ -52,9 +69,9 @@ export function useAvailability() {
     const iso = date.toISOString().split("T")[0];
     const cached = slotsCache[iso];
     if (cached) return applyOverrides(cached);
-    // Trigger background fetch if not already cached/loading
+    // Trigger background fetch
     loadSlotsForDate(date);
-    // Return fallback free slots from known professionals while loading
+    // Fallback: show all professionals as free while loading
     return applyOverrides(
       professionals.flatMap(pro =>
         HOURS.map((time): TimeSlot => ({ time, professionalId: pro.id, status: "free" }))
@@ -62,10 +79,11 @@ export function useAvailability() {
     );
   }, [slotsCache, professionals, applyOverrides, loadSlotsForDate]);
 
+  // Uses ref to get fresh slots after await — avoids stale closure
   const getAiSuggestions = useCallback(async (date: Date): Promise<AiSuggestion[]> => {
-    await loadSlotsForDate(date);
-    const slots = getSlotsForDate(date);
-    return slots
+    const slots = await loadSlotsForDate(date);
+    const fresh = slots.length > 0 ? slots : (slotsCacheRef.current[date.toISOString().split("T")[0]] ?? []);
+    return fresh
       .filter(s => s.status === "free")
       .slice(0, 3)
       .map((s, i): AiSuggestion => ({
@@ -75,7 +93,7 @@ export function useAvailability() {
         reason: "Horário disponível",
         isBest: i === 0,
       }));
-  }, [loadSlotsForDate, getSlotsForDate]);
+  }, [loadSlotsForDate]);
 
   const applySlotUpdate = useCallback((date: Date, time: string, professionalId: string, updates: Partial<TimeSlot>) => {
     const key = slotKey(time, professionalId);
