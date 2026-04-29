@@ -1,4 +1,4 @@
-import { LayoutDashboard, CalendarDays, MessageSquare, Settings, UserCircle, Shield, Zap, Puzzle, Package, Settings2 } from "lucide-react";
+import { LayoutDashboard, CalendarDays, MessageSquare, Settings, UserCircle, Shield, Zap, Puzzle, Package, Settings2, Handshake } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -20,11 +20,13 @@ export function AppSidebar() {
     { title: t("nav.admin"), url: "/admin", icon: Shield, adminOnly: true },
     { title: t("nav.productsManager"), url: "/admin/products", icon: Package, adminOnly: true },
     { title: t("nav.modulesManager"), url: "/admin/modules", icon: Settings2, adminOnly: true },
+    { title: t("nav.affiliatesManager"), url: "/admin/affiliates", icon: Handshake, adminOnly: true },
   ];
 
   const bottomItems = [
     { title: t("nav.otherModules"), url: "/modules", icon: Settings2 },
     { title: t("nav.otherProducts"), url: "/products", icon: Puzzle },
+    { title: t("nav.affiliates"), url: "/affiliates", icon: Handshake },
   ];
 
   const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin);
