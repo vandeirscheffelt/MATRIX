@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Shield, Plus, Pencil, Trash2, GraduationCap } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiClient } from "@/lib/apiClient";
+import { api } from "@/lib/apiClient";
 
 interface Tutorial {
   id: string;
@@ -45,7 +45,7 @@ export default function TutorialsManagerPage() {
   const [form, setForm] = useState(emptyForm);
 
   const load = () =>
-    apiClient.get("/admin/tutorials").then((r) => setTutorials(r.data)).catch(() => {});
+    api.get<Tutorial[]>("/admin/tutorials").then(setTutorials).catch(() => {});
 
   useEffect(() => { load(); }, []);
 
@@ -74,9 +74,9 @@ export default function TutorialsManagerPage() {
     if (!form.videoUrl.trim()) { toast({ title: t("tm.urlRequired"), variant: "destructive" }); return; }
     try {
       if (editingId) {
-        await apiClient.patch(`/admin/tutorials/${editingId}`, form);
+        await api.patch(`/admin/tutorials/${editingId}`, form);
       } else {
-        await apiClient.post("/admin/tutorials", form);
+        await api.post("/admin/tutorials", form);
       }
       toast({ title: t("tm.saved") });
       setShowModal(false);
@@ -88,7 +88,7 @@ export default function TutorialsManagerPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      await apiClient.delete(`/admin/tutorials/${id}`);
+      await api.delete(`/admin/tutorials/${id}`);
       toast({ title: t("tm.deleted") });
       load();
     } catch {

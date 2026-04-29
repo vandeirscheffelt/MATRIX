@@ -4,7 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { GraduationCap } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiClient } from "@/lib/apiClient";
+import { api } from "@/lib/apiClient";
+
 
 interface Tutorial {
   id: string;
@@ -73,7 +74,7 @@ export default function TutorialsPage() {
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
 
   useEffect(() => {
-    apiClient.get("/tutorials/public").then((r) => setTutorials(r.data)).catch(() => {});
+    api.get<Tutorial[]>("/tutorials/public").then(setTutorials).catch(() => {});
   }, []);
 
   const byCategory = CATEGORIAS.map((cat) => ({
