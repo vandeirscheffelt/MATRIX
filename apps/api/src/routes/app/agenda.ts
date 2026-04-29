@@ -20,6 +20,7 @@ interface Slot {
   horaFim: string     // "09:00"
   status: SlotStatus
   agendamentoId?: string
+  bloqueioId?: string
   leadNome?: string
   servicoNome?: string
 }
@@ -108,15 +109,15 @@ async function calcularAgendaDia(
     const slotFimMin = toMinutes(fim)
 
     // Verifica bloqueio
-    const bloqueado = profissional.bloqueios.some(b => {
+    const bloqueio = profissional.bloqueios.find((b: { id: string; dataInicio: Date; dataFim: Date }) => {
       const bInicio = new Date(b.dataInicio)
       const bFim = new Date(b.dataFim)
       return bInicio <= new Date(`${dataStr}T${formatHora(fim)}:00Z`) &&
              bFim >= new Date(`${dataStr}T${formatHora(inicio)}:00Z`)
     })
 
-    if (bloqueado) {
-      return { hora: formatHora(inicio), horaFim: formatHora(fim), status: 'BLOQUEADO' }
+    if (bloqueio) {
+      return { hora: formatHora(inicio), horaFim: formatHora(fim), status: 'BLOQUEADO', bloqueioId: bloqueio.id }
     }
 
     // Verifica agendamento

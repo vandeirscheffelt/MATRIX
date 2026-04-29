@@ -52,7 +52,7 @@ export function useAvailability() {
             : "blocked") as SlotStatus,
           client: s.leadNome,
           service: s.servicoNome,
-          appointmentId: s.agendamentoId,
+          appointmentId: s.agendamentoId ?? s.bloqueioId,
         }))
       );
       // API returned nothing — build default free slots so the grid never goes blank
@@ -105,6 +105,13 @@ export function useAvailability() {
       }));
   }, [loadSlotsForDate]);
 
+  const invalidateDate = useCallback((date: Date) => {
+    const iso = date.toISOString().split("T")[0];
+    slotsCacheRef.current = { ...slotsCacheRef.current };
+    delete slotsCacheRef.current[iso];
+    setSlotsCache(prev => { const next = { ...prev }; delete next[iso]; return next; });
+  }, []);
+
   const applySlotUpdate = useCallback((date: Date, time: string, professionalId: string, updates: Partial<TimeSlot>) => {
     const iso = date.toISOString().split("T")[0];
     const key = `${iso}__${slotKey(time, professionalId)}`;
@@ -121,18 +128,20 @@ export function useAvailability() {
         dataInicio: dataInicio.toISOString(),
         dataFim: dataFim.toISOString(),
       });
+      invalidateDate(date);
       applySlotUpdate(date, time, professionalId, { status: "blocked", appointmentId: res.id });
     } catch {
       applySlotUpdate(date, time, professionalId, { status: "blocked" });
     }
-  }, [applySlotUpdate]);
+  }, [applySlotUpdate, invalidateDate]);
 
   const unblockSlot = useCallback(async (date: Date, time: string, professionalId: string, bloqueioId?: string) => {
     if (bloqueioId) {
       try { await api.delete(`/app/bloqueios/${bloqueioId}`); } catch { /* ignore */ }
     }
+    invalidateDate(date);
     applySlotUpdate(date, time, professionalId, { status: "free", appointmentId: undefined });
-  }, [applySlotUpdate]);
+  }, [applySlotUpdate, invalidateDate]);
 
   return { getSlotsForDate, loadSlotsForDate, getAiSuggestions, applySlotUpdate, blockSlot, unblockSlot };
 }
