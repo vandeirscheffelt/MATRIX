@@ -1,7 +1,7 @@
 # SCHAIKRON — Status Oficial do Backend
 > Documento de referência para não perder o fio da meada.
 > Atualizar sempre que um bloco for concluído.
-> Última atualização: 2026-04-14
+> Última atualização: 2026-04-29
 
 ---
 
@@ -70,6 +70,7 @@ STRIPE   = Cobrança / assinatura base + usuários adicionais
 | `DELETE /app/instancia` | DELETE | Desconecta e remove | ✅ |
 | `POST /webhook/n8n` | POST | Recebe eventos do n8n | ✅ |
 | `GET /auth` | GET | Auth Supabase | ✅ |
+| `GET /health` | GET | Health check | ✅ |
 
 ---
 
@@ -90,13 +91,10 @@ Retorna para hidratar o Painel:
 - `timeline[]` — eventos cronológicos do dia
 - `sistema_status`, `whatsapp_status`
 
-#### 1.2 Motor de disponibilidade (Agenda)
-```
-GET /app/agenda/day?date=YYYY-MM-DD&profissional_id=optional
-GET /app/agenda/week?date=YYYY-MM-DD&profissional_id=optional
-```
-Lógica: grade de horários do profissional − bloqueios − agendamentos existentes = slots disponíveis.
-Retorna grade por hora com status: `DISPONIVEL | AGENDADO | BLOQUEADO`.
+#### 1.2 Motor de disponibilidade (Agenda) ✅ CONCLUÍDO
+`GET /app/agenda/day` e `GET /app/agenda/week` implementados.
+Retorna `DISPONIVEL | AGENDADO | BLOQUEADO` com `bloqueioId` e `agendamentoId`.
+Fallback para 08:00–17:00 quando profissional sem `gradeHorarios`.
 
 #### 1.3 Serviços (novo modelo no schema)
 ```
@@ -406,7 +404,9 @@ apps/api/src/
 │   └── stripe.ts                     — cliente Stripe
 └── routes/
     └── app/
-        ├── agendamentos.ts           ✅ CRUD + conflito
+        ├── agendamentos.ts           ✅ CRUD + conflito + clienteNome + servicoNome
+        ├── agenda.ts                 ✅ motor de disponibilidade (day + week) + bloqueioId no slot
+        ├── bloqueios.ts              ✅ POST + DELETE (persistência de bloqueios de horário)
         ├── config.ts                 ✅ ConfigBot + gerar-prompt
         ├── empresa.ts                ✅ GET/PUT empresa
         ├── profissionais.ts          ✅ CRUD + grade + bloqueios
@@ -414,17 +414,70 @@ apps/api/src/
         ├── subscription.ts           ✅ Stripe básico
         ├── gerente.ts                ✅ Número do gerente
         ├── leads.ts                  ✅ CRM básico
-        │
-        │   -- A CRIAR --
-        ├── dashboard.ts              ⬜ overview agregado
-        ├── agenda.ts                 ⬜ motor de disponibilidade
-        ├── servicos.ts               ⬜ CRUD de serviços
-        ├── conversas.ts              ⬜ CRM operacional completo
-        ├── faq.ts                    ⬜ FAQ como tabela + sugestões
-        ├── keywords.ts               ⬜ palavras-chave + sugestão IA
-        └── copiloto.ts               ⬜ score + gaps + knowledge-gaps
+        ├── servicos.ts               ✅ CRUD de serviços
+        ├── conversas.ts              ✅ CRM operacional (lista, pause, resume, archive)
+        ├── dashboard.ts              ✅ overview agregado
+        ├── faq.ts                    ✅ FAQ + sugestões IA
+        ├── keywords.ts               ✅ palavras-chave + sugestão IA
+        └── copiloto.ts               ✅ score + gaps + knowledge-gaps
 ```
 
 ---
 
 *Documento gerado em 2026-04-14 com base no Documento Fundacional de Handoff Frontend → Backend e na leitura completa do código existente.*
+
+---
+
+## Frontend — Agenda (atualizado 2026-04-29)
+
+| Feature | Status |
+|---------|--------|
+| Grid diário com profissionais | ✅ |
+| Grid semanal | ✅ |
+| Agendamento manual (criar) | ✅ persistido no banco |
+| Agendamento automático (IA) | ✅ respeita slot preferido |
+| Remarcar (cancel + reabrir form) | ✅ |
+| Cancelar agendamento | ✅ DELETE no banco |
+| Bloquear horário | ✅ persistido via `/app/bloqueios` |
+| Desbloquear horário | ✅ DELETE no banco |
+| Nome do cliente no slot agendado | ✅ campo `clienteNome` no DB |
+| Serviço no slot agendado | ✅ campo `servicoNome` no DB |
+| i18n (pt-BR / es / en) | ✅ todas as strings traduzidas |
+| Slots não somem na navegação | ✅ cache invalidado + re-fetch pós-ação |
+| Agendamento não replica em outros dias | ✅ chave de override inclui data |
+
+---
+
+## Infraestrutura de Deploy (atualizado 2026-04-29)
+
+### Backend — `shaikron-api`
+- **Container:** `shaikron-api` rodando em Docker, porta `3004`
+- **Rede Docker:** `shaikron_shaikron-net`
+- **Compose:** `infra/docker/shaikron/docker-compose.yml`
+- **Deploy:** `bash infra/scripts/deploy-shaikron.sh` na VPS
+
+### Frontend — `shaikron-web`
+- **Container:** `shaikron-web` rodando em Docker, porta `3005` (nginx:alpine interno)
+- **URL:** https://app.shaikron.scheffelt.xyz ✅ HTTPS ativo
+- **Compose:** `infra/docker/shaikron/docker-compose.web.yml`
+- **Deploy:** `bash infra/scripts/deploy-shaikron-web.sh` na VPS
+
+### OpenResty (Speedfy/icontainer)
+- **Processo:** PID detectado via `pgrep -f openresty`
+- **Confs:** `/etc/icontainer/apps/openresty/openresty/conf/conf.d/`
+- **Certs SSL:** `/etc/icontainer/apps/openresty/openresty/conf/conf.d/certs/`
+  - `shaikron-fullchain.pem` + `shaikron-privkey.pem` (Let's Encrypt, expira 2026-07-17)
+- **Reload:** `nsenter -t <PID> -m -u -i -n -p -- /usr/local/openresty/nginx/sbin/nginx -s reload`
+  - ⚠️ `kill -HUP` **não funciona** — usar nsenter obrigatoriamente
+- **Renovação do cert:** ao renovar via certbot, re-copiar os .pem para `conf/conf.d/certs/` e rodar o reload
+
+### Hooks do Frontend (todos wired ao backend real)
+| Hook | Endpoint |
+|------|----------|
+| `useServices` | `GET /app/servicos` |
+| `useSettings` | `GET /app/config` |
+| `useConversations` | `GET /app/conversas` |
+| `ProfessionalsContext` | `GET /app/profissionais` |
+| `useAvailability` | `GET /app/agenda/day?data=` |
+| `useAppointments` | `POST /app/agendamentos` |
+| `AuthContext` | Supabase Auth real (Google OAuth + email/password) |
