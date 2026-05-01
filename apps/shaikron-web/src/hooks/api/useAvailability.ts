@@ -3,6 +3,14 @@ import { type TimeSlot, type AiSuggestion, type SlotStatus, HOURS, slotKey } fro
 import { api } from "@/lib/apiClient";
 import { useProfessionals } from "./useProfessionals";
 
+// Uses local date parts to avoid UTC shift (e.g. UTC-3 turning May 1 into Apr 30)
+function toLocalDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function useAvailability() {
   const { professionals } = useProfessionals();
   // Keyed as "YYYY-MM-DD__time__proId" to prevent cross-day bleed
@@ -27,7 +35,7 @@ export function useAvailability() {
 
   // Async fetch — returns loaded slots directly (avoids stale closure problem)
   const loadSlotsForDate = useCallback(async (date: Date): Promise<TimeSlot[]> => {
-    const iso = date.toISOString().split("T")[0];
+    const iso = toLocalDateStr(date);
     // Return already-cached slots immediately
     if (slotsCacheRef.current[iso]) return slotsCacheRef.current[iso];
     if (pendingFetches.current.has(iso)) {
@@ -75,7 +83,7 @@ export function useAvailability() {
 
   // Synchronous — reads from cache (or returns fallback free slots)
   const getSlotsForDate = useCallback((date: Date): TimeSlot[] => {
-    const iso = date.toISOString().split("T")[0];
+    const iso = toLocalDateStr(date);
     const cached = slotsCache[iso];
     if (cached) return applyOverrides(cached, iso);
     // Trigger background fetch
@@ -92,7 +100,7 @@ export function useAvailability() {
   // Uses ref to get fresh slots after await — avoids stale closure
   const getAiSuggestions = useCallback(async (date: Date): Promise<AiSuggestion[]> => {
     const slots = await loadSlotsForDate(date);
-    const fresh = slots.length > 0 ? slots : (slotsCacheRef.current[date.toISOString().split("T")[0]] ?? []);
+    const fresh = slots.length > 0 ? slots : (slotsCacheRef.current[toLocalDateStr(date)] ?? []);
     return fresh
       .filter(s => s.status === "free")
       .slice(0, 3)
@@ -106,20 +114,20 @@ export function useAvailability() {
   }, [loadSlotsForDate]);
 
   const invalidateDate = useCallback((date: Date) => {
-    const iso = date.toISOString().split("T")[0];
+    const iso = toLocalDateStr(date);
     slotsCacheRef.current = { ...slotsCacheRef.current };
     delete slotsCacheRef.current[iso];
     setSlotsCache(prev => { const next = { ...prev }; delete next[iso]; return next; });
   }, []);
 
   const applySlotUpdate = useCallback((date: Date, time: string, professionalId: string, updates: Partial<TimeSlot>) => {
-    const iso = date.toISOString().split("T")[0];
+    const iso = toLocalDateStr(date);
     const key = `${iso}__${slotKey(time, professionalId)}`;
     setSlotOverrides(prev => ({ ...prev, [key]: updates }));
   }, []);
 
   const blockSlot = useCallback(async (date: Date, time: string, professionalId: string) => {
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = toLocalDateStr(date);
     const dataInicio = new Date(`${dateStr}T${time}:00Z`);
     const dataFim = new Date(dataInicio.getTime() + 60 * 60 * 1000);
     // Optimistic update first

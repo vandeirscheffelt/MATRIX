@@ -1,0 +1,30 @@
+{
+  "project": "Shaikron — Atendente IA",
+  "progress": 71,
+  "currentTask": "Aguardando próximo Blueprint",
+  "completedTasks": [
+    "M01 — Auth & Onboarding (signup, login, OAuth, reset senha)",
+    "M02 — Multi-tenancy & Roles (empresaId, ADMIN_GLOBAL, middleware)",
+    "M03 — Configuração do Bot (config_bot, keywords, contexto, horários)",
+    "M04 — Agenda (profissionais, grade, slots, bloqueios, agendamentos)",
+    "M05 — Serviços (CRUD, reorder, profissional_servicos)",
+    "M06 — CRM / Conversas (leads, conversas, mensagens, pausa/retomada IA)",
+    "M07 — Copiloto IA (score, gaps, knowledge-gaps, sugestões FAQ)",
+    "M08 — Admin Panel (pricing-versions, products, modules)",
+    "M09 — Tutoriais (CRUD admin + página pública por categoria)",
+    "M10 — Afiliados (vitrine MasterSaaS via localStorage)"
+  ],
+  "pendingTasks": [
+    "M11 — Dashboard Real (wiring useDashboard → GET /app/dashboard/overview)",
+    "M12 — Billing tela cliente (checkout Stripe + portal)",
+    "M13 — Integração n8n (webhooks WhatsApp, leads, conversas, agendamento)",
+    "M14 — IA02 Analítica (relatórios e insights de conversas)"
+  ],
+  "logs": [
+    "> [Claude] ARCHITECTURE.md criado em apps/atendente_ia/docs/",
+    "> [Claude] STATUS.md migrado para ARCHITECTURE.md com seção de módulos",
+    "> [Claude] 10 de 14 módulos concluídos (71%)",
+    "> [Claude] Próximo módulo: M11 — Dashboard Real",
+    "> [Claude] .matrix/status.json inicializado para o projeto Shaikron"
+  ]
+}
