@@ -297,9 +297,7 @@ function EditModal({
               placeholder="+55 11 99999-9999"
               className="h-9"
             />
-            {form.phone.trim() === "" && (
-              <p className="text-[10px] text-destructive">{t("pro.phoneRequired")}</p>
-            )}
+            <p className="text-[10px] text-muted-foreground">{t("pro.phoneOptional") ?? "Obrigatório — usado como identificador único pelo WhatsApp"}</p>
           </div>
 
           {/* AI Access */}
@@ -459,7 +457,7 @@ function EditModal({
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" size="sm" onClick={onClose}>{t("pro.cancel")}</Button>
-            <Button size="sm" onClick={onSave} disabled={!form.name.trim() || !form.phone.trim()}>
+            <Button size="sm" onClick={onSave} disabled={!form.name.trim()}>
               <Check className="h-3.5 w-3.5 mr-1" />
               {isNew ? t("pro.add") : t("pro.save")}
             </Button>
@@ -489,7 +487,7 @@ export default function ProfessionalSettings() {
   };
 
   const save = () => {
-    if (!form.name.trim() || !form.phone.trim()) return;
+    if (!form.name.trim()) return;
     const data = {
       name: form.name.trim(),
       phone: form.phone.trim(),
