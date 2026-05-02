@@ -23,6 +23,12 @@ const bloqueioBody = z.object({
   motivo: z.string().optional(),
 })
 
+const ausenciaBody = z.object({
+  dataInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato YYYY-MM-DD'),
+  dataFim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato YYYY-MM-DD'),
+  motivo: z.string().optional(),
+})
+
 export async function profissionaisRoutes(app: FastifyInstance) {
   const preHandler = [requireAuth, requireActiveSubscription]
 
@@ -141,6 +147,51 @@ export async function profissionaisRoutes(app: FastifyInstance) {
     if (!bloqueio) return reply.code(404).send({ error: 'Bloqueio não encontrado' })
 
     await prisma.bloqueio.delete({ where: { id: bid } })
+    return { success: true }
+  })
+
+  // GET /app/profissionais/:id/ausencias — bloqueios de dia inteiro (duração >= 12h)
+  app.get('/:id/ausencias', { preHandler }, async (request: any, reply) => {
+    const { id } = request.params as { id: string }
+    const existing = await prisma.profissional.findFirst({ where: { id, empresaId: request.empresaId } })
+    if (!existing) return reply.code(404).send({ error: 'Profissional não encontrado' })
+
+    const bloqueios = await prisma.bloqueio.findMany({
+      where: { profissionalId: id },
+      orderBy: { dataInicio: 'asc' },
+    })
+    // Ausências = bloqueios com duração >= 12 horas
+    return bloqueios.filter((b: { dataInicio: Date; dataFim: Date }) => {
+      const diff = new Date(b.dataFim).getTime() - new Date(b.dataInicio).getTime()
+      return diff >= 12 * 60 * 60 * 1000
+    })
+  })
+
+  // POST /app/profissionais/:id/ausencias — cria bloqueio cobrindo range de datas completo
+  app.post('/:id/ausencias', { preHandler }, async (request: any, reply) => {
+    const { id } = request.params as { id: string }
+    const body = ausenciaBody.safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const existing = await prisma.profissional.findFirst({ where: { id, empresaId: request.empresaId } })
+    if (!existing) return reply.code(404).send({ error: 'Profissional não encontrado' })
+
+    return prisma.bloqueio.create({
+      data: {
+        profissionalId: id,
+        dataInicio: new Date(`${body.data.dataInicio}T00:00:00Z`),
+        dataFim: new Date(`${body.data.dataFim}T23:59:59Z`),
+        motivo: body.data.motivo,
+      },
+    })
+  })
+
+  // DELETE /app/profissionais/:id/ausencias/:aid
+  app.delete('/:id/ausencias/:aid', { preHandler }, async (request: any, reply) => {
+    const { id, aid } = request.params as { id: string; aid: string }
+    const bloqueio = await prisma.bloqueio.findFirst({ where: { id: aid, profissionalId: id } })
+    if (!bloqueio) return reply.code(404).send({ error: 'Ausência não encontrada' })
+    await prisma.bloqueio.delete({ where: { id: aid } })
     return { success: true }
   })
 }

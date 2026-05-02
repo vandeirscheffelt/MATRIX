@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useProfessionals } from "@/hooks/api/useProfessionals";
 import { useServices } from "@/hooks/api/useServices";
 import type { Professional, ProfessionalSchedule, BreakPeriod, DayScheduleOverride } from "@/hooks/api/types";
-import { Users, Clock, Briefcase, Plus, Pencil, Trash2, Check, Coffee, Bot, Phone } from "lucide-react";
+import { Users, Clock, Briefcase, Plus, Pencil, Trash2, Check, Coffee, Bot, Phone, CalendarOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,6 +10,117 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { api } from "@/lib/apiClient";
+import { format } from "date-fns";
+
+interface Ausencia {
+  id: string;
+  dataInicio: string;
+  dataFim: string;
+  motivo?: string | null;
+}
+
+function useAusencias(proId: string) {
+  const [ausencias, setAusencias] = useState<Ausencia[]>([]);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await api.get<Ausencia[]>(`/app/profissionais/${proId}/ausencias`);
+      setAusencias(data ?? []);
+    } catch { /* silently fail */ }
+  }, [proId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const add = useCallback(async (dataInicio: string, dataFim: string, motivo?: string) => {
+    await api.post(`/app/profissionais/${proId}/ausencias`, { dataInicio, dataFim, motivo: motivo || undefined });
+    await load();
+  }, [proId, load]);
+
+  const remove = useCallback(async (id: string) => {
+    await api.delete(`/app/profissionais/${proId}/ausencias/${id}`);
+    setAusencias(prev => prev.filter(a => a.id !== id));
+  }, [proId]);
+
+  return { ausencias, add, remove };
+}
+
+function AusenciasPanel({ proId }: { proId: string }) {
+  const { ausencias, add, remove } = useAusencias(proId);
+  const [open, setOpen] = useState(false);
+  const [inicio, setInicio] = useState("");
+  const [fim, setFim] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleAdd = async () => {
+    if (!inicio || !fim) return;
+    setSaving(true);
+    try { await add(inicio, fim, motivo); setOpen(false); setInicio(""); setFim(""); setMotivo(""); }
+    finally { setSaving(false); }
+  };
+
+  const fmt = (iso: string) => { try { return format(new Date(iso), "dd/MM/yyyy"); } catch { return iso; } };
+
+  return (
+    <div className="mt-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+          <CalendarOff className="h-3 w-3" /> Ausências programadas
+        </span>
+        <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setOpen(true)}>
+          <Plus className="h-3 w-3" /> Adicionar
+        </Button>
+      </div>
+
+      {ausencias.length === 0 ? (
+        <p className="text-[10px] text-muted-foreground italic">Nenhuma ausência programada</p>
+      ) : (
+        <div className="space-y-1">
+          {ausencias.map(a => (
+            <div key={a.id} className="flex items-center justify-between rounded-md bg-secondary px-2.5 py-1.5 text-xs">
+              <span className="text-foreground">
+                {fmt(a.dataInicio)} → {fmt(a.dataFim)}
+                {a.motivo && <span className="text-muted-foreground ml-1.5">· {a.motivo}</span>}
+              </span>
+              <button onClick={() => remove(a.id)} className="ml-2 text-muted-foreground hover:text-destructive transition-colors">
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle className="text-sm">Nova Ausência</DialogTitle></DialogHeader>
+          <div className="space-y-3 pt-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Data início</label>
+                <Input type="date" value={inicio} onChange={e => setInicio(e.target.value)} className="h-9 text-sm" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Data fim</label>
+                <Input type="date" value={fim} onChange={e => setFim(e.target.value)} className="h-9 text-sm" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Motivo (opcional)</label>
+              <Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ex: férias, licença..." className="h-9 text-sm" />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => setOpen(false)}>Cancelar</Button>
+              <Button size="sm" onClick={handleAdd} disabled={!inicio || !fim || saving}>
+                <Check className="h-3.5 w-3.5 mr-1" /> Salvar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
 
 const DAY_KEYS = ["pro.days.sun", "pro.days.mon", "pro.days.tue", "pro.days.wed", "pro.days.thu", "pro.days.fri", "pro.days.sat"];
 const COLORS = [
@@ -220,6 +331,8 @@ function ProfessionalCard({
           <span className="text-[10px] text-muted-foreground/50 italic">{t("pro.noServices")}</span>
         )}
       </div>
+
+      <AusenciasPanel proId={pro.id} />
     </div>
   );
 }
