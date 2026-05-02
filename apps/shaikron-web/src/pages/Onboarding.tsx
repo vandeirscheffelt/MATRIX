@@ -12,6 +12,7 @@ import { expandDescription, generateDescription, improveAnswer, improveQuestion,
 import WhatsAppConnection from "@/components/onboarding/WhatsAppConnection";
 import ServicesManager from "@/components/onboarding/ServicesManager";
 import ProfessionalSettings from "@/components/onboarding/ProfessionalSettings";
+import FeriadosPanel from "@/components/onboarding/FeriadosPanel";
 import { useLanguage, LanguageConsumer, type LanguageCode } from "@/contexts/LanguageContext";
 
 // Error boundary to prevent Copilot crashes from breaking the whole page
@@ -981,6 +982,7 @@ export default function Onboarding() {
 
           <ServicesManager />
           <ProfessionalSettings />
+          <FeriadosPanel />
           <WhatsAppConnection />
 
           <Button type="button" variant="glow" size="lg" className="w-full relative z-50" onClick={() => { console.log("SAVE CLICKED"); handleSave(); }} disabled={saving}>

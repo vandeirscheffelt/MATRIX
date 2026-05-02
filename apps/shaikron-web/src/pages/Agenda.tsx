@@ -313,7 +313,7 @@ export default function Agenda() {
             </div>
           </div>
           <div className="divide-y divide-border">
-            {HOURS.map(hour => {
+            {HOURS.filter(hour => daySlots.some(s => s.time === hour && filteredPros.some(p => p.id === s.professionalId))).map(hour => {
               const slotsForHour = daySlots.filter(s => s.time === hour && filteredPros.some(p => p.id === s.professionalId));
               return (
                 <div key={hour} className="flex">
