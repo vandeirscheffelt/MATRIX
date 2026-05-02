@@ -82,9 +82,15 @@ async function calcularAgendaDia(
   const dataObj = new Date(`${dataStr}T00:00:00Z`)
   const diaSemana = dataObj.getUTCDay() // 0=dom ... 6=sáb
 
+  const hasAnyGrade = profissional.gradeHorarios.length > 0
   const grade = profissional.gradeHorarios.find(g => g.diaSemana === diaSemana)
 
-  // Sem grade configurada: usa horário padrão 08:00–18:00 para exibir agendamentos existentes
+  // Profissional tem grade configurada mas não trabalha neste dia → retorna sem slots
+  if (hasAnyGrade && !grade) {
+    return { profissionalId, profissionalNome: profissional.nome, data: dataStr, slots: [] }
+  }
+
+  // Sem grade alguma: usa horário padrão 08:00–18:00 como fallback
   const horaInicio = grade?.horaInicio ?? '08:00'
   const horaFim = grade?.horaFim ?? '18:00'
   const duracaoMin = profissional.duracaoPadraoMin ?? 60
