@@ -49,7 +49,7 @@ export interface AiSuggestion {
 }
 
 // ─── Constants ───────────────────────────────────────────────────────
-export const HOURS = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+export const HOURS = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
 
 // PROFESSIONALS now come from context (see useScheduleApi hook below)
 
@@ -99,7 +99,7 @@ function generateSlotsForDate(date: Date, professionals: { id: string; schedule?
         const [h] = time.split(":").map(Number);
         const [sh] = start.split(":").map(Number);
         const [eh] = end.split(":").map(Number);
-        if (h < sh || h >= eh) return;
+        if (h < sh || h > eh) return;
       }
       const v = (seed * (i + 1) * 7 + pIdx * 13) % 10;
       if (v < 3) {
