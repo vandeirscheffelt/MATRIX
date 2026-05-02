@@ -33,6 +33,7 @@ export default function Dashboard() {
     () => bookedSlots.filter((s) => s.time >= now).slice(0, 5),
     [bookedSlots, now]
   );
+  const timelineAppointments = useMemo(() => bookedSlots.slice(0, 8), [bookedSlots]);
   const nextAppointment = upcomingAppointments[0];
 
   const freeSlots = todaySlots.filter((s) => s.status === "free").length;
@@ -209,7 +210,7 @@ export default function Dashboard() {
                 {t("dashboard.viewAgenda")} <ArrowRight className="h-3 w-3" />
               </Button>
             </div>
-            {upcomingAppointments.length === 0 ? (
+            {timelineAppointments.length === 0 ? (
               <div className="px-5 py-8 text-center">
                 <p className="text-sm text-muted-foreground">{t("dashboard.noMoreAppointments")}</p>
               </div>
@@ -218,15 +219,17 @@ export default function Dashboard() {
                 {/* Timeline line */}
                 <div className="absolute left-[29px] top-4 bottom-4 w-px bg-border" />
                 <div className="divide-y divide-border">
-                  {upcomingAppointments.map((apt, i) => {
+                  {timelineAppointments.map((apt) => {
                     const pro = getPro(apt.professionalId);
-                    const isNext = i === 0;
+                    const isPast = apt.time < now;
+                    const isNext = apt.time === upcomingAppointments[0]?.time && apt.professionalId === upcomingAppointments[0]?.professionalId;
                     return (
                       <div
                         key={`${apt.time}-${apt.professionalId}`}
                         className={cn(
                           "flex items-center gap-4 px-5 py-3.5 transition-colors",
-                          isNext && "bg-primary/5"
+                          isNext && "bg-primary/5",
+                          isPast && "opacity-50"
                         )}
                       >
                         {/* Timeline dot */}
@@ -236,7 +239,9 @@ export default function Dashboard() {
                               "h-3 w-3 rounded-full border-2",
                               isNext
                                 ? "bg-primary border-primary animate-pulse"
-                                : "bg-card border-border"
+                                : isPast
+                                  ? "bg-muted border-muted-foreground"
+                                  : "bg-card border-border"
                             )}
                           />
                         </div>
@@ -246,7 +251,7 @@ export default function Dashboard() {
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{apt.client}</p>
+                          <p className={cn("text-sm font-medium truncate", isPast ? "text-muted-foreground" : "text-foreground")}>{apt.client}</p>
                           <p className="text-xs text-muted-foreground truncate">
                             {apt.service} · {pro?.name ?? "—"}
                           </p>
@@ -255,6 +260,9 @@ export default function Dashboard() {
                         {/* Badge */}
                         {isNext && (
                           <span className="text-xs font-medium text-primary shrink-0">{t("dashboard.next")}</span>
+                        )}
+                        {isPast && (
+                          <span className="text-xs text-muted-foreground shrink-0">{t("dashboard.done") ?? "✓"}</span>
                         )}
                       </div>
                     );
