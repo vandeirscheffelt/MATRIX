@@ -502,6 +502,12 @@ const dictionaries: Record<LanguageCode, Translations> = {
     "faq.questionPlaceholder": "Pergunta",
     "faq.answerPlaceholder": "Resposta",
     "faq.addFaq": "Adicionar FAQ",
+    // Assistant Name
+    "assistantName.title": "Nome da Assistente",
+    "assistantName.subtitle": "Como sua assistente se chama nas conversas com clientes",
+    "assistantName.placeholder": "Ex: Sofia, Lara, Ana...",
+    "gaps.noAssistantName": "Nome da assistente não definido",
+    "gaps.noAssistantNameDesc": "Dê um nome para sua assistente — torna as conversas mais pessoais.",
     // Assistant Identity
     "identity.title": "Identidade do Assistente",
     "identity.subtitle": "Escolha como o assistente se apresenta aos clientes",
@@ -1183,6 +1189,12 @@ const dictionaries: Record<LanguageCode, Translations> = {
     "faq.questionPlaceholder": "Pregunta",
     "faq.answerPlaceholder": "Respuesta",
     "faq.addFaq": "Agregar FAQ",
+    // Assistant Name
+    "assistantName.title": "Nombre de la Asistente",
+    "assistantName.subtitle": "Cómo se llama tu asistente en las conversaciones con clientes",
+    "assistantName.placeholder": "Ej: Sofía, Laura, Ana...",
+    "gaps.noAssistantName": "Nombre de la asistente no definido",
+    "gaps.noAssistantNameDesc": "Dale un nombre a tu asistente — hace las conversaciones más personales.",
     // Assistant Identity
     "identity.title": "Identidad del Asistente",
     "identity.subtitle": "Elige cómo el asistente se presenta a los clientes",
@@ -1865,6 +1877,12 @@ const dictionaries: Record<LanguageCode, Translations> = {
     "faq.questionPlaceholder": "Question",
     "faq.answerPlaceholder": "Answer",
     "faq.addFaq": "Add FAQ",
+    // Assistant Name
+    "assistantName.title": "Assistant Name",
+    "assistantName.subtitle": "What your assistant is called in conversations with clients",
+    "assistantName.placeholder": "E.g: Sofia, Laura, Ana...",
+    "gaps.noAssistantName": "Assistant name not set",
+    "gaps.noAssistantNameDesc": "Give your assistant a name — it makes conversations more personal.",
     // Assistant Identity
     "identity.title": "Assistant Identity",
     "identity.subtitle": "Choose how the assistant presents itself to customers",

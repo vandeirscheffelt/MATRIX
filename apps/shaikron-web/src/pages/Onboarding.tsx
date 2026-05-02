@@ -172,6 +172,7 @@ export default function Onboarding() {
       if (config?.horarioFim) partial.workingHoursEnd = config.horarioFim;
       if (config?.disponibilidade) partial.aiAvailability = config.disponibilidade === "horario_comercial" ? "same" : config.disponibilidade === "24_7" ? "24/7" : "custom";
       if (config?.identidade) partial.assistantIdentity = config.identidade === "assistente_virtual" ? "virtual" : "human";
+      if (config?.nomeAssistente) partial.assistantName = config.nomeAssistente;
       if (config?.palavraPausa) partial.cmdTakeover = config.palavraPausa;
       if (config?.palavraRetorno) partial.cmdResume = config.palavraRetorno;
       if (config?.tempoRetornoMin) partial.autoResumeMinutes = config.tempoRetornoMin;
@@ -201,6 +202,7 @@ export default function Onboarding() {
         api.patch("/app/config/disponibilidade-ia", { disponibilidade: f.aiAvailability === "same" ? "horario_comercial" : f.aiAvailability === "24/7" ? "24_7" : "personalizado" }).catch(() => null),
         api.patch("/app/config/comandos-controle", { palavraPausa: f.cmdTakeover, palavraRetorno: f.cmdResume }).catch(() => null),
         api.patch("/app/config/auto-retomada", { tempoRetornoMin: f.autoResumeMinutes }).catch(() => null),
+        f.assistantName.trim() ? api.patch("/app/config/nome-assistente", { nomeAssistente: f.assistantName.trim() }).catch(() => null) : Promise.resolve(),
         api.put("/app/faq", f.faqs.filter(faq => faq.question.trim() && faq.answer.trim()).map(faq => ({ pergunta: faq.question, resposta: faq.answer }))).catch(() => null),
       ]);
       toast.success("Configurações salvas com sucesso!");
@@ -417,8 +419,8 @@ export default function Onboarding() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* LEFT: Form — 3 cols */}
-        <div className="lg:col-span-3 space-y-5">
+        {/* LEFT: Form — 3 cols (order-2 on mobile so Copilot appears first) */}
+        <div className="lg:col-span-3 space-y-5 order-2 lg:order-1">
           <div className="rounded-xl border border-border bg-card p-6 space-y-5">
             {/* Language */}
             <div id="field-language">
@@ -865,6 +867,25 @@ export default function Onboarding() {
               </div>
             </div>
 
+            {/* Assistant Name */}
+            <div id="field-assistant-name">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                <Bot className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
+                {t("assistantName.title")}
+              </label>
+              <p className="text-xs text-muted-foreground mb-2">
+                {t("assistantName.subtitle")}
+              </p>
+              <Input
+                id="input-assistant-name"
+                placeholder={t("assistantName.placeholder")}
+                value={form.assistantName}
+                onChange={(e) => update("assistantName", e.target.value)}
+                maxLength={50}
+                className="bg-secondary border-border"
+              />
+            </div>
+
             {/* Working Hours */}
             <div id="field-working-hours">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
@@ -967,8 +988,8 @@ export default function Onboarding() {
           </Button>
         </div>
 
-        {/* RIGHT: AI Copilot — 2 cols */}
-        <div className="lg:col-span-2">
+        {/* RIGHT: AI Copilot — 2 cols (order-1 on mobile so it appears at top) */}
+        <div className="lg:col-span-2 order-1 lg:order-2">
           <CopilotErrorBoundary>
             <AICopilot
               form={form}

@@ -131,6 +131,18 @@ export async function configRoutes(app: FastifyInstance) {
     })
   })
 
+  // PATCH /app/config/nome-assistente
+  app.patch('/nome-assistente', { preHandler }, async (request: any, reply) => {
+    const body = z.object({ nomeAssistente: z.string().min(1).max(50) }).safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+    return prisma.configBot.upsert({
+      where: { empresaId: request.empresaId },
+      create: { empresaId: request.empresaId, prompt: '', nomeAssistente: body.data.nomeAssistente },
+      update: { nomeAssistente: body.data.nomeAssistente },
+      select: { nomeAssistente: true },
+    })
+  })
+
   // PATCH /app/config/identidade
   app.patch('/identidade', { preHandler }, async (request: any, reply) => {
     const body = z.object({ identidade: z.enum(['assistente_virtual', 'atendente_humano']) }).safeParse(request.body)

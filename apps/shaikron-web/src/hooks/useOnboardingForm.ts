@@ -21,6 +21,7 @@ export interface OnboardingFormState {
   aiCustomStart: string;
   aiCustomEnd: string;
   assistantIdentity: AssistantIdentity;
+  assistantName: string;
   cmdTakeover: string;
   cmdPause: string;
   cmdResume: string;
@@ -43,6 +44,7 @@ const INITIAL_STATE: OnboardingFormState = {
   aiCustomStart: "00:00",
   aiCustomEnd: "23:59",
   assistantIdentity: "virtual",
+  assistantName: "",
   cmdTakeover: "atendente",
   cmdPause: "pausar",
   cmdResume: "voltar",
@@ -51,13 +53,14 @@ const INITIAL_STATE: OnboardingFormState = {
 };
 
 const FIELD_WEIGHTS: Record<string, number> = {
-  businessName: 15,
-  businessType: 15,
-  description: 20,
-  tone: 10,
-  keywords: 15,
-  faqs: 15,
-  workingHours: 10,
+  businessName: 14,
+  businessType: 14,
+  description: 19,
+  tone: 9,
+  keywords: 14,
+  faqs: 14,
+  workingHours: 9,
+  assistantName: 7,
 };
 
 export function useOnboardingForm() {
@@ -80,6 +83,7 @@ export function useOnboardingForm() {
     if (form.keywords.length >= 2) score += FIELD_WEIGHTS.keywords;
     if (form.faqs.some(f => f.question.trim() && f.answer.trim())) score += FIELD_WEIGHTS.faqs;
     if (form.workingHoursStart && form.workingHoursEnd) score += FIELD_WEIGHTS.workingHours;
+    if (form.assistantName.trim()) score += FIELD_WEIGHTS.assistantName;
     return score;
   }, [form]);
 

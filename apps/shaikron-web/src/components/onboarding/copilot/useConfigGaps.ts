@@ -93,6 +93,16 @@ export function useConfigGaps(form: OnboardingFormState, t: (key: string, params
       });
     }
 
+    if (!form.assistantName.trim()) {
+      result.push({
+        id: "no-assistant-name",
+        severity: "important",
+        title: t("gaps.noAssistantName"),
+        description: t("gaps.noAssistantNameDesc"),
+        fieldId: "field-assistant-name",
+      });
+    }
+
     return result
       .sort((a, b) => (a.severity === "critical" ? 0 : 1) - (b.severity === "critical" ? 0 : 1))
       .slice(0, 5);
