@@ -41,7 +41,7 @@ function gerarSlots(horaInicio: string, horaFim: string, duracaoMin: number): Ar
   let cursor = hI * 60 + mI
   const fimMin = hF * 60 + mF
 
-  while (cursor + duracaoMin <= fimMin) {
+  while (cursor <= fimMin) {
     const h = Math.floor(cursor / 60)
     const m = cursor % 60
     const fimCursor = cursor + duracaoMin
