@@ -63,8 +63,8 @@ export function useAvailability() {
           appointmentId: s.agendamentoId ?? s.bloqueioId,
         }))
       );
-      // API returned nothing — build default free slots so the grid never goes blank
-      if (slots.length === 0) {
+      // Only use fallback when no professionals have any grade configured yet
+      if (slots.length === 0 && professionalsRef.current.every(p => !p.schedule.workingHoursStart)) {
         slots = professionalsRef.current.flatMap(pro =>
           HOURS.map((time): TimeSlot => ({ time, professionalId: pro.id, status: "free" }))
         );
