@@ -313,7 +313,7 @@ export default function Agenda() {
             </div>
           </div>
           <div className="divide-y divide-border">
-            {HOURS.filter(hour => daySlots.some(s => s.time === hour && filteredPros.some(p => p.id === s.professionalId))).map(hour => {
+            {[...new Set(daySlots.filter(s => filteredPros.some(p => p.id === s.professionalId)).map(s => s.time))].sort().map(hour => {
               const slotsForHour = daySlots.filter(s => s.time === hour && filteredPros.some(p => p.id === s.professionalId));
               return (
                 <div key={hour} className="flex">
@@ -377,7 +377,7 @@ export default function Agenda() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {HOURS.map(hour => (
+              {[...new Set(weekDays.flatMap(day => getSlotsForDate(day).filter(s => filteredPros.some(p => p.id === s.professionalId)).map(s => s.time)))].sort().map(hour => (
                 <tr key={hour} className="divide-x divide-border">
                   <td className="px-3 py-2 text-xs font-mono text-muted-foreground align-top pt-3">{hour}</td>
                   {weekDays.map(day => {
