@@ -3,17 +3,21 @@ import type { Professional } from "@/hooks/api/types";
 import { api } from "@/lib/apiClient";
 
 function mapApiProfessional(p: any): Professional {
+  // Build daysOff from gradeHorarios: days 0-6 not present = off
+  const presentDays = new Set((p.gradeHorarios ?? []).map((g: any) => g.diaSemana));
+  const daysOff = [0,1,2,3,4,5,6].filter(d => !presentDays.has(d));
+  const firstGrade = (p.gradeHorarios ?? [])[0];
   return {
     id: p.id,
     name: p.nome,
     phone: p.telefone ?? "",
-    aiAccess: false,
-    color: "217 91% 60%",
-    services: (p.servicos ?? []).map((s: any) => s.servicoId ?? s.id),
+    aiAccess: p.aiAccess ?? false,
+    color: p.cor ?? "217 91% 60%",
+    services: (p.profissionalServicos ?? []).map((s: any) => s.servicoId),
     schedule: {
-      workingHoursStart: p.gradeHorarios?.[0]?.horaInicio ?? "08:00",
-      workingHoursEnd: p.gradeHorarios?.[0]?.horaFim ?? "18:00",
-      daysOff: [],
+      workingHoursStart: firstGrade?.horaInicio ?? "08:00",
+      workingHoursEnd: firstGrade?.horaFim ?? "18:00",
+      daysOff,
     },
   };
 }
@@ -46,19 +50,41 @@ export function ProfessionalsProvider({ children }: { children: ReactNode }) {
   const getProfessional = useCallback((id: string): Professional => {
     return professionals.find(p => p.id === id) ?? {
       id, name: id, phone: "", aiAccess: false, color: "0 0% 50%",
-      services: [], schedule: { workingHoursStart: "08:00", workingHoursEnd: "17:00", daysOff: [] },
+      services: [], schedule: { workingHoursStart: "08:00", workingHoursEnd: "18:00", daysOff: [] },
     };
   }, [professionals]);
 
   const addProfessional = useCallback(async (pro: Omit<Professional, "id">) => {
-    await api.post("/app/profissionais", { nome: pro.name });
+    const created = await api.post<{ id: string }>("/app/profissionais", {
+      nome: pro.name,
+      telefone: pro.phone || undefined,
+      cor: pro.color,
+      aiAccess: pro.aiAccess,
+    });
+    if (created?.id && pro.schedule) {
+      const grade = [0,1,2,3,4,5,6]
+        .filter(d => !pro.schedule.daysOff.includes(d))
+        .map(d => ({ diaSemana: d, horaInicio: pro.schedule.workingHoursStart, horaFim: pro.schedule.workingHoursEnd }));
+      await api.put(`/app/profissionais/${created.id}/grade`, grade).catch(() => null);
+    }
     await reload();
   }, [reload]);
 
   const updateProfessional = useCallback(async (id: string, updates: Partial<Professional>) => {
-    await api.patch(`/app/profissionais/${id}`, { nome: updates.name });
-    setProfessionals(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-  }, []);
+    await api.put(`/app/profissionais/${id}`, {
+      nome: updates.name,
+      telefone: updates.phone || undefined,
+      cor: updates.color,
+      aiAccess: updates.aiAccess,
+    });
+    if (updates.schedule) {
+      const grade = [0,1,2,3,4,5,6]
+        .filter(d => !updates.schedule!.daysOff.includes(d))
+        .map(d => ({ diaSemana: d, horaInicio: updates.schedule!.workingHoursStart, horaFim: updates.schedule!.workingHoursEnd }));
+      await api.put(`/app/profissionais/${id}/grade`, grade).catch(() => null);
+    }
+    await reload();
+  }, [reload]);
 
   const removeProfessional = useCallback(async (id: string) => {
     await api.delete(`/app/profissionais/${id}`);

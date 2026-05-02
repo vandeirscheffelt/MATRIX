@@ -5,6 +5,9 @@ import { requireAuth, requireActiveSubscription } from '../../lib/auth.js'
 
 const profissionalBody = z.object({
   nome: z.string().min(1),
+  telefone: z.string().optional(),
+  cor: z.string().optional(),
+  aiAccess: z.boolean().optional(),
   duracaoPadraoMin: z.number().int().positive().default(60),
 })
 
@@ -27,6 +30,7 @@ export async function profissionaisRoutes(app: FastifyInstance) {
   app.get('/', { preHandler }, async (request: any) => {
     return prisma.profissional.findMany({
       where: { empresaId: request.empresaId, ativo: true },
+      include: { gradeHorarios: true, profissionalServicos: true },
     })
   })
 
