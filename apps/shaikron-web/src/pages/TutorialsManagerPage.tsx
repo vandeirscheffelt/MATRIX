@@ -72,11 +72,15 @@ export default function TutorialsManagerPage() {
   const handleSave = async () => {
     if (!form.titulo.trim()) { toast({ title: t("tm.nameRequired"), variant: "destructive" }); return; }
     if (!form.videoUrl.trim()) { toast({ title: t("tm.urlRequired"), variant: "destructive" }); return; }
+    const payload = {
+      ...form,
+      videoUrl: form.videoUrl.startsWith("http") ? form.videoUrl : `https://${form.videoUrl}`,
+    };
     try {
       if (editingId) {
-        await api.patch(`/admin/tutorials/${editingId}`, form);
+        await api.patch(`/admin/tutorials/${editingId}`, payload);
       } else {
-        await api.post("/admin/tutorials", form);
+        await api.post("/admin/tutorials", payload);
       }
       toast({ title: t("tm.saved") });
       setShowModal(false);

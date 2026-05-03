@@ -7,7 +7,7 @@ import { requireAdminGlobal } from '../../lib/auth.js'
 const tutorialBody = z.object({
   titulo: z.string().min(1),
   descricao: z.string().optional(),
-  videoUrl: z.string().url(),
+  videoUrl: z.string().min(1).transform(url => url.startsWith('http') ? url : `https://${url}`),
   categoria: z.enum(['primeiros_passos', 'configuracao', 'whatsapp', 'agenda', 'relatorios']).default('primeiros_passos'),
   ordem: z.number().int().default(0),
   obrigatorio: z.boolean().default(false),
