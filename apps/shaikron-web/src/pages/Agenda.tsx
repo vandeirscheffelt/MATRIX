@@ -38,7 +38,7 @@ export default function Agenda() {
   const [newService, setNewService] = useState("");
   const [selectedServiceId, setSelectedServiceId] = useState<string>("");
   const { services, fetchServices } = useServices();
-  useEffect(() => { fetchServices().catch(() => null); }, [fetchServices]);
+  useEffect(() => { fetchServices().catch(() => null); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [pickedPro, setPickedPro] = useState<string>("");
   const [pickedTime, setPickedTime] = useState<string>("");
   const [confirmSource, setConfirmSource] = useState<"ai" | "manual">("manual");
