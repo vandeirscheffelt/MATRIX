@@ -44,6 +44,7 @@ export async function servicosRoutes(app: FastifyInstance) {
           empresaId: request.empresaId,
           nome: body.data.nome,
           duracaoMin: body.data.duracaoMin,
+          color: body.data.color,
           ordem: ultimo ? ultimo.ordem + 1 : 0,
         },
       })
