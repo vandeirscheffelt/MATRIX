@@ -29,9 +29,14 @@ export function useAppointments() {
       const preferredSlot = req.preferredTime && req.preferredProfessionalId
         ? freeSlots.find(s => s.time === req.preferredTime && s.professionalId === req.preferredProfessionalId)
         : undefined;
+      // Try preferred professional's slots first, then others as fallback
+      const preferredProSlots = req.preferredProfessionalId
+        ? freeSlots.filter(s => s.professionalId === req.preferredProfessionalId)
+        : [];
+      const otherSlots = freeSlots.filter(s => s.professionalId !== req.preferredProfessionalId);
       const candidates = preferredSlot
-        ? [preferredSlot, ...freeSlots.filter(s => s !== preferredSlot)]
-        : freeSlots;
+        ? [preferredSlot, ...preferredProSlots.filter(s => s !== preferredSlot), ...otherSlots]
+        : [...preferredProSlots, ...otherSlots];
 
       // Retry on 409 — skip conflicted slots and try next
       for (const candidate of candidates) {
