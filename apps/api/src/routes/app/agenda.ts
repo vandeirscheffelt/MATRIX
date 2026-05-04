@@ -95,7 +95,8 @@ async function calcularAgendaDia(
   const horaInicio = grade?.horaInicio ?? '08:00'
   const horaFim = grade?.horaFim ?? '18:00'
   const duracaoMin = profissional.duracaoPadraoMin ?? 60
-  const slotsBrutos = gerarSlots(horaInicio, horaFim, duracaoMin)
+  // Always generate 15-min slots so the grid matches the frontend 15-min granularity
+  const slotsBrutos = gerarSlots(horaInicio, horaFim, 15)
 
   // Agendamentos do dia (apenas CONFIRMADO e REMARCADO)
   const inicioDia = new Date(`${dataStr}T00:00:00Z`)
@@ -126,10 +127,12 @@ async function calcularAgendaDia(
     })
 
     if (bloqueio) {
+      const bInicioMin = toMinutes(new Date(bloqueio.dataInicio))
+      if (bInicioMin !== slotInicioMin) return null as any
       return { hora: formatHora(inicio), horaFim: formatHora(fim), duracaoMin, status: 'BLOQUEADO', bloqueioId: bloqueio.id }
     }
 
-    // Verifica agendamento
+    // Verifica agendamento — only emit AGENDADO for the start slot; inner slots are skipped
     const agendado = agendamentos.find(a => {
       const aInicioMin = toMinutes(a.inicio)
       const aFimMin = toMinutes(a.fim)
@@ -137,6 +140,9 @@ async function calcularAgendaDia(
     })
 
     if (agendado) {
+      const aInicioMin = toMinutes(agendado.inicio)
+      // Only emit the AGENDADO block at the appointment's start slot
+      if (aInicioMin !== slotInicioMin) return null as any
       // Prefer service catalog duration (corrects legacy appointments stored with wrong fim)
       const agDuracaoMin = (agendado as any).servico?.duracaoMin
         ?? Math.round((agendado.fim.getTime() - agendado.inicio.getTime()) / 60000)
@@ -151,8 +157,8 @@ async function calcularAgendaDia(
       }
     }
 
-    return { hora: formatHora(inicio), horaFim: formatHora(fim), duracaoMin, status: 'DISPONIVEL' }
-  })
+    return { hora: formatHora(inicio), horaFim: formatHora(fim), duracaoMin: 15, status: 'DISPONIVEL' }
+  }).filter(Boolean) as Slot[]
 
   return { profissionalId, profissionalNome: profissional.nome, data: dataStr, slots }
 }
