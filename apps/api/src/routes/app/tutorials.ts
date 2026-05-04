@@ -25,7 +25,7 @@ export async function tutorialsPublicRoutes(app: FastifyInstance) {
 }
 
 export async function tutorialsAdminRoutes(app: FastifyInstance) {
-  const preHandler = [requireAdminGlobal]
+  const preHandler = [requireAuth, requireAdminGlobal]
 
   // GET /admin/tutorials
   app.get('/', { preHandler }, async () => {
