@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Trash2, Clock, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,25 +9,36 @@ import { useLanguage } from "@/contexts/LanguageContext";
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120];
 
 export default function ServicesManager() {
-  const { services, addService, updateService, removeService } = useServices();
+  const { services, fetchServices, addService, removeService } = useServices();
   const { t } = useLanguage();
   const [newName, setNewName] = useState("");
   const [newDuration, setNewDuration] = useState(60);
   const [adding, setAdding] = useState(false);
 
+  useEffect(() => { fetchServices().catch(() => null); }, [fetchServices]);
+
   const handleAdd = async () => {
     if (!newName.trim()) return;
     setAdding(true);
-    await addService({ name: newName.trim(), duration: newDuration });
-    setNewName("");
-    setNewDuration(60);
-    setAdding(false);
-    toast.success(t("svc.added"));
+    try {
+      await addService({ name: newName.trim(), duration: newDuration });
+      setNewName("");
+      setNewDuration(60);
+      toast.success(t("svc.added"));
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao salvar serviço");
+    } finally {
+      setAdding(false);
+    }
   };
 
   const handleRemove = async (id: string, name: string) => {
-    await removeService(id);
-    toast(t("svc.removed", { name }));
+    try {
+      await removeService(id);
+      toast(t("svc.removed", { name }));
+    } catch {
+      toast.error("Erro ao remover serviço");
+    }
   };
 
   return (
