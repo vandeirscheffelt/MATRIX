@@ -8,6 +8,17 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120];
 
+const PALETTE = [
+  "#38bdf8", // sky
+  "#a78bfa", // violet
+  "#34d399", // emerald
+  "#fb923c", // orange
+  "#f472b6", // pink
+  "#facc15", // yellow
+  "#60a5fa", // blue
+  "#4ade80", // green
+];
+
 export default function ServicesManager() {
   const { services, fetchServices, addService, removeService } = useServices();
   const { t } = useLanguage();
@@ -21,7 +32,8 @@ export default function ServicesManager() {
     if (!newName.trim()) return;
     setAdding(true);
     try {
-      await addService({ name: newName.trim(), duration: newDuration });
+      const color = PALETTE[services.length % PALETTE.length];
+      await addService({ name: newName.trim(), duration: newDuration, color });
       setNewName("");
       setNewDuration(60);
       toast.success(t("svc.added"));
@@ -63,7 +75,7 @@ export default function ServicesManager() {
             <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0" />
             <div
               className="h-3 w-3 rounded-full shrink-0"
-              style={{ background: svc.color ? `hsl(${svc.color})` : "hsl(var(--primary))" }}
+              style={{ background: svc.color || "hsl(var(--primary))" }}
             />
             <span className="text-sm font-medium text-foreground flex-1">{svc.name}</span>
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted rounded-md px-2 py-0.5">
