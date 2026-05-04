@@ -7,6 +7,7 @@ const servicoBody = z.object({
   nome: z.string().min(1),
   duracaoMin: z.number().int().positive().default(60),
   ordem: z.number().int().min(0).default(0),
+  color: z.string().default(""),
 })
 
 const servicoUpdateBody = servicoBody.partial()

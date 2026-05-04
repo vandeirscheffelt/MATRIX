@@ -15,6 +15,7 @@ export function useServices() {
   const toApi = (s: Omit<Service, "id"> | Partial<Service>) => ({
     nome: (s as any).name,
     duracaoMin: (s as any).duration,
+    color: (s as any).color ?? "",
   });
 
   const fetchServices = useCallback(async (): Promise<Service[]> => {

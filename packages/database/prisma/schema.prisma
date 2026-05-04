@@ -164,6 +164,7 @@ model Servico {
   nome      String
   duracaoMin Int     @default(60) @map("duracao_min")
   ordem     Int      @default(0)
+  color     String   @default("")
   ativo     Boolean  @default(true)
   criadoEm  DateTime @default(now()) @map("criado_em")
 
