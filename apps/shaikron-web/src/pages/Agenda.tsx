@@ -23,13 +23,18 @@ const statusBadgeMap: Record<SlotStatus, "active" | "pending" | "paused"> = {
 };
 
 type ViewMode = "day" | "week";
+type ZoomLevel = 15 | 30 | 60;
 type ModalMode = "default" | "create-manual" | "create-ai" | "create-pick" | "confirm" | "auto-input" | "auto-result";
+
+const timeToMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+const minToTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
 export default function Agenda() {
   const isMobile = useIsMobile();
   const { t, language } = useLanguage();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("day");
+  const [zoom, setZoom] = useState<ZoomLevel>(30);
   const [filterPro, setFilterPro] = useState<string>("all");
   const [showProColumn, setShowProColumn] = useState(!isMobile);
   const [modalSlot, setModalSlot] = useState<{ slot: TimeSlot; date: Date } | null>(null);
@@ -53,6 +58,14 @@ export default function Agenda() {
   const weekStart = useMemo(() => startOfWeek(selectedDate, { weekStartsOn: 1 }), [selectedDate]);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const daySlots = getSlotsForDate(selectedDate);
+
+  const fineTimeSlots = useMemo(() => {
+    const result: string[] = [];
+    for (let min = 6 * 60; min < 23 * 60; min += zoom) result.push(minToTime(min));
+    return result;
+  }, [zoom]);
+
+  const ROW_H = zoom === 15 ? 32 : zoom === 30 ? 48 : 64;
 
   const filteredPros = filterPro === "all" ? professionals : professionals.filter(p => p.id === filterPro);
 
@@ -287,6 +300,13 @@ export default function Agenda() {
             <button className={cn("px-3 py-1.5 text-xs font-medium transition-colors", viewMode === "day" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")} onClick={() => setViewMode("day")}>{t("agenda.day")}</button>
             <button className={cn("px-3 py-1.5 text-xs font-medium transition-colors", viewMode === "week" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")} onClick={() => setViewMode("week")}>{t("agenda.week")}</button>
           </div>
+          {viewMode === "day" && (
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              {([15, 30, 60] as ZoomLevel[]).map(z => (
+                <button key={z} className={cn("px-2.5 py-1.5 text-xs font-medium transition-colors", zoom === z ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")} onClick={() => setZoom(z)}>{z}m</button>
+              ))}
+            </div>
+          )}
           <Select value={filterPro} onValueChange={setFilterPro}>
             <SelectTrigger className={cn("h-8 text-xs border-border bg-card", isMobile ? "w-[120px]" : "w-[160px]")}>
               <Users className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
@@ -307,67 +327,123 @@ export default function Agenda() {
         </div>
       </div>
 
-      {/* Day View */}
+      {/* Day View — grid com profissionais nas colunas e horários nas linhas */}
       {viewMode === "day" && (
-        <div className="rounded-xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          {/* Header fixo */}
+          <div className="flex items-center justify-between border-b border-border px-5 py-3 bg-card">
             <h2 className="text-sm font-semibold text-foreground">{t("agenda.dailySchedule")}</h2>
             <div className="flex items-center gap-2">
-              {aiActive && (
-                <span className="flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-xs font-medium text-primary">
-                  <Sparkles className="h-3 w-3" /> {t("ai.active")}
-                </span>
-              )}
-              {isToday(selectedDate) && (
-                <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary border border-primary/20">{t("agenda.today")}</span>
-              )}
+              {aiActive && <span className="flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-xs font-medium text-primary"><Sparkles className="h-3 w-3" /> {t("ai.active")}</span>}
+              {isToday(selectedDate) && <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary border border-primary/20">{t("agenda.today")}</span>}
             </div>
           </div>
-          <div className="divide-y divide-border">
-            {[...new Set(daySlots.filter(s => filteredPros.some(p => p.id === s.professionalId)).map(s => s.time))].sort().map(hour => {
-              const slotsForHour = daySlots.filter(s => s.time === hour && filteredPros.some(p => p.id === s.professionalId));
-              return (
-                <div key={hour} className="flex">
-                  <div className="w-16 shrink-0 px-4 py-3 border-r border-border flex items-start pt-4">
-                    <span className="text-sm font-mono text-muted-foreground">{hour}</span>
-                  </div>
-                  <div className="flex-1 divide-y divide-border/50">
-                    {slotsForHour.map(slot => {
-                      const p = getProfessional(slot.professionalId);
-                      
-                      return (
-                        <div
-                          key={slot.professionalId}
-                          className="flex items-center justify-between px-4 py-2.5 hover:bg-secondary/50 transition-colors cursor-pointer"
-                          onClick={() => openSlot(slot, selectedDate)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="h-2 w-2 rounded-full shrink-0" style={{ background: `hsl(${p.color})` }} />
-                            {showProColumn && <span className="text-xs font-medium text-muted-foreground w-16 shrink-0">{p.name}</span>}
-                            {slot.client ? (
-                              <div className="flex items-center gap-2">
-                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold">
-                                  {slot.client.split(" ").map(n => n[0]).join("")}
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-foreground">{slot.client}</p>
-                                  <p className="text-xs text-muted-foreground">{slot.service}</p>
-                                </div>
-                              </div>
-                            ) : (
-                              <p className="text-sm text-muted-foreground italic">
-                                {slot.status === "blocked" ? t("agenda.blocked") : t("agenda.available")}
-                              </p>
-                            )}
-                          </div>
-                          <StatusBadge status={statusBadgeMap[slot.status]} label={slot.status === "booked" ? t("agenda.booked") : slot.status === "blocked" ? t("agenda.blocked") : t("agenda.free")} />
-                        </div>
-                      );
-                    })}
-                  </div>
+
+          {/* Área scrollável */}
+          <div className="overflow-auto max-h-[70vh]">
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: `64px repeat(${filteredPros.length}, minmax(120px, 1fr))`,
+                gridTemplateRows: `48px repeat(${fineTimeSlots.length}, ${ROW_H}px)`,
+                minWidth: filteredPros.length > 0 ? `${64 + filteredPros.length * 120}px` : undefined,
+              }}
+            >
+              {/* Canto superior esquerdo */}
+              <div className="sticky top-0 left-0 z-30 bg-card border-b border-r border-border" />
+
+              {/* Cabeçalho dos profissionais */}
+              {filteredPros.map((p, pIdx) => (
+                <div
+                  key={p.id}
+                  className="sticky top-0 z-20 bg-card border-b border-r border-border flex items-center justify-center gap-2 px-2"
+                  style={{ gridColumn: pIdx + 2, gridRow: 1 }}
+                >
+                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: `hsl(${p.color})` }} />
+                  <span className="text-xs font-semibold text-foreground truncate">{p.name}</span>
                 </div>
-              );
-            })}
+              ))}
+
+              {/* Células de fundo + labels de hora */}
+              {fineTimeSlots.map((time, tIdx) => {
+                const isHour = time.endsWith(":00");
+                const rowIdx = tIdx + 2;
+                return [
+                  // Label da hora (sticky left)
+                  <div
+                    key={`time-${time}`}
+                    className="sticky left-0 z-10 bg-card border-r border-border flex items-start justify-end pr-2 pt-1"
+                    style={{ gridColumn: 1, gridRow: rowIdx }}
+                  >
+                    {isHour && <span className="text-[10px] font-mono text-muted-foreground">{time}</span>}
+                  </div>,
+                  // Células de fundo por profissional
+                  ...filteredPros.map((p, pIdx) => {
+                    const freeSlot: TimeSlot = { time, professionalId: p.id, status: "free" };
+                    return (
+                      <div
+                        key={`bg-${time}-${p.id}`}
+                        className={cn(
+                          "border-r border-border/40 cursor-pointer transition-colors hover:bg-primary/5",
+                          isHour ? "border-t border-t-border/60" : "border-t border-t-border/20",
+                        )}
+                        style={{ gridColumn: pIdx + 2, gridRow: rowIdx }}
+                        onClick={() => openSlot(freeSlot, selectedDate)}
+                      />
+                    );
+                  }),
+                ];
+              })}
+
+              {/* Blocos de agendamento (sobrepostos na grade) */}
+              {filteredPros.map((p, pIdx) => {
+                const proSlots = daySlots.filter(s => s.professionalId === p.id && s.status !== "free");
+                return proSlots.map(slot => {
+                  const startRowIdx = fineTimeSlots.findIndex(t => t === slot.time);
+                  if (startRowIdx === -1) {
+                    // Procura a linha mais próxima (arredonda para baixo)
+                    const slotMin = timeToMin(slot.time);
+                    const idx = fineTimeSlots.findIndex((t, i) => {
+                      const next = fineTimeSlots[i + 1];
+                      return timeToMin(t) <= slotMin && (!next || timeToMin(next) > slotMin);
+                    });
+                    if (idx === -1) return null;
+                  }
+                  const rowStart = (startRowIdx === -1 ? fineTimeSlots.findIndex((t, i) => { const next = fineTimeSlots[i + 1]; return timeToMin(t) <= timeToMin(slot.time) && (!next || timeToMin(next) > timeToMin(slot.time)); }) : startRowIdx) + 2;
+                  const duration = slot.duration ?? 60;
+                  const spanRows = Math.max(1, Math.round(duration / zoom));
+                  const isBooked = slot.status === "booked";
+                  const isBlocked = slot.status === "blocked";
+
+                  return (
+                    <div
+                      key={`${slot.time}-${p.id}`}
+                      className={cn(
+                        "mx-0.5 my-0.5 rounded-md p-1.5 cursor-pointer overflow-hidden z-10 transition-opacity hover:opacity-90",
+                        isBooked && "bg-primary/20 border border-primary/40",
+                        isBlocked && "bg-muted border border-border",
+                      )}
+                      style={{
+                        gridColumn: pIdx + 2,
+                        gridRow: `${rowStart} / span ${spanRows}`,
+                      }}
+                      onClick={() => openSlot(slot, selectedDate)}
+                    >
+                      {isBooked && (
+                        <>
+                          <p className="text-[11px] font-semibold text-primary leading-tight truncate">{slot.client}</p>
+                          {spanRows > 1 && <p className="text-[10px] text-muted-foreground truncate mt-0.5">{slot.service}</p>}
+                          {spanRows > 2 && <p className="text-[10px] text-muted-foreground/60">{slot.time} · {duration}min</p>}
+                        </>
+                      )}
+                      {isBlocked && spanRows >= 1 && (
+                        <p className="text-[10px] text-muted-foreground italic truncate">Bloqueado</p>
+                      )}
+                    </div>
+                  );
+                });
+              })}
+            </div>
           </div>
         </div>
       )}
