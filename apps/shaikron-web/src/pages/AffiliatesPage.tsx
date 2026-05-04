@@ -62,7 +62,7 @@ export default function AffiliatesPage() {
                 </div>
 
                 {/* Descrição com mais espaço */}
-                <p className="text-sm text-muted-foreground leading-relaxed flex-1">
+                <p className="text-sm text-muted-foreground leading-relaxed flex-1 whitespace-pre-wrap">
                   {a.shortDescription}
                 </p>
 
