@@ -59,13 +59,14 @@ export default function Agenda() {
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const daySlots = getSlotsForDate(selectedDate);
 
+  // Grid is always 15-min granularity; zoom only controls row height
   const fineTimeSlots = useMemo(() => {
     const result: string[] = [];
-    for (let min = 6 * 60; min < 23 * 60; min += zoom) result.push(minToTime(min));
+    for (let min = 6 * 60; min < 23 * 60; min += 15) result.push(minToTime(min));
     return result;
-  }, [zoom]);
+  }, []);
 
-  const ROW_H = zoom === 15 ? 32 : zoom === 30 ? 48 : 64;
+  const ROW_H = zoom === 15 ? 20 : zoom === 30 ? 32 : 48;
 
   const filteredPros = filterPro === "all" ? professionals : professionals.filter(p => p.id === filterPro);
 
@@ -374,15 +375,17 @@ export default function Agenda() {
               {/* Células de fundo + labels de hora */}
               {fineTimeSlots.map((time, tIdx) => {
                 const isHour = time.endsWith(":00");
+                const isHalf = time.endsWith(":30");
                 const rowIdx = tIdx + 2;
                 return [
                   // Label da hora (sticky left)
                   <div
                     key={`time-${time}`}
-                    className="sticky left-0 z-10 bg-card border-r border-border flex items-start justify-end pr-2 pt-1"
+                    className="sticky left-0 z-10 bg-card border-r border-border flex items-start justify-end pr-2 pt-0.5"
                     style={{ gridColumn: 1, gridRow: rowIdx }}
                   >
                     {isHour && <span className="text-[10px] font-mono text-muted-foreground">{time}</span>}
+                    {isHalf && <span className="text-[9px] font-mono text-muted-foreground/40">{time}</span>}
                   </div>,
                   // Células de fundo por profissional
                   ...filteredPros.map((p, pIdx) => {
@@ -392,7 +395,7 @@ export default function Agenda() {
                         key={`bg-${time}-${p.id}`}
                         className={cn(
                           "border-r border-border/40 cursor-pointer transition-colors hover:bg-primary/5",
-                          isHour ? "border-t border-t-border/60" : "border-t border-t-border/20",
+                          isHour ? "border-t border-t-border/60" : isHalf ? "border-t border-t-border/30" : "border-t border-t-border/10",
                         )}
                         style={{ gridColumn: pIdx + 2, gridRow: rowIdx }}
                         onClick={() => openSlot(freeSlot, selectedDate)}
@@ -417,8 +420,8 @@ export default function Agenda() {
                     if (idx === -1) return null;
                   }
                   const rowStart = (startRowIdx === -1 ? fineTimeSlots.findIndex((t, i) => { const next = fineTimeSlots[i + 1]; return timeToMin(t) <= timeToMin(slot.time) && (!next || timeToMin(next) > timeToMin(slot.time)); }) : startRowIdx) + 2;
-                  const duration = slot.duration ?? zoom;
-                  const spanRows = Math.max(1, Math.round(duration / zoom));
+                  const duration = slot.duration ?? 15;
+                  const spanRows = Math.max(1, Math.round(duration / 15));
                   const isBooked = slot.status === "booked";
                   const isBlocked = slot.status === "blocked";
 
