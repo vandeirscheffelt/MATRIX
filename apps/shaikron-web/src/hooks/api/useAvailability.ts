@@ -152,5 +152,5 @@ export function useAvailability() {
     loadSlotsForDate(date);
   }, [applySlotUpdate, invalidateDate, loadSlotsForDate]);
 
-  return { getSlotsForDate, loadSlotsForDate, getAiSuggestions, applySlotUpdate, blockSlot, unblockSlot };
+  return { getSlotsForDate, loadSlotsForDate, getAiSuggestions, applySlotUpdate, blockSlot, unblockSlot, invalidateDate };
 }

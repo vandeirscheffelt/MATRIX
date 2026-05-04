@@ -63,14 +63,17 @@ export function useAppointments() {
             profissionalId: candidate.professionalId, inicio, fim,
             clienteNome: req.client, servicoNome: req.service, servicoId: req.servicoId,
           });
+          // Invalidate cache so next auto-schedule sees updated availability
+          availability.invalidateDate(req.date);
+          availability.loadSlotsForDate(req.date);
           availability.applySlotUpdate(req.date, candidate.time, candidate.professionalId, {
             status: "booked", client: req.client, service: req.service, duration: req.durationMin,
           });
           return { professionalId: candidate.professionalId, time: candidate.time, client: req.client, service: req.service };
         } catch (e: any) {
           if (!e.message?.includes("409")) throw e;
-          // 409 = conflict, mark slot as booked locally and try next
-          availability.applySlotUpdate(req.date, candidate.time, candidate.professionalId, { status: "booked" });
+          // 409 = conflict, do NOT overwrite existing override (preserves client name)
+          // Just skip to next candidate; fresh cache load above will fix on next booking
         }
       }
       throw new Error("Nenhum horário disponível para esta data.");
