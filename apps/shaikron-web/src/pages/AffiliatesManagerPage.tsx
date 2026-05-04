@@ -14,13 +14,13 @@ import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const emptyForm = {
-  product_name: "",
-  short_description: "",
+  productName: "",
+  shortDescription: "",
   status: "active" as "active" | "coming_soon",
-  external_link: "",
+  externalLink: "",
   icon: "🤝",
-  highlight_badge: "",
-  display_order: 0,
+  highlightBadge: "",
+  displayOrder: 0,
 };
 
 export default function AffiliatesManagerPage() {
@@ -30,43 +30,43 @@ export default function AffiliatesManagerPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
 
-  const sorted = [...affiliates].sort((a, b) => a.display_order - b.display_order);
+  const sorted = [...affiliates].sort((a, b) => a.displayOrder - b.displayOrder);
 
   const openNew = () => {
-    setForm({ ...emptyForm, display_order: affiliates.length + 1 });
+    setForm({ ...emptyForm, displayOrder: affiliates.length + 1 });
     setEditingId(null);
     setShowModal(true);
   };
 
   const openEdit = (a: Affiliate) => {
     setForm({
-      product_name: a.product_name,
-      short_description: a.short_description,
+      productName: a.productName,
+      shortDescription: a.shortDescription,
       status: a.status,
-      external_link: a.external_link,
+      externalLink: a.externalLink,
       icon: a.icon,
-      highlight_badge: a.highlight_badge,
-      display_order: a.display_order,
+      highlightBadge: a.highlightBadge,
+      displayOrder: a.displayOrder,
     });
     setEditingId(a.id);
     setShowModal(true);
   };
 
   const handleSave = () => {
-    if (!form.product_name.trim()) {
+    if (!form.productName.trim()) {
       toast({ title: t("am.nameRequired"), variant: "destructive" });
       return;
     }
-    if (!form.external_link.trim()) {
+    if (!form.externalLink.trim()) {
       toast({ title: t("am.linkRequired"), variant: "destructive" });
       return;
     }
 
     const data = {
       ...form,
-      product_name: form.product_name.trim(),
-      short_description: form.short_description.slice(0, 120),
-      external_link: form.external_link.trim(),
+      productName: form.productName.trim(),
+      shortDescription: form.shortDescription.slice(0, 120),
+      externalLink: form.externalLink.trim(),
     };
 
     if (editingId) {
@@ -138,10 +138,10 @@ export default function AffiliatesManagerPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">{a.icon}</span>
-                    <span className="font-medium text-foreground">{a.product_name}</span>
-                    {a.highlight_badge && (
+                    <span className="font-medium text-foreground">{a.productName}</span>
+                    {a.highlightBadge && (
                       <Badge variant="secondary" className="text-xs">
-                        {a.highlight_badge}
+                        {a.highlightBadge}
                       </Badge>
                     )}
                   </div>
@@ -156,8 +156,8 @@ export default function AffiliatesManagerPage() {
                     {a.status === "active" ? t("am.active") : t("am.comingSoon")}
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground">{a.short_description}</p>
-                <p className="text-xs text-muted-foreground/70 truncate">{a.external_link}</p>
+                <p className="text-sm text-muted-foreground">{a.shortDescription}</p>
+                <p className="text-xs text-muted-foreground/70 truncate">{a.externalLink}</p>
                 <div className="flex gap-2 mt-1">
                   <Button size="sm" variant="outline" onClick={() => openEdit(a)}>
                     <Pencil className="h-3.5 w-3.5 mr-1" /> {t("am.edit")}
@@ -174,7 +174,7 @@ export default function AffiliatesManagerPage() {
                     size="sm"
                     variant="outline"
                     className="text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(a.id, a.product_name)}
+                    onClick={() => handleDelete(a.id, a.productName)}
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-1" /> {t("am.delete")}
                   </Button>
@@ -207,8 +207,8 @@ export default function AffiliatesManagerPage() {
               <div className="space-y-2">
                 <Label>{t("am.productName")}</Label>
                 <Input
-                  value={form.product_name}
-                  onChange={(e) => setForm((f) => ({ ...f, product_name: e.target.value }))}
+                  value={form.productName}
+                  onChange={(e) => setForm((f) => ({ ...f, productName: e.target.value }))}
                   placeholder={t("am.productNamePlaceholder")}
                 />
               </div>
@@ -216,18 +216,18 @@ export default function AffiliatesManagerPage() {
             <div className="space-y-2">
               <Label>{t("am.shortDesc")}</Label>
               <Textarea
-                value={form.short_description}
-                onChange={(e) => setForm((f) => ({ ...f, short_description: e.target.value.slice(0, 120) }))}
+                value={form.shortDescription}
+                onChange={(e) => setForm((f) => ({ ...f, shortDescription: e.target.value.slice(0, 120) }))}
                 placeholder={t("am.shortDescPlaceholder")}
                 rows={2}
               />
-              <p className="text-xs text-muted-foreground text-right">{form.short_description.length}/120</p>
+              <p className="text-xs text-muted-foreground text-right">{form.shortDescription.length}/120</p>
             </div>
             <div className="space-y-2">
               <Label>{t("am.externalLink")}</Label>
               <Input
-                value={form.external_link}
-                onChange={(e) => setForm((f) => ({ ...f, external_link: e.target.value }))}
+                value={form.externalLink}
+                onChange={(e) => setForm((f) => ({ ...f, externalLink: e.target.value }))}
                 placeholder="https://mastersaas.com/afiliado/seu-codigo"
                 type="url"
               />
@@ -251,16 +251,16 @@ export default function AffiliatesManagerPage() {
                 <Input
                   type="number"
                   min="0"
-                  value={form.display_order}
-                  onChange={(e) => setForm((f) => ({ ...f, display_order: parseInt(e.target.value) || 0 }))}
+                  value={form.displayOrder}
+                  onChange={(e) => setForm((f) => ({ ...f, displayOrder: parseInt(e.target.value) || 0 }))}
                 />
               </div>
             </div>
             <div className="space-y-2">
               <Label>{t("am.highlightBadge")}</Label>
               <Select
-                value={form.highlight_badge || "_none"}
-                onValueChange={(v) => setForm((f) => ({ ...f, highlight_badge: v === "_none" ? "" : v }))}
+                value={form.highlightBadge || "_none"}
+                onValueChange={(v) => setForm((f) => ({ ...f, highlightBadge: v === "_none" ? "" : v }))}
               >
                 <SelectTrigger><SelectValue placeholder={t("am.none")} /></SelectTrigger>
                 <SelectContent>
