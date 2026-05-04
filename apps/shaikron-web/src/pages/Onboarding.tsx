@@ -849,7 +849,10 @@ export default function Onboarding() {
                 ] as const).map((opt) => (
                   <button
                     key={opt.value}
-                    onClick={() => update("assistantIdentity", opt.value)}
+                    onClick={() => {
+                      update("assistantIdentity", opt.value);
+                      api.patch("/app/config/identidade", { identidade: opt.value === "virtual" ? "assistente_virtual" : "atendente_humano" }).catch(() => null);
+                    }}
                     className={`text-left rounded-lg border p-3 transition-all ${
                       form.assistantIdentity === opt.value
                         ? "border-primary bg-primary/10 ring-1 ring-primary/30"
@@ -882,6 +885,7 @@ export default function Onboarding() {
                 placeholder={t("assistantName.placeholder")}
                 value={form.assistantName}
                 onChange={(e) => update("assistantName", e.target.value)}
+                onBlur={(e) => { if (e.target.value.trim()) api.patch("/app/config/nome-assistente", { nomeAssistente: e.target.value.trim() }).catch(() => null); }}
                 maxLength={50}
                 className="bg-secondary border-border"
               />
@@ -898,6 +902,7 @@ export default function Onboarding() {
                   type="time"
                   value={form.workingHoursStart}
                   onChange={(e) => update("workingHoursStart", e.target.value)}
+                  onBlur={() => api.patch("/app/config/horario-comercial", { horarioInicio: form.workingHoursStart, horarioFim: form.workingHoursEnd }).catch(() => null)}
                   className="bg-secondary border-border w-32"
                 />
                 <span className="text-xs text-muted-foreground">{t("hours.to")}</span>
@@ -905,6 +910,7 @@ export default function Onboarding() {
                   type="time"
                   value={form.workingHoursEnd}
                   onChange={(e) => update("workingHoursEnd", e.target.value)}
+                  onBlur={() => api.patch("/app/config/horario-comercial", { horarioInicio: form.workingHoursStart, horarioFim: form.workingHoursEnd }).catch(() => null)}
                   className="bg-secondary border-border w-32"
                 />
               </div>
@@ -927,7 +933,10 @@ export default function Onboarding() {
                 ]).map((opt) => (
                   <button
                     key={opt.value}
-                    onClick={() => update("aiAvailability", opt.value)}
+                    onClick={() => {
+                      update("aiAvailability", opt.value);
+                      api.patch("/app/config/disponibilidade-ia", { disponibilidade: opt.value === "same" ? "horario_comercial" : opt.value === "24/7" ? "24_7" : "personalizado" }).catch(() => null);
+                    }}
                     className={`w-full text-left rounded-lg border p-3 transition-all ${
                       form.aiAvailability === opt.value
                         ? "border-primary bg-primary/10 ring-1 ring-primary/30"
