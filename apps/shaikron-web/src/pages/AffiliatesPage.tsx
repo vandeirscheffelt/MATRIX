@@ -11,7 +11,7 @@ export default function AffiliatesPage() {
   const { t } = useLanguage();
   const visible = [...affiliates]
     .filter((a) => a.status === "active" || a.status === "coming_soon")
-    .sort((a, b) => a.display_order - b.display_order);
+    .sort((a, b) => a.displayOrder - b.displayOrder);
 
   return (
     <AppLayout>
@@ -45,26 +45,26 @@ export default function AffiliatesPage() {
                   <div className="flex items-center gap-3">
                     <span className="text-3xl">{a.icon}</span>
                     <div>
-                      <h3 className="font-semibold text-foreground">{a.product_name}</h3>
-                      {a.highlight_badge && (
+                      <h3 className="font-semibold text-foreground">{a.productName}</h3>
+                      {a.highlightBadge && (
                         <Badge
                           variant="secondary"
                           className="mt-1 text-xs bg-primary/10 text-primary border-primary/20"
                         >
-                          {a.highlight_badge}
+                          {a.highlightBadge}
                         </Badge>
                       )}
                     </div>
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  {a.short_description}
+                  {a.shortDescription}
                 </p>
                 {a.status === "active" ? (
                   <Button
                     className="w-full"
                     size="sm"
-                    onClick={() => window.open(a.external_link, "_blank")}
+                    onClick={() => window.open(a.externalLink, "_blank")}
                   >
                     <ExternalLink className="h-4 w-4 mr-1.5" />
                     {t("affiliates.access")}
