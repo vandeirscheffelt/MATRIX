@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,88 +10,147 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Shield, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Settings } from "lucide-react";
-import { useModules, type AppModule } from "@/contexts/ModulesContext";
+import { api } from "@/lib/apiClient";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+interface Module {
+  id: string;
+  nome: string;
+  descricao: string;
+  chave: string;
+  icon: string;
+  highlightBadge: string;
+  routePath: string;
+  displayOrder: number;
+  status: "active" | "coming_soon" | "disabled";
+  requiresPlan: boolean;
+  ativo: boolean;
+}
+
+function mapApi(m: any): Module {
+  return {
+    id: m.id,
+    nome: m.nome ?? "",
+    descricao: m.descricao ?? "",
+    chave: m.chave ?? "",
+    icon: m.icon ?? "🧩",
+    highlightBadge: m.highlightBadge ?? m.highlight_badge ?? "",
+    routePath: m.routePath ?? m.route_path ?? "",
+    displayOrder: m.displayOrder ?? m.display_order ?? 0,
+    status: m.status ?? "active",
+    requiresPlan: m.requiresPlan ?? m.requires_plan ?? false,
+    ativo: m.ativo ?? true,
+  };
+}
+
 const emptyForm = {
-  module_name: "",
-  short_description: "",
-  status: "active" as "active" | "coming_soon" | "disabled",
-  route_path: "",
+  nome: "",
+  descricao: "",
+  chave: "",
   icon: "⚙️",
-  highlight_badge: "",
-  requires_plan: false,
-  display_order: 0,
+  highlightBadge: "",
+  routePath: "",
+  displayOrder: 0,
+  status: "active" as "active" | "coming_soon" | "disabled",
+  requiresPlan: false,
 };
 
 export default function ModulesManagerPage() {
-  const { modules, addModule, updateModule, deleteModule } = useModules();
   const { t } = useLanguage();
+  const [modules, setModules] = useState<Module[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
-  const sorted = [...modules].sort((a, b) => a.display_order - b.display_order);
+  const load = useCallback(async () => {
+    try {
+      const data = await api.get<any[]>("/admin/modules");
+      setModules((data ?? []).map(mapApi));
+    } catch {
+      toast({ title: "Erro ao carregar módulos", variant: "destructive" });
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const sorted = [...modules].sort((a, b) => a.displayOrder - b.displayOrder);
 
   const openNew = () => {
-    setForm({ ...emptyForm, display_order: modules.length + 1 });
+    setForm({ ...emptyForm, displayOrder: modules.length + 1 });
     setEditingId(null);
     setShowModal(true);
   };
 
-  const openEdit = (m: AppModule) => {
+  const openEdit = (m: Module) => {
     setForm({
-      module_name: m.module_name,
-      short_description: m.short_description,
-      status: m.status,
-      route_path: m.route_path,
+      nome: m.nome,
+      descricao: m.descricao,
+      chave: m.chave,
       icon: m.icon,
-      highlight_badge: m.highlight_badge,
-      requires_plan: m.requires_plan,
-      display_order: m.display_order,
+      highlightBadge: m.highlightBadge,
+      routePath: m.routePath,
+      displayOrder: m.displayOrder,
+      status: m.status,
+      requiresPlan: m.requiresPlan,
     });
     setEditingId(m.id);
     setShowModal(true);
   };
 
-  const handleSave = () => {
-    if (!form.module_name.trim()) {
+  const handleSave = async () => {
+    if (!form.nome.trim()) {
       toast({ title: t("mm.nameRequired"), variant: "destructive" });
       return;
     }
-    if (!form.route_path.trim() || !form.route_path.startsWith("/")) {
-      toast({ title: t("mm.routeRequired"), variant: "destructive" });
+    if (!editingId && !form.chave.trim()) {
+      toast({ title: "Chave obrigatória", variant: "destructive" });
       return;
     }
-
-    const data = {
-      ...form,
-      module_name: form.module_name.trim(),
-      short_description: form.short_description.slice(0, 120),
-      route_path: form.route_path.trim(),
-    };
-
-    if (editingId) {
-      updateModule(editingId, data);
-      toast({ title: t("mm.moduleUpdated") });
-    } else {
-      addModule(data);
-      toast({ title: t("mm.moduleCreated") });
+    try {
+      setSaving(true);
+      const payload = {
+        ...form,
+        nome: form.nome.trim(),
+        descricao: form.descricao.slice(0, 300),
+        routePath: form.routePath.trim(),
+      };
+      if (editingId) {
+        const updated = await api.patch<any>(`/admin/modules/${editingId}`, payload);
+        setModules(prev => prev.map(m => m.id === editingId ? mapApi(updated) : m));
+        toast({ title: t("mm.moduleUpdated") });
+      } else {
+        const created = await api.post<any>("/admin/modules", payload);
+        setModules(prev => [...prev, mapApi(created)]);
+        toast({ title: t("mm.moduleCreated") });
+      }
+      setShowModal(false);
+    } catch (e: any) {
+      toast({ title: e.message ?? "Erro ao salvar", variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
-    setShowModal(false);
   };
 
-  const handleDelete = (id: string, name: string) => {
-    deleteModule(id);
-    toast({ title: t("mm.deleted", { name }) });
+  const handleDelete = async (id: string, nome: string) => {
+    try {
+      await api.delete(`/admin/modules/${id}`);
+      setModules(prev => prev.filter(m => m.id !== id));
+      toast({ title: t("mm.deleted", { name: nome }) });
+    } catch {
+      toast({ title: "Erro ao excluir", variant: "destructive" });
+    }
   };
 
-  const cycleStatus = (m: AppModule) => {
+  const cycleStatus = async (m: Module) => {
     const next = m.status === "active" ? "coming_soon" : m.status === "coming_soon" ? "disabled" : "active";
-    updateModule(m.id, { status: next });
-    const statusLabel = next === "active" ? t("mm.active") : next === "coming_soon" ? t("mm.comingSoon") : t("mm.disabled");
-    toast({ title: t("mm.statusChanged", { status: statusLabel }) });
+    try {
+      const updated = await api.patch<any>(`/admin/modules/${m.id}`, { status: next });
+      setModules(prev => prev.map(x => x.id === m.id ? mapApi(updated) : x));
+    } catch {
+      toast({ title: "Erro ao alterar status", variant: "destructive" });
+    }
   };
 
   const statusColor = (s: string) => {
@@ -153,15 +212,13 @@ export default function ModulesManagerPage() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xl">{m.icon}</span>
-                    <span className="font-medium text-foreground">{m.module_name}</span>
-                    {m.highlight_badge && (
-                      <Badge variant="secondary" className="text-xs">
-                        {m.highlight_badge}
-                      </Badge>
+                    <span className="font-medium text-foreground">{m.nome}</span>
+                    {m.highlightBadge && (
+                      <Badge variant="secondary" className="text-xs">{m.highlightBadge}</Badge>
                     )}
-                    {m.requires_plan && (
+                    {m.requiresPlan && (
                       <Badge variant="outline" className="text-xs">🔒 PRO</Badge>
                     )}
                   </div>
@@ -169,8 +226,8 @@ export default function ModulesManagerPage() {
                     {statusLabel(m.status)}
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground">{m.short_description}</p>
-                <p className="text-xs text-muted-foreground/70 font-mono">{m.route_path}</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{m.descricao}</p>
+                <p className="text-xs text-muted-foreground/70 font-mono">{m.routePath}</p>
                 <div className="flex gap-2 mt-1">
                   <Button size="sm" variant="outline" onClick={() => openEdit(m)}>
                     <Pencil className="h-3.5 w-3.5 mr-1" /> {t("mm.edit")}
@@ -184,10 +241,9 @@ export default function ModulesManagerPage() {
                     {t("mm.toggle")}
                   </Button>
                   <Button
-                    size="sm"
-                    variant="outline"
+                    size="sm" variant="outline"
                     className="text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(m.id, m.module_name)}
+                    onClick={() => handleDelete(m.id, m.nome)}
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-1" /> {t("mm.delete")}
                   </Button>
@@ -220,27 +276,38 @@ export default function ModulesManagerPage() {
               <div className="space-y-2">
                 <Label>{t("mm.moduleName")}</Label>
                 <Input
-                  value={form.module_name}
-                  onChange={(e) => setForm((f) => ({ ...f, module_name: e.target.value }))}
+                  value={form.nome}
+                  onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
                   placeholder={t("mm.moduleNamePlaceholder")}
                 />
               </div>
             </div>
+            {!editingId && (
+              <div className="space-y-2">
+                <Label>Chave única (slug)</Label>
+                <Input
+                  value={form.chave}
+                  onChange={(e) => setForm((f) => ({ ...f, chave: e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, "-") }))}
+                  placeholder="ex: transcritor-video"
+                />
+                <p className="text-xs text-muted-foreground">Apenas letras minúsculas, números e hífen. Não pode ser alterada depois.</p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>{t("mm.shortDesc")}</Label>
               <Textarea
-                value={form.short_description}
-                onChange={(e) => setForm((f) => ({ ...f, short_description: e.target.value.slice(0, 120) }))}
+                value={form.descricao}
+                onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value.slice(0, 300) }))}
                 placeholder={t("mm.shortDescPlaceholder")}
-                rows={2}
+                rows={5}
               />
-              <p className="text-xs text-muted-foreground text-right">{form.short_description.length}/120</p>
+              <p className="text-xs text-muted-foreground text-right">{form.descricao.length}/300</p>
             </div>
             <div className="space-y-2">
               <Label>{t("mm.routePath")}</Label>
               <Input
-                value={form.route_path}
-                onChange={(e) => setForm((f) => ({ ...f, route_path: e.target.value }))}
+                value={form.routePath}
+                onChange={(e) => setForm((f) => ({ ...f, routePath: e.target.value }))}
                 placeholder="/finance"
               />
             </div>
@@ -262,18 +329,17 @@ export default function ModulesManagerPage() {
               <div className="space-y-2">
                 <Label>{t("mm.displayOrder")}</Label>
                 <Input
-                  type="number"
-                  min="0"
-                  value={form.display_order}
-                  onChange={(e) => setForm((f) => ({ ...f, display_order: parseInt(e.target.value) || 0 }))}
+                  type="number" min="0"
+                  value={form.displayOrder}
+                  onChange={(e) => setForm((f) => ({ ...f, displayOrder: parseInt(e.target.value) || 0 }))}
                 />
               </div>
             </div>
             <div className="space-y-2">
               <Label>{t("mm.highlightBadge")}</Label>
               <Select
-                value={form.highlight_badge || "_none"}
-                onValueChange={(v) => setForm((f) => ({ ...f, highlight_badge: v === "_none" ? "" : v }))}
+                value={form.highlightBadge || "_none"}
+                onValueChange={(v) => setForm((f) => ({ ...f, highlightBadge: v === "_none" ? "" : v }))}
               >
                 <SelectTrigger><SelectValue placeholder={t("mm.none")} /></SelectTrigger>
                 <SelectContent>
@@ -290,12 +356,12 @@ export default function ModulesManagerPage() {
                 <p className="text-xs text-muted-foreground">{t("mm.requiresPlanDesc")}</p>
               </div>
               <Switch
-                checked={form.requires_plan}
-                onCheckedChange={(v) => setForm((f) => ({ ...f, requires_plan: v }))}
+                checked={form.requiresPlan}
+                onCheckedChange={(v) => setForm((f) => ({ ...f, requiresPlan: v }))}
               />
             </div>
-            <Button onClick={handleSave} className="w-full">
-              {editingId ? t("mm.updateModule") : t("mm.createModule")}
+            <Button onClick={handleSave} className="w-full" disabled={saving}>
+              {saving ? "Salvando..." : editingId ? t("mm.updateModule") : t("mm.createModule")}
             </Button>
           </div>
         </DialogContent>
