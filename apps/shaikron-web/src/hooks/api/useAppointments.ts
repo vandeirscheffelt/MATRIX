@@ -29,16 +29,29 @@ export function useAppointments() {
       const preferredSlot = req.preferredTime && req.preferredProfessionalId
         ? freeSlots.find(s => s.time === req.preferredTime && s.professionalId === req.preferredProfessionalId)
         : undefined;
-      const best = preferredSlot ?? freeSlots[0];
-      const { inicio, fim } = buildIso(req.date, best.time, req.durationMin ?? 60);
-      await api.post("/app/agendamentos", {
-        profissionalId: best.professionalId, inicio, fim,
-        clienteNome: req.client, servicoNome: req.service, servicoId: req.servicoId,
-      });
-      availability.applySlotUpdate(req.date, best.time, best.professionalId, {
-        status: "booked", client: req.client, service: req.service, duration: req.durationMin,
-      });
-      return { professionalId: best.professionalId, time: best.time, client: req.client, service: req.service };
+      const candidates = preferredSlot
+        ? [preferredSlot, ...freeSlots.filter(s => s !== preferredSlot)]
+        : freeSlots;
+
+      // Retry on 409 — skip conflicted slots and try next
+      for (const candidate of candidates) {
+        const { inicio, fim } = buildIso(req.date, candidate.time, req.durationMin ?? 60);
+        try {
+          await api.post("/app/agendamentos", {
+            profissionalId: candidate.professionalId, inicio, fim,
+            clienteNome: req.client, servicoNome: req.service, servicoId: req.servicoId,
+          });
+          availability.applySlotUpdate(req.date, candidate.time, candidate.professionalId, {
+            status: "booked", client: req.client, service: req.service, duration: req.durationMin,
+          });
+          return { professionalId: candidate.professionalId, time: candidate.time, client: req.client, service: req.service };
+        } catch (e: any) {
+          if (!e.message?.includes("409")) throw e;
+          // 409 = conflict, mark slot as booked locally and try next
+          availability.applySlotUpdate(req.date, candidate.time, candidate.professionalId, { status: "booked" });
+        }
+      }
+      throw new Error("Nenhum horário disponível para esta data.");
     } catch (e: any) {
       setError(e.message); throw e;
     } finally {
