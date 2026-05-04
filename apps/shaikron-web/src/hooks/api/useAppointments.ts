@@ -24,22 +24,39 @@ export function useAppointments() {
     setError(null);
     try {
       const allSlots = await availability.loadSlotsForDate(req.date);
-      const freeSlots = allSlots.filter(s => s.status === "free");
-      if (freeSlots.length === 0) throw new Error("Nenhum horário disponível para esta data.");
-      const preferredSlot = req.preferredTime && req.preferredProfessionalId
-        ? freeSlots.find(s => s.time === req.preferredTime && s.professionalId === req.preferredProfessionalId)
-        : undefined;
-      // Try preferred professional's slots first, then others as fallback
-      const preferredProSlots = req.preferredProfessionalId
+
+      // Only future slots: compare slot time with current time if booking for today
+      const now = new Date();
+      const isToday = req.date.toDateString() === now.toDateString();
+      const nowMin = isToday ? now.getHours() * 60 + now.getMinutes() : 0;
+      const timeToMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+
+      const freeSlots = allSlots.filter(s =>
+        s.status === "free" && (!isToday || timeToMin(s.time) > nowMin)
+      );
+
+      // If a professional was chosen, restrict to that professional only
+      const candidates = req.preferredProfessionalId
         ? freeSlots.filter(s => s.professionalId === req.preferredProfessionalId)
-        : [];
-      const otherSlots = freeSlots.filter(s => s.professionalId !== req.preferredProfessionalId);
-      const candidates = preferredSlot
-        ? [preferredSlot, ...preferredProSlots.filter(s => s !== preferredSlot), ...otherSlots]
-        : [...preferredProSlots, ...otherSlots];
+        : freeSlots;
+
+      if (candidates.length === 0) {
+        const proName = req.preferredProfessionalId
+          ? professionals.find(p => p.id === req.preferredProfessionalId)?.name ?? "Profissional"
+          : "Nenhum profissional";
+        throw new Error(`${proName} não tem horários disponíveis hoje.`);
+      }
+
+      // Prefer the exact clicked slot if available
+      const preferredSlot = req.preferredTime
+        ? candidates.find(s => s.time === req.preferredTime)
+        : undefined;
+      const ordered = preferredSlot
+        ? [preferredSlot, ...candidates.filter(s => s !== preferredSlot)]
+        : candidates;
 
       // Retry on 409 — skip conflicted slots and try next
-      for (const candidate of candidates) {
+      for (const candidate of ordered) {
         const { inicio, fim } = buildIso(req.date, candidate.time, req.durationMin ?? 60);
         try {
           await api.post("/app/agendamentos", {
