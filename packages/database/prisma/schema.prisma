@@ -170,6 +170,7 @@ model Servico {
 
   empresa              Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   profissionalServicos ProfissionalServico[]
+  agendamentos         Agendamento[]
 
   @@map("servicos")
   @@schema("atendente_ia")
@@ -220,6 +221,7 @@ model Agendamento {
   leadId          String?            @map("lead_id")
   clienteNome     String?            @map("cliente_nome")
   servicoNome     String?            @map("servico_nome")
+  servicoId       String?            @map("servico_id")
   inicio          DateTime
   fim             DateTime
   status          StatusAgendamento  @default(CONFIRMADO)
@@ -228,6 +230,7 @@ model Agendamento {
   empresa      Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
   lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  servico      Servico?     @relation(fields: [servicoId], references: [id], onDelete: SetNull)
 
   @@index([empresaId, inicio])
   @@index([profissionalId, inicio])

@@ -8,6 +8,7 @@ const agendamentoBody = z.object({
   leadId: z.string().uuid().optional(),
   clienteNome: z.string().optional(),
   servicoNome: z.string().optional(),
+  servicoId: z.string().uuid().optional(),
   inicio: z.string().datetime(),
   fim: z.string().datetime(),
 })
@@ -55,7 +56,18 @@ export async function agendamentosRoutes(app: FastifyInstance) {
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const inicio = new Date(body.data.inicio)
-    const fim = new Date(body.data.fim)
+    let fim = new Date(body.data.fim)
+    let servicoNome = body.data.servicoNome
+
+    if (body.data.servicoId) {
+      const servico = await prisma.servico.findFirst({
+        where: { id: body.data.servicoId, empresaId: request.empresaId },
+      })
+      if (servico) {
+        fim = new Date(inicio.getTime() + servico.duracaoMin * 60 * 1000)
+        servicoNome = servico.nome
+      }
+    }
 
     const temConflito = await verificarConflito(body.data.profissionalId, inicio, fim)
     if (temConflito) return reply.code(409).send({ error: 'Horário em conflito com outro agendamento' })
@@ -66,7 +78,8 @@ export async function agendamentosRoutes(app: FastifyInstance) {
         profissionalId: body.data.profissionalId,
         leadId: body.data.leadId,
         clienteNome: body.data.clienteNome,
-        servicoNome: body.data.servicoNome,
+        servicoNome,
+        servicoId: body.data.servicoId,
         inicio,
         fim,
       },

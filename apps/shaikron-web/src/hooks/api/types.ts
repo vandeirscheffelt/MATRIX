@@ -79,6 +79,8 @@ export interface AutoBookRequest {
   date: Date;
   client: string;
   service: string;
+  servicoId?: string;
+  durationMin?: number;
   preferredTime?: string;
   preferredProfessionalId?: string;
 }
@@ -96,6 +98,8 @@ export interface ManualBookRequest {
   professionalId: string;
   client: string;
   service: string;
+  servicoId?: string;
+  durationMin?: number;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────

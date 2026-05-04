@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useServices } from "@/hooks/api/useServices";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -35,6 +36,9 @@ export default function Agenda() {
   const [modalMode, setModalMode] = useState<ModalMode>("default");
   const [newClient, setNewClient] = useState("");
   const [newService, setNewService] = useState("");
+  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
+  const { services, fetchServices } = useServices();
+  useEffect(() => { fetchServices().catch(() => null); }, [fetchServices]);
   const [pickedPro, setPickedPro] = useState<string>("");
   const [pickedTime, setPickedTime] = useState<string>("");
   const [confirmSource, setConfirmSource] = useState<"ai" | "manual">("manual");
@@ -57,6 +61,7 @@ export default function Agenda() {
     setModalMode("default");
     setNewClient("");
     setNewService("");
+    setSelectedServiceId("");
     setPickedPro(slot.professionalId);
     setPickedTime(slot.time);
     setAiSuggestions([]);
@@ -90,10 +95,13 @@ export default function Agenda() {
     if (!newClient.trim() || !currentModalSlot) return;
     setActionLoading(true);
     try {
+      const selectedSvc = services.find(s => s.id === selectedServiceId);
       const result = await api.autoScheduleAppointment({
         date: currentModalSlot.date,
         client: newClient.trim(),
         service: newService.trim() || t("agenda.appointment"),
+        servicoId: selectedServiceId || undefined,
+        durationMin: selectedSvc?.duration ?? 60,
         preferredTime: pickedTime,
         preferredProfessionalId: pickedPro,
       });
@@ -111,12 +119,15 @@ export default function Agenda() {
     if (!newClient.trim() || !currentModalSlot) return;
     setActionLoading(true);
     try {
+      const selectedSvc = services.find(s => s.id === selectedServiceId);
       await api.createAppointment({
         date: currentModalSlot.date,
         time: pickedTime,
         professionalId: pickedPro,
         client: newClient.trim(),
         service: newService.trim() || t("agenda.appointment"),
+        servicoId: selectedServiceId || undefined,
+        durationMin: selectedSvc?.duration ?? 60,
       });
       toast({
         title: t("agenda.appointmentSuccess"),
@@ -468,7 +479,30 @@ export default function Agenda() {
                   </div>
                   <div className="space-y-2">
                     <Input placeholder={t("agenda.clientName")} value={newClient} onChange={e => setNewClient(e.target.value)} className="bg-secondary/30 border-border" autoFocus />
-                    <Input placeholder={t("agenda.serviceOptional")} value={newService} onChange={e => setNewService(e.target.value)} className="bg-secondary/30 border-border" />
+                    <Select
+                      value={selectedServiceId || "_none"}
+                      onValueChange={(v) => {
+                        if (v === "_none") { setSelectedServiceId(""); setNewService(""); return; }
+                        const svc = services.find(s => s.id === v);
+                        setSelectedServiceId(v);
+                        setNewService(svc?.name ?? "");
+                      }}
+                    >
+                      <SelectTrigger className="bg-secondary/30 border-border text-sm h-9">
+                        <SelectValue placeholder={t("agenda.serviceOptional")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">{t("agenda.serviceOptional")}</SelectItem>
+                        {services.map(s => (
+                          <SelectItem key={s.id} value={s.id}>
+                            <span className="flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color || "hsl(var(--primary))" }} />
+                              {s.name} · {s.duration} min
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex gap-2">
                     <Button className="flex-1 gap-2" variant="glow" disabled={!newClient.trim() || isActionBusy} onClick={handleAutoBook}>
@@ -545,7 +579,30 @@ export default function Agenda() {
 
                   <div className="space-y-2">
                     <Input placeholder={t("agenda.clientName")} value={newClient} onChange={e => setNewClient(e.target.value)} className="bg-secondary/30 border-border" />
-                    <Input placeholder={t("agenda.serviceOptional")} value={newService} onChange={e => setNewService(e.target.value)} className="bg-secondary/30 border-border" />
+                    <Select
+                      value={selectedServiceId || "_none"}
+                      onValueChange={(v) => {
+                        if (v === "_none") { setSelectedServiceId(""); setNewService(""); return; }
+                        const svc = services.find(s => s.id === v);
+                        setSelectedServiceId(v);
+                        setNewService(svc?.name ?? "");
+                      }}
+                    >
+                      <SelectTrigger className="bg-secondary/30 border-border text-sm h-9">
+                        <SelectValue placeholder={t("agenda.serviceOptional")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">{t("agenda.serviceOptional")}</SelectItem>
+                        {services.map(s => (
+                          <SelectItem key={s.id} value={s.id}>
+                            <span className="flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color || "hsl(var(--primary))" }} />
+                              {s.name} · {s.duration} min
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {newClient.trim() && (
@@ -602,7 +659,30 @@ export default function Agenda() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Input placeholder={t("agenda.clientName")} value={newClient} onChange={e => setNewClient(e.target.value)} className="bg-secondary/30 border-border" />
-                    <Input placeholder={t("agenda.serviceOptional")} value={newService} onChange={e => setNewService(e.target.value)} className="bg-secondary/30 border-border" />
+                    <Select
+                      value={selectedServiceId || "_none"}
+                      onValueChange={(v) => {
+                        if (v === "_none") { setSelectedServiceId(""); setNewService(""); return; }
+                        const svc = services.find(s => s.id === v);
+                        setSelectedServiceId(v);
+                        setNewService(svc?.name ?? "");
+                      }}
+                    >
+                      <SelectTrigger className="bg-secondary/30 border-border text-sm h-9">
+                        <SelectValue placeholder={t("agenda.serviceOptional")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">{t("agenda.serviceOptional")}</SelectItem>
+                        {services.map(s => (
+                          <SelectItem key={s.id} value={s.id}>
+                            <span className="flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color || "hsl(var(--primary))" }} />
+                              {s.name} · {s.duration} min
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">

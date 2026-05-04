@@ -12,11 +12,10 @@ export function useAppointments() {
 
   const clearError = useCallback(() => setError(null), []);
 
-  function buildIso(date: Date, time: string) {
+  function buildIso(date: Date, time: string, durationMin = 60) {
     const dateStr = date.toISOString().split("T")[0];
-    // Use explicit UTC (Z) to match backend slot times which are also UTC
     const inicio = new Date(`${dateStr}T${time}:00Z`);
-    const fim = new Date(inicio.getTime() + 60 * 60 * 1000);
+    const fim = new Date(inicio.getTime() + durationMin * 60 * 1000);
     return { inicio: inicio.toISOString(), fim: fim.toISOString() };
   }
 
@@ -24,17 +23,18 @@ export function useAppointments() {
     setLoading(true);
     setError(null);
     try {
-      // Load all slots (not just top-3 suggestions) to find the preferred one
       const allSlots = await availability.loadSlotsForDate(req.date);
       const freeSlots = allSlots.filter(s => s.status === "free");
       if (freeSlots.length === 0) throw new Error("Nenhum horário disponível para esta data.");
-      // Prefer the exact slot the user clicked, then fall back to first free
       const preferredSlot = req.preferredTime && req.preferredProfessionalId
         ? freeSlots.find(s => s.time === req.preferredTime && s.professionalId === req.preferredProfessionalId)
         : undefined;
       const best = preferredSlot ?? freeSlots[0];
-      const { inicio, fim } = buildIso(req.date, best.time);
-      await api.post("/app/agendamentos", { profissionalId: best.professionalId, inicio, fim, clienteNome: req.client, servicoNome: req.service });
+      const { inicio, fim } = buildIso(req.date, best.time, req.durationMin ?? 60);
+      await api.post("/app/agendamentos", {
+        profissionalId: best.professionalId, inicio, fim,
+        clienteNome: req.client, servicoNome: req.service, servicoId: req.servicoId,
+      });
       availability.applySlotUpdate(req.date, best.time, best.professionalId, {
         status: "booked", client: req.client, service: req.service,
       });
@@ -50,8 +50,11 @@ export function useAppointments() {
     setLoading(true);
     setError(null);
     try {
-      const { inicio, fim } = buildIso(req.date, req.time);
-      await api.post("/app/agendamentos", { profissionalId: req.professionalId, inicio, fim, clienteNome: req.client, servicoNome: req.service });
+      const { inicio, fim } = buildIso(req.date, req.time, req.durationMin ?? 60);
+      await api.post("/app/agendamentos", {
+        profissionalId: req.professionalId, inicio, fim,
+        clienteNome: req.client, servicoNome: req.service, servicoId: req.servicoId,
+      });
       availability.applySlotUpdate(req.date, req.time, req.professionalId, {
         status: "booked", client: req.client, service: req.service,
       });
