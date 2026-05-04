@@ -65,7 +65,7 @@ export default function AffiliatesManagerPage() {
     const data = {
       ...form,
       productName: form.productName.trim(),
-      shortDescription: form.shortDescription.slice(0, 120),
+      shortDescription: form.shortDescription.slice(0, 300),
       externalLink: form.externalLink.trim(),
     };
 
@@ -217,11 +217,11 @@ export default function AffiliatesManagerPage() {
               <Label>{t("am.shortDesc")}</Label>
               <Textarea
                 value={form.shortDescription}
-                onChange={(e) => setForm((f) => ({ ...f, shortDescription: e.target.value.slice(0, 120) }))}
+                onChange={(e) => setForm((f) => ({ ...f, shortDescription: e.target.value.slice(0, 300) }))}
                 placeholder={t("am.shortDescPlaceholder")}
-                rows={2}
+                rows={4}
               />
-              <p className="text-xs text-muted-foreground text-right">{form.shortDescription.length}/120</p>
+              <p className="text-xs text-muted-foreground text-right">{form.shortDescription.length}/300</p>
             </div>
             <div className="space-y-2">
               <Label>{t("am.externalLink")}</Label>

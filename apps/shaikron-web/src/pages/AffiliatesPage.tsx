@@ -34,43 +34,49 @@ export default function AffiliatesPage() {
           </Card>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2">
           {visible.map((a) => (
             <Card
               key={a.id}
-              className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30"
+              className="group relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/40 flex flex-col"
             >
-              <CardContent className="p-5 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">{a.icon}</span>
-                    <div>
-                      <h3 className="font-semibold text-foreground">{a.productName}</h3>
-                      {a.highlightBadge && (
-                        <Badge
-                          variant="secondary"
-                          className="mt-1 text-xs bg-primary/10 text-primary border-primary/20"
-                        >
-                          {a.highlightBadge}
-                        </Badge>
-                      )}
-                    </div>
+              {/* Banner de destaque com ícone centralizado */}
+              <div className="flex items-center justify-center bg-primary/5 border-b border-border py-8">
+                <span className="text-6xl drop-shadow-sm">{a.icon}</span>
+              </div>
+
+              <CardContent className="p-5 space-y-4 flex flex-col flex-1">
+                {/* Nome + badge */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-lg font-bold text-foreground">{a.productName}</h3>
+                    {a.highlightBadge && (
+                      <Badge
+                        variant="secondary"
+                        className="text-xs bg-primary/10 text-primary border-primary/20"
+                      >
+                        {a.highlightBadge}
+                      </Badge>
+                    )}
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+
+                {/* Descrição com mais espaço */}
+                <p className="text-sm text-muted-foreground leading-relaxed flex-1">
                   {a.shortDescription}
                 </p>
+
+                {/* CTA */}
                 {a.status === "active" ? (
                   <Button
-                    className="w-full"
-                    size="sm"
+                    className="w-full mt-auto"
                     onClick={() => window.open(a.externalLink, "_blank")}
                   >
-                    <ExternalLink className="h-4 w-4 mr-1.5" />
+                    <ExternalLink className="h-4 w-4 mr-2" />
                     {t("affiliates.access")}
                   </Button>
                 ) : (
-                  <Button className="w-full" size="sm" variant="secondary" disabled>
+                  <Button className="w-full mt-auto" variant="secondary" disabled>
                     {t("affiliates.comingSoon")}
                   </Button>
                 )}
