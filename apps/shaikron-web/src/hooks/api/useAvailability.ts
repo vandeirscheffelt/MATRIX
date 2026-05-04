@@ -60,6 +60,7 @@ export function useAvailability() {
             : "blocked") as SlotStatus,
           client: s.leadNome,
           service: s.servicoNome,
+          duration: s.duracaoMin,
           appointmentId: s.agendamentoId ?? s.bloqueioId,
         }))
       );

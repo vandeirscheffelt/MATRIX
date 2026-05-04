@@ -18,6 +18,7 @@ type SlotStatus = 'DISPONIVEL' | 'AGENDADO' | 'BLOQUEADO'
 interface Slot {
   hora: string        // "08:00"
   horaFim: string     // "09:00"
+  duracaoMin: number  // duration in minutes
   status: SlotStatus
   agendamentoId?: string
   bloqueioId?: string
@@ -123,7 +124,7 @@ async function calcularAgendaDia(
     })
 
     if (bloqueio) {
-      return { hora: formatHora(inicio), horaFim: formatHora(fim), status: 'BLOQUEADO', bloqueioId: bloqueio.id }
+      return { hora: formatHora(inicio), horaFim: formatHora(fim), duracaoMin, status: 'BLOQUEADO', bloqueioId: bloqueio.id }
     }
 
     // Verifica agendamento
@@ -134,9 +135,11 @@ async function calcularAgendaDia(
     })
 
     if (agendado) {
+      const agDuracaoMin = Math.round((agendado.fim.getTime() - agendado.inicio.getTime()) / 60000)
       return {
         hora: formatHora(inicio),
-        horaFim: formatHora(fim),
+        horaFim: formatHora(new Date(agendado.fim)),
+        duracaoMin: agDuracaoMin,
         status: 'AGENDADO',
         agendamentoId: agendado.id,
         leadNome: agendado.lead?.nomeWpp ?? agendado.lead?.telefone ?? (agendado as any).clienteNome,
@@ -144,7 +147,7 @@ async function calcularAgendaDia(
       }
     }
 
-    return { hora: formatHora(inicio), horaFim: formatHora(fim), status: 'DISPONIVEL' }
+    return { hora: formatHora(inicio), horaFim: formatHora(fim), duracaoMin, status: 'DISPONIVEL' }
   })
 
   return { profissionalId, profissionalNome: profissional.nome, data: dataStr, slots }

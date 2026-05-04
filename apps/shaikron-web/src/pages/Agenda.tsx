@@ -356,11 +356,18 @@ export default function Agenda() {
               {filteredPros.map((p, pIdx) => (
                 <div
                   key={p.id}
-                  className="sticky top-0 z-20 bg-card border-b border-r border-border flex items-center justify-center gap-2 px-2"
+                  className="sticky top-0 z-20 bg-card border-b border-r border-border flex flex-col items-center justify-center gap-0.5 px-2"
                   style={{ gridColumn: pIdx + 2, gridRow: 1 }}
                 >
-                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: `hsl(${p.color})` }} />
-                  <span className="text-xs font-semibold text-foreground truncate">{p.name}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: `hsl(${p.color})` }} />
+                    <span className="text-xs font-semibold text-foreground truncate">{p.name}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground/70">
+                    {p.schedule?.workingHoursStart && p.schedule?.workingHoursEnd
+                      ? `${p.schedule.workingHoursStart}–${p.schedule.workingHoursEnd}`
+                      : "–"}
+                  </span>
                 </div>
               ))}
 
@@ -410,7 +417,7 @@ export default function Agenda() {
                     if (idx === -1) return null;
                   }
                   const rowStart = (startRowIdx === -1 ? fineTimeSlots.findIndex((t, i) => { const next = fineTimeSlots[i + 1]; return timeToMin(t) <= timeToMin(slot.time) && (!next || timeToMin(next) > timeToMin(slot.time)); }) : startRowIdx) + 2;
-                  const duration = slot.duration ?? 60;
+                  const duration = slot.duration ?? zoom;
                   const spanRows = Math.max(1, Math.round(duration / zoom));
                   const isBooked = slot.status === "booked";
                   const isBlocked = slot.status === "blocked";
@@ -419,9 +426,9 @@ export default function Agenda() {
                     <div
                       key={`${slot.time}-${p.id}`}
                       className={cn(
-                        "mx-0.5 my-0.5 rounded-md p-1.5 cursor-pointer overflow-hidden z-10 transition-opacity hover:opacity-90",
-                        isBooked && "bg-primary/20 border border-primary/40",
-                        isBlocked && "bg-muted border border-border",
+                        "mx-0.5 my-0.5 rounded-md cursor-pointer overflow-hidden z-10 transition-opacity hover:opacity-90",
+                        isBooked && "bg-primary/20 border border-primary/40 p-1.5",
+                        isBlocked && "bg-muted/60 border border-dashed border-border/60 flex items-center px-1.5",
                       )}
                       style={{
                         gridColumn: pIdx + 2,
@@ -436,8 +443,8 @@ export default function Agenda() {
                           {spanRows > 2 && <p className="text-[10px] text-muted-foreground/60">{slot.time} · {duration}min</p>}
                         </>
                       )}
-                      {isBlocked && spanRows >= 1 && (
-                        <p className="text-[10px] text-muted-foreground italic truncate">Bloqueado</p>
+                      {isBlocked && (
+                        <p className="text-[10px] text-muted-foreground/50 italic truncate">bloqueado</p>
                       )}
                     </div>
                   );
