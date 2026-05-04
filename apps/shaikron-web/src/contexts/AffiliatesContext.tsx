@@ -1,60 +1,78 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { api } from "@/lib/apiClient";
 
 export interface Affiliate {
   id: string;
-  product_name: string;
-  short_description: string;
+  productName: string;
+  shortDescription: string;
   status: "active" | "coming_soon";
-  external_link: string;
+  externalLink: string;
   icon: string;
-  highlight_badge: string;
-  display_order: number;
+  highlightBadge: string;
+  displayOrder: number;
 }
 
 interface AffiliatesState {
   affiliates: Affiliate[];
-  addAffiliate: (affiliate: Omit<Affiliate, "id">) => void;
-  updateAffiliate: (id: string, updates: Partial<Omit<Affiliate, "id">>) => void;
-  deleteAffiliate: (id: string) => void;
-}
-
-const STORAGE_KEY = "schaikron_affiliates";
-
-function loadAffiliates(): Affiliate[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+  loading: boolean;
+  addAffiliate: (affiliate: Omit<Affiliate, "id">) => Promise<void>;
+  updateAffiliate: (id: string, updates: Partial<Omit<Affiliate, "id">>) => Promise<void>;
+  deleteAffiliate: (id: string) => Promise<void>;
 }
 
 const AffiliatesContext = createContext<AffiliatesState>({
   affiliates: [],
-  addAffiliate: () => {},
-  updateAffiliate: () => {},
-  deleteAffiliate: () => {},
+  loading: false,
+  addAffiliate: async () => {},
+  updateAffiliate: async () => {},
+  deleteAffiliate: async () => {},
 });
 
+function mapApi(p: any): Affiliate {
+  return {
+    id: p.id,
+    productName: p.productName ?? p.product_name ?? "",
+    shortDescription: p.shortDescription ?? p.short_description ?? "",
+    status: p.status ?? "active",
+    externalLink: p.externalLink ?? p.external_link ?? "",
+    icon: p.icon ?? "🤝",
+    highlightBadge: p.highlightBadge ?? p.highlight_badge ?? "",
+    displayOrder: p.displayOrder ?? p.display_order ?? 0,
+  };
+}
+
 export const AffiliatesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [affiliates, setAffiliates] = useState<Affiliate[]>(loadAffiliates);
+  const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(affiliates));
-  }, [affiliates]);
-
-  const addAffiliate = useCallback((affiliate: Omit<Affiliate, "id">) => {
-    setAffiliates(prev => [...prev, { ...affiliate, id: crypto.randomUUID() }]);
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await api.get<any[]>("/app/afiliados");
+      setAffiliates((data ?? []).map(mapApi));
+    } catch { /* silently fail if not authenticated yet */ }
+    finally { setLoading(false); }
   }, []);
 
-  const updateAffiliate = useCallback((id: string, updates: Partial<Omit<Affiliate, "id">>) => {
-    setAffiliates(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+  useEffect(() => { load(); }, [load]);
+
+  const addAffiliate = useCallback(async (affiliate: Omit<Affiliate, "id">) => {
+    const created = await api.post<any>("/app/afiliados", affiliate);
+    setAffiliates(prev => [...prev, mapApi(created)]);
   }, []);
 
-  const deleteAffiliate = useCallback((id: string) => {
+  const updateAffiliate = useCallback(async (id: string, updates: Partial<Omit<Affiliate, "id">>) => {
+    const updated = await api.put<any>(`/app/afiliados/${id}`, updates);
+    setAffiliates(prev => prev.map(a => a.id === id ? mapApi(updated) : a));
+  }, []);
+
+  const deleteAffiliate = useCallback(async (id: string) => {
+    await api.delete(`/app/afiliados/${id}`);
     setAffiliates(prev => prev.filter(a => a.id !== id));
   }, []);
 
   return (
-    <AffiliatesContext.Provider value={{ affiliates, addAffiliate, updateAffiliate, deleteAffiliate }}>
+    <AffiliatesContext.Provider value={{ affiliates, loading, addAffiliate, updateAffiliate, deleteAffiliate }}>
       {children}
     </AffiliatesContext.Provider>
   );
