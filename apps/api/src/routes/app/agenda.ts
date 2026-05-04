@@ -107,8 +107,10 @@ async function calcularAgendaDia(
       status: { in: ['CONFIRMADO', 'REMARCADO'] },
       inicio: { gte: inicioDia, lte: fimDia },
     },
-    include: { lead: { select: { nomeWpp: true, telefone: true } } },
-    // clienteNome and servicoNome are selected automatically via Prisma
+    include: {
+      lead: { select: { nomeWpp: true, telefone: true } },
+      servico: { select: { duracaoMin: true } },
+    },
   })
 
   const slots: Slot[] = slotsBrutos.map(({ inicio, fim }) => {
@@ -135,7 +137,9 @@ async function calcularAgendaDia(
     })
 
     if (agendado) {
-      const agDuracaoMin = Math.round((agendado.fim.getTime() - agendado.inicio.getTime()) / 60000)
+      // Prefer service catalog duration (corrects legacy appointments stored with wrong fim)
+      const agDuracaoMin = (agendado as any).servico?.duracaoMin
+        ?? Math.round((agendado.fim.getTime() - agendado.inicio.getTime()) / 60000)
       return {
         hora: formatHora(inicio),
         horaFim: formatHora(new Date(agendado.fim)),
