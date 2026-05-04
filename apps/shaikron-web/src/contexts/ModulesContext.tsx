@@ -1,61 +1,65 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { api } from "@/lib/apiClient";
 
 export interface AppModule {
   id: string;
-  module_name: string;
-  short_description: string;
-  status: "active" | "coming_soon" | "disabled";
-  route_path: string;
+  nome: string;
+  descricao: string;
+  chave: string;
   icon: string;
-  highlight_badge: string;
-  requires_plan: boolean;
-  display_order: number;
+  highlightBadge: string;
+  routePath: string;
+  displayOrder: number;
+  status: "active" | "coming_soon" | "disabled";
+  requiresPlan: boolean;
+  stripePriceId: string | null;
+  ativo: boolean;
 }
 
 interface ModulesState {
   modules: AppModule[];
-  addModule: (module: Omit<AppModule, "id">) => void;
-  updateModule: (id: string, updates: Partial<Omit<AppModule, "id">>) => void;
-  deleteModule: (id: string) => void;
-}
-
-const STORAGE_KEY = "schaikron_modules";
-
-function loadModules(): AppModule[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+  loading: boolean;
 }
 
 const ModulesContext = createContext<ModulesState>({
   modules: [],
-  addModule: () => {},
-  updateModule: () => {},
-  deleteModule: () => {},
+  loading: false,
 });
 
+function mapApi(m: any): AppModule {
+  return {
+    id: m.id,
+    nome: m.nome ?? "",
+    descricao: m.descricao ?? "",
+    chave: m.chave ?? "",
+    icon: m.icon ?? "🧩",
+    highlightBadge: m.highlightBadge ?? m.highlight_badge ?? "",
+    routePath: m.routePath ?? m.route_path ?? "",
+    displayOrder: m.displayOrder ?? m.display_order ?? 0,
+    status: m.status ?? "active",
+    requiresPlan: m.requiresPlan ?? m.requires_plan ?? false,
+    stripePriceId: m.stripePriceId ?? m.stripe_price_id ?? null,
+    ativo: m.ativo ?? true,
+  };
+}
+
 export const ModulesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [modules, setModules] = useState<AppModule[]>(loadModules);
+  const [modules, setModules] = useState<AppModule[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(modules));
-  }, [modules]);
-
-  const addModule = useCallback((module: Omit<AppModule, "id">) => {
-    setModules(prev => [...prev, { ...module, id: crypto.randomUUID() }]);
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await api.get<any[]>("/modules/public");
+      setModules((data ?? []).map(mapApi));
+    } catch { /* silently fail */ }
+    finally { setLoading(false); }
   }, []);
 
-  const updateModule = useCallback((id: string, updates: Partial<Omit<AppModule, "id">>) => {
-    setModules(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
-  }, []);
-
-  const deleteModule = useCallback((id: string) => {
-    setModules(prev => prev.filter(m => m.id !== id));
-  }, []);
+  useEffect(() => { load(); }, [load]);
 
   return (
-    <ModulesContext.Provider value={{ modules, addModule, updateModule, deleteModule }}>
+    <ModulesContext.Provider value={{ modules, loading }}>
       {children}
     </ModulesContext.Provider>
   );

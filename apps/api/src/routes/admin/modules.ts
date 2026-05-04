@@ -7,6 +7,14 @@ const moduleBody = z.object({
   nome: z.string().min(1),
   descricao: z.string().optional(),
   chave: z.string().min(1).regex(/^[a-z0-9-_]+$/, 'Apenas letras minúsculas, números, hífen e underscore'),
+  icon: z.string().default('🧩'),
+  highlightBadge: z.string().default(''),
+  routePath: z.string().default(''),
+  displayOrder: z.number().int().default(0),
+  status: z.enum(['active', 'coming_soon', 'disabled']).default('active'),
+  requiresPlan: z.boolean().default(false),
+  stripePriceId: z.string().optional(),
+  ativo: z.boolean().default(true),
 })
 
 export async function modulesRoutes(app: FastifyInstance) {
@@ -14,7 +22,7 @@ export async function modulesRoutes(app: FastifyInstance) {
 
   // GET /admin/modules
   app.get('/', { preHandler }, async () => {
-    return prisma.internalModule.findMany({ orderBy: { nome: 'asc' } })
+    return prisma.internalModule.findMany({ orderBy: { displayOrder: 'asc' } })
   })
 
   // POST /admin/modules
@@ -67,8 +75,7 @@ export async function modulesPublicRoutes(app: FastifyInstance) {
   app.get('/', async () => {
     return prisma.internalModule.findMany({
       where: { ativo: true },
-      orderBy: { nome: 'asc' },
-      select: { id: true, nome: true, descricao: true, chave: true },
+      orderBy: { displayOrder: 'asc' },
     })
   })
 }

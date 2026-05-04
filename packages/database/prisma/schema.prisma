@@ -512,12 +512,19 @@ model ExternalProduct {
 }
 
 model InternalModule {
-  id        String   @id @default(uuid())
-  nome      String
-  descricao String?
-  chave     String   @unique
-  ativo     Boolean  @default(true)
-  criadoEm  DateTime @default(now()) @map("criado_em")
+  id             String   @id @default(uuid())
+  nome           String
+  descricao      String?
+  chave          String   @unique
+  icon           String   @default("🧩")
+  highlightBadge String   @default("") @map("highlight_badge")
+  routePath      String   @default("") @map("route_path")
+  displayOrder   Int      @default(0) @map("display_order")
+  status         String   @default("active")
+  requiresPlan   Boolean  @default(false) @map("requires_plan")
+  stripePriceId  String?  @map("stripe_price_id")
+  ativo          Boolean  @default(true)
+  criadoEm       DateTime @default(now()) @map("criado_em")
 
   @@map("internal_modules")
   @@schema("atendente_ia")
