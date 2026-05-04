@@ -36,7 +36,7 @@ export function useAppointments() {
         clienteNome: req.client, servicoNome: req.service, servicoId: req.servicoId,
       });
       availability.applySlotUpdate(req.date, best.time, best.professionalId, {
-        status: "booked", client: req.client, service: req.service,
+        status: "booked", client: req.client, service: req.service, duration: req.durationMin,
       });
       return { professionalId: best.professionalId, time: best.time, client: req.client, service: req.service };
     } catch (e: any) {
@@ -56,7 +56,7 @@ export function useAppointments() {
         clienteNome: req.client, servicoNome: req.service, servicoId: req.servicoId,
       });
       availability.applySlotUpdate(req.date, req.time, req.professionalId, {
-        status: "booked", client: req.client, service: req.service,
+        status: "booked", client: req.client, service: req.service, duration: req.durationMin,
       });
     } catch (e: any) {
       setError(e.message); throw e;
