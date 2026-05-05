@@ -71,6 +71,13 @@ export default function Agenda() {
 
   const filteredPros = filterPro === "all" ? professionals : professionals.filter(p => p.id === filterPro);
 
+  // Fast lookup: "time__proId" → status (only slots returned by API = within working hours)
+  const slotStatusMap = useMemo(() => {
+    const map = new Map<string, string>();
+    daySlots.forEach(s => map.set(`${s.time}__${s.professionalId}`, s.status));
+    return map;
+  }, [daySlots]);
+
   const openSlot = useCallback(async (slot: TimeSlot, date: Date) => {
     setModalSlot({ slot, date });
     setModalMode("default");
@@ -392,17 +399,29 @@ export default function Agenda() {
                   </div>,
                   // Células de fundo por profissional
                   ...filteredPros.map((p, pIdx) => {
+                    const key = `${time}__${p.id}`;
+                    const status = slotStatusMap.get(key);
+                    const inHours = status !== undefined; // slot exists in API = within working hours
+                    const isFreeSlot = status === "free";
                     const freeSlot: TimeSlot = { time, professionalId: p.id, status: "free" };
                     return (
                       <div
                         key={`bg-${time}-${p.id}`}
                         className={cn(
-                          "border-r border-border/40 cursor-pointer transition-colors hover:bg-primary/5",
+                          "border-r border-border/40 transition-colors relative overflow-hidden",
                           isHour ? "border-t border-t-border/60" : isHalf ? "border-t border-t-border/30" : "border-t border-t-border/10",
+                          inHours && isFreeSlot && "cursor-pointer hover:bg-primary/5",
+                          !inHours && "bg-muted/10 cursor-default",
                         )}
                         style={{ gridColumn: pIdx + 2, gridRow: rowIdx }}
-                        onClick={() => openSlot(freeSlot, selectedDate)}
-                      />
+                        onClick={() => inHours && isFreeSlot && openSlot(freeSlot, selectedDate)}
+                      >
+                        {isFreeSlot && ROW_H >= 32 && (
+                          <span className="absolute inset-0 flex items-center justify-center text-[9px] text-muted-foreground/30 select-none pointer-events-none">
+                            disponível
+                          </span>
+                        )}
+                      </div>
                     );
                   }),
                 ];
