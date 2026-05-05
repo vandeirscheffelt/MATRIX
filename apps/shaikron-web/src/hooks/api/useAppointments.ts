@@ -77,13 +77,14 @@ export function useAppointments() {
         try {
           await api.post("/app/agendamentos", {
             profissionalId: candidate.professionalId, inicio, fim,
-            clienteNome: req.client, servicoNome: req.service, servicoId: req.servicoId,
+            clienteNome: req.client, clienteTelefone: req.phone,
+            servicoNome: req.service, servicoId: req.servicoId,
           });
           // Invalidate cache so next auto-schedule sees updated availability
           availability.invalidateDate(req.date);
           availability.loadSlotsForDate(req.date);
           availability.applySlotUpdate(req.date, candidate.time, candidate.professionalId, {
-            status: "booked", client: req.client, service: req.service, duration: req.durationMin,
+            status: "booked", client: req.client, phone: req.phone, service: req.service, duration: req.durationMin,
           });
           return { professionalId: candidate.professionalId, time: candidate.time, client: req.client, service: req.service };
         } catch (e: any) {

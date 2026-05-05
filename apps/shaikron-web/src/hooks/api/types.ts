@@ -79,6 +79,7 @@ export interface AppSettings {
 export interface AutoBookRequest {
   date: Date;
   client: string;
+  phone?: string;
   service: string;
   servicoId?: string;
   durationMin?: number;
