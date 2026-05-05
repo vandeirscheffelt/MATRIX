@@ -59,6 +59,7 @@ export function useAvailability() {
             : s.status === "AGENDADO" ? "booked"
             : "blocked") as SlotStatus,
           client: s.leadNome,
+          phone: s.leadTelefone,
           service: s.servicoNome,
           duration: s.duracaoMin,
           appointmentId: s.agendamentoId ?? s.bloqueioId,

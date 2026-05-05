@@ -45,6 +45,7 @@ export interface TimeSlot {
   professionalId: string;
   status: SlotStatus;
   client?: string;
+  phone?: string;
   service?: string;
   duration?: number; // in minutes
   appointmentId?: string;
@@ -97,6 +98,7 @@ export interface ManualBookRequest {
   time: string;
   professionalId: string;
   client: string;
+  phone?: string;
   service: string;
   servicoId?: string;
   durationMin?: number;

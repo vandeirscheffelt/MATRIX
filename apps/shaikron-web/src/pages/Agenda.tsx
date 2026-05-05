@@ -40,6 +40,7 @@ export default function Agenda() {
   const [modalSlot, setModalSlot] = useState<{ slot: TimeSlot; date: Date } | null>(null);
   const [modalMode, setModalMode] = useState<ModalMode>("default");
   const [newClient, setNewClient] = useState("");
+  const [newPhone, setNewPhone] = useState("");
   const [newService, setNewService] = useState("");
   const [selectedServiceId, setSelectedServiceId] = useState<string>("");
   const { services, fetchServices } = useServices();
@@ -74,6 +75,7 @@ export default function Agenda() {
     setModalSlot({ slot, date });
     setModalMode("default");
     setNewClient("");
+    setNewPhone("");
     setNewService("");
     setSelectedServiceId("");
     setPickedPro(slot.professionalId);
@@ -139,6 +141,7 @@ export default function Agenda() {
         time: pickedTime,
         professionalId: pickedPro,
         client: newClient.trim(),
+        phone: newPhone.trim() || undefined,
         service: newService.trim() || t("agenda.appointment"),
         servicoId: selectedServiceId || undefined,
         durationMin: selectedSvc?.duration ?? 60,
@@ -565,6 +568,7 @@ export default function Agenda() {
                   </div>
                   <div className="space-y-2">
                     <Input placeholder={t("agenda.clientName")} value={newClient} onChange={e => setNewClient(e.target.value)} className="bg-secondary/30 border-border" autoFocus />
+                    <Input placeholder="Telefone (opcional)" value={newPhone} onChange={e => setNewPhone(e.target.value)} className="bg-secondary/30 border-border" />
                     <Select
                       value={selectedServiceId || "_none"}
                       onValueChange={(v) => {
@@ -665,6 +669,7 @@ export default function Agenda() {
 
                   <div className="space-y-2">
                     <Input placeholder={t("agenda.clientName")} value={newClient} onChange={e => setNewClient(e.target.value)} className="bg-secondary/30 border-border" />
+                    <Input placeholder="Telefone (opcional)" value={newPhone} onChange={e => setNewPhone(e.target.value)} className="bg-secondary/30 border-border" />
                     <Select
                       value={selectedServiceId || "_none"}
                       onValueChange={(v) => {
@@ -745,6 +750,7 @@ export default function Agenda() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Input placeholder={t("agenda.clientName")} value={newClient} onChange={e => setNewClient(e.target.value)} className="bg-secondary/30 border-border" />
+                    <Input placeholder="Telefone (opcional)" value={newPhone} onChange={e => setNewPhone(e.target.value)} className="bg-secondary/30 border-border" />
                     <Select
                       value={selectedServiceId || "_none"}
                       onValueChange={(v) => {
@@ -852,10 +858,19 @@ export default function Agenda() {
                         <p className="text-xs text-muted-foreground">{currentModalSlot.slot.service}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {currentModalSlot.slot.time}</span>
                       <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" /> {format(currentModalSlot.date, "MMM d, yyyy")}</span>
-                      <span className="flex items-center gap-1"><User className="h-3 w-3" /> {currentModalSlot.slot.client}</span>
+                      {currentModalSlot.slot.phone && (
+                        <a
+                          href={`https://wa.me/${currentModalSlot.slot.phone.replace(/\D/g, "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-primary hover:underline"
+                        >
+                          <User className="h-3 w-3" /> {currentModalSlot.slot.phone}
+                        </a>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2">

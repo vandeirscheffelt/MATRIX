@@ -107,10 +107,11 @@ export function useAppointments() {
       const { inicio, fim } = buildIso(req.date, req.time, req.durationMin ?? 60);
       await api.post("/app/agendamentos", {
         profissionalId: req.professionalId, inicio, fim,
-        clienteNome: req.client, servicoNome: req.service, servicoId: req.servicoId,
+        clienteNome: req.client, clienteTelefone: req.phone,
+        servicoNome: req.service, servicoId: req.servicoId,
       });
       availability.applySlotUpdate(req.date, req.time, req.professionalId, {
-        status: "booked", client: req.client, service: req.service, duration: req.durationMin,
+        status: "booked", client: req.client, phone: req.phone, service: req.service, duration: req.durationMin,
       });
     } catch (e: any) {
       setError(e.message); throw e;

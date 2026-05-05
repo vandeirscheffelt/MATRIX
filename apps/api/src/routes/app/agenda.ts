@@ -23,6 +23,7 @@ interface Slot {
   agendamentoId?: string
   bloqueioId?: string
   leadNome?: string
+  leadTelefone?: string
   servicoNome?: string
 }
 
@@ -153,6 +154,7 @@ async function calcularAgendaDia(
         status: 'AGENDADO',
         agendamentoId: agendado.id,
         leadNome: agendado.lead?.nomeWpp ?? agendado.lead?.telefone ?? (agendado as any).clienteNome,
+        leadTelefone: agendado.lead?.telefone ?? (agendado as any).clienteTelefone,
         servicoNome: (agendado as any).servicoNome,
       }
     }
