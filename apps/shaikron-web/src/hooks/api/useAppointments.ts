@@ -25,26 +25,42 @@ export function useAppointments() {
     try {
       const allSlots = await availability.loadSlotsForDate(req.date);
 
-      // Only future slots: compare slot time with current time if booking for today
       const now = new Date();
-      const isToday = req.date.toDateString() === now.toDateString();
-      const nowMin = isToday ? now.getHours() * 60 + now.getMinutes() : 0;
-      const timeToMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+      const slotMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+      // Full datetime comparison: slot is future if its absolute time > now
+      const slotIsFuture = (time: string) => {
+        const d = req.date;
+        const [h, m] = time.split(":").map(Number);
+        const slotDate = new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m);
+        return slotDate.getTime() > now.getTime();
+      };
 
-      const freeSlots = allSlots.filter(s =>
-        s.status === "free" && (!isToday || timeToMin(s.time) > nowMin)
-      );
+      const durationMin = req.durationMin ?? 15;
+      const slotsNeeded = Math.ceil(durationMin / 15);
+
+      const freeSlots = allSlots.filter(s => s.status === "free" && slotIsFuture(s.time));
 
       // If a professional was chosen, restrict to that professional only
-      const candidates = req.preferredProfessionalId
+      const proFreeSlots = req.preferredProfessionalId
         ? freeSlots.filter(s => s.professionalId === req.preferredProfessionalId)
         : freeSlots;
+
+      // Only keep slots where all consecutive 15-min slots needed are also free
+      const candidates = proFreeSlots.filter(candidate => {
+        if (slotsNeeded <= 1) return true;
+        const start = slotMin(candidate.time);
+        for (let i = 1; i < slotsNeeded; i++) {
+          const needed = `${String(Math.floor((start + i * 15) / 60)).padStart(2, "0")}:${String((start + i * 15) % 60).padStart(2, "0")}`;
+          if (!freeSlots.find(s => s.time === needed && s.professionalId === candidate.professionalId)) return false;
+        }
+        return true;
+      });
 
       if (candidates.length === 0) {
         const proName = req.preferredProfessionalId
           ? professionals.find(p => p.id === req.preferredProfessionalId)?.name ?? "Profissional"
           : "Nenhum profissional";
-        throw new Error(`${proName} não tem horários disponíveis hoje.`);
+        throw new Error(`${proName} não tem horários disponíveis para ${durationMin} min hoje.`);
       }
 
       // Prefer the exact clicked slot if available
