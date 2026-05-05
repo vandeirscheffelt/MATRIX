@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Clock, User, CalendarDays, Ban, Plus, Lock, Unlock, ArrowRightLeft, X, Users, Sparkles, Zap, CheckCircle2, Loader2, AlertCircle, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, User, CalendarDays, Ban, Plus, Lock, Unlock, ArrowRightLeft, X, Users, Sparkles, Zap, CheckCircle2, Loader2, AlertCircle, AlertTriangle, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { format, addDays, subDays, isToday, isTomorrow, startOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -47,6 +47,7 @@ export default function Agenda() {
   useEffect(() => { fetchServices().catch(() => null); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [pickedPro, setPickedPro] = useState<string>("");
   const [pickedTime, setPickedTime] = useState<string>("");
+  const [originalPickedTime, setOriginalPickedTime] = useState<string>("");
   const [confirmSource, setConfirmSource] = useState<"ai" | "manual">("manual");
   const [actionLoading, setActionLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
@@ -117,6 +118,8 @@ export default function Agenda() {
   const handleAutoBook = useCallback(async () => {
     if (!newClient.trim() || !currentModalSlot) return;
     setActionLoading(true);
+    const requestedTime = pickedTime;
+    setOriginalPickedTime(requestedTime);
     try {
       const selectedSvc = services.find(s => s.id === selectedServiceId);
       const result = await api.autoScheduleAppointment({
@@ -126,7 +129,7 @@ export default function Agenda() {
         service: newService.trim() || t("agenda.appointment"),
         servicoId: selectedServiceId || undefined,
         durationMin: selectedSvc?.duration ?? 60,
-        preferredTime: pickedTime,
+        preferredTime: requestedTime,
         preferredProfessionalId: pickedPro,
       });
       setPickedPro(result.professionalId);
@@ -640,6 +643,15 @@ export default function Agenda() {
                       <p className="text-xs text-primary/70 mt-0.5">{t("agenda.aiSelectedOptimal")}</p>
                     </div>
                   </div>
+
+                  {originalPickedTime && pickedTime !== originalPickedTime && (
+                    <div className="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2.5">
+                      <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
+                      <p className="text-xs text-yellow-300">
+                        Horário solicitado ({originalPickedTime}) indisponível — agendado para o próximo horário livre às {pickedTime}. Cancele se preferir outro horário.
+                      </p>
+                    </div>
+                  )}
 
                   <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
