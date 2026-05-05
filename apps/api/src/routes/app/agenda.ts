@@ -123,8 +123,8 @@ async function calcularAgendaDia(
     const bloqueio = profissional.bloqueios.find((b: { id: string; dataInicio: Date; dataFim: Date }) => {
       const bInicio = new Date(b.dataInicio)
       const bFim = new Date(b.dataFim)
-      return bInicio <= new Date(`${dataStr}T${formatHora(fim)}:00Z`) &&
-             bFim >= new Date(`${dataStr}T${formatHora(inicio)}:00Z`)
+      return bInicio < new Date(`${dataStr}T${formatHora(fim)}:00Z`) &&
+             bFim > new Date(`${dataStr}T${formatHora(inicio)}:00Z`)
     })
 
     if (bloqueio) {
