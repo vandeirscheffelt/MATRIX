@@ -71,10 +71,15 @@ export default function Agenda() {
 
   // Grid is always 15-min granularity; zoom only controls row height
   const fineTimeSlots = useMemo(() => {
+    // Derive grid boundaries from professionals' working hours so no slot is hidden
+    const starts = professionals.map(p => timeToMin(p.schedule.workingHoursStart)).filter(Boolean);
+    const ends = professionals.map(p => timeToMin(p.schedule.workingHoursEnd)).filter(Boolean);
+    const gridStart = starts.length > 0 ? Math.min(...starts) : 6 * 60;
+    const gridEnd = ends.length > 0 ? Math.max(...ends) : 23 * 60;
     const result: string[] = [];
-    for (let min = 6 * 60; min < 23 * 60; min += 15) result.push(minToTime(min));
+    for (let min = gridStart; min < gridEnd; min += 15) result.push(minToTime(min));
     return result;
-  }, []);
+  }, [professionals]);
 
   const ROW_H = zoom === 15 ? 20 : zoom === 30 ? 32 : 48;
 
