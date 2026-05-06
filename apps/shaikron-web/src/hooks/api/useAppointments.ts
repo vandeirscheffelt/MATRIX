@@ -13,7 +13,11 @@ export function useAppointments() {
   const clearError = useCallback(() => setError(null), []);
 
   function buildIso(date: Date, time: string, durationMin = 60) {
-    const dateStr = date.toISOString().split("T")[0];
+    // Use local date components to avoid UTC shift (e.g. BRT UTC-3 at 23:xx turns May 6 into May 7)
+    const y = date.getFullYear();
+    const mo = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    const dateStr = `${y}-${mo}-${d}`;
     const inicio = new Date(`${dateStr}T${time}:00Z`);
     const fim = new Date(inicio.getTime() + durationMin * 60 * 1000);
     return { inicio: inicio.toISOString(), fim: fim.toISOString() };
