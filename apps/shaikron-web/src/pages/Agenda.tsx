@@ -92,6 +92,14 @@ export default function Agenda() {
     return map;
   }, [daySlots]);
 
+  // Returns true if the given time slot is in the past for the currently selected date
+  const isSlotPast = useCallback((time: string): boolean => {
+    const now = new Date();
+    const [h, m] = time.split(":").map(Number);
+    const slotDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), h, m);
+    return slotDate.getTime() <= now.getTime();
+  }, [selectedDate]);
+
   const openSlot = useCallback(async (slot: TimeSlot, date: Date) => {
     setModalSlot({ slot, date });
     setModalMode("default");
@@ -420,6 +428,7 @@ export default function Agenda() {
                     const status = slotStatusMap.get(key);
                     const inHours = status !== undefined; // slot exists in API = within working hours
                     const isFreeSlot = status === "free";
+                    const isPast = isSlotPast(time);
                     const freeSlot: TimeSlot = { time, professionalId: p.id, status: "free" };
                     return (
                       <div
@@ -427,13 +436,14 @@ export default function Agenda() {
                         className={cn(
                           "border-r border-border/40 transition-colors relative overflow-hidden",
                           isHour ? "border-t border-t-border/60" : isHalf ? "border-t border-t-border/30" : "border-t border-t-border/10",
-                          inHours && isFreeSlot && "cursor-pointer hover:bg-primary/5",
+                          inHours && isFreeSlot && !isPast && "cursor-pointer hover:bg-primary/5",
+                          inHours && isFreeSlot && isPast && "bg-muted/5 cursor-default",
                           !inHours && "bg-muted/10 cursor-default",
                         )}
                         style={{ gridColumn: pIdx + 2, gridRow: rowIdx }}
-                        onClick={() => inHours && isFreeSlot && openSlot(freeSlot, selectedDate)}
+                        onClick={() => inHours && isFreeSlot && !isPast && openSlot(freeSlot, selectedDate)}
                       >
-                        {isFreeSlot && ROW_H >= 32 && (
+                        {isFreeSlot && !isPast && ROW_H >= 32 && (
                           <span className="absolute inset-0 flex items-center justify-center text-[9px] text-muted-foreground/30 select-none pointer-events-none">
                             disponível
                           </span>
