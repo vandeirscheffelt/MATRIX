@@ -57,6 +57,14 @@ export default function Agenda() {
   const api = useAppointments();
   const { professionals, getProfessional, getSlotsForDate, loading: apiLoading, error: apiError, clearError } = api;
 
+  // Services available for the currently selected professional (filtered by their linked services)
+  // Falls back to all services when professional has no restrictions configured
+  const proServices = useMemo(() => {
+    const pro = professionals.find(p => p.id === pickedPro);
+    if (!pro || pro.services.length === 0) return services;
+    return services.filter(s => pro.services.includes(s.id));
+  }, [pickedPro, professionals, services]);
+
   const weekStart = useMemo(() => startOfWeek(selectedDate, { weekStartsOn: 1 }), [selectedDate]);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const daySlots = getSlotsForDate(selectedDate);
@@ -606,7 +614,7 @@ export default function Agenda() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="_none">{t("agenda.serviceOptional")}</SelectItem>
-                        {services.map(s => (
+                        {proServices.map(s => (
                           <SelectItem key={s.id} value={s.id}>
                             <span className="flex items-center gap-2">
                               <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color || "hsl(var(--primary))" }} />
@@ -716,7 +724,7 @@ export default function Agenda() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="_none">{t("agenda.serviceOptional")}</SelectItem>
-                        {services.map(s => (
+                        {proServices.map(s => (
                           <SelectItem key={s.id} value={s.id}>
                             <span className="flex items-center gap-2">
                               <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color || "hsl(var(--primary))" }} />
@@ -797,7 +805,7 @@ export default function Agenda() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="_none">{t("agenda.serviceOptional")}</SelectItem>
-                        {services.map(s => (
+                        {proServices.map(s => (
                           <SelectItem key={s.id} value={s.id}>
                             <span className="flex items-center gap-2">
                               <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color || "hsl(var(--primary))" }} />
@@ -812,7 +820,7 @@ export default function Agenda() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">{t("agenda.professional")}</label>
-                      <Select value={pickedPro} onValueChange={setPickedPro}>
+                      <Select value={pickedPro} onValueChange={(v) => { setPickedPro(v); setSelectedServiceId(""); setNewService(""); }}>
                         <SelectTrigger className="h-9 text-xs border-border bg-secondary/30">
                           <SelectValue placeholder={t("agenda.select")} />
                         </SelectTrigger>
