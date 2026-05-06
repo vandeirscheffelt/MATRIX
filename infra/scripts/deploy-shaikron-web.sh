@@ -52,6 +52,7 @@ docker compose -f "$COMPOSE_FILE" build --no-cache
 log "Imagem construída"
 
 info "Subindo container..."
+docker compose -f "$COMPOSE_FILE" down --remove-orphans 2>/dev/null || true
 docker compose -f "$COMPOSE_FILE" up -d
 log "Container shaikron-web rodando"
 
