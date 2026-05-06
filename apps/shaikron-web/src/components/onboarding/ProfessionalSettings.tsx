@@ -584,9 +584,10 @@ function EditModal({
 /* ─── Main Component ────────────────────────────────────────────────── */
 export default function ProfessionalSettings() {
   const { professionals, addProfessional, updateProfessional, removeProfessional } = useProfessionals();
-  const { services } = useServices();
+  const { services, fetchServices } = useServices();
   const { t } = useLanguage();
   const [editingId, setEditingId] = useState<string | null>(null);
+  useEffect(() => { fetchServices().catch(() => null); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [form, setForm] = useState<EditForm>(emptyForm());
 
   const openAdd = () => {
