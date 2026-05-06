@@ -41,9 +41,16 @@ export function useAppointments() {
       const freeSlots = allSlots.filter(s => s.status === "free" && slotIsFuture(s.time));
 
       // If a professional was chosen, restrict to that professional only
+      // Otherwise if a service was chosen, restrict to professionals who offer it
+      // (professionals with empty services[] are treated as unrestricted — backwards compat)
       const proFreeSlots = req.preferredProfessionalId
         ? freeSlots.filter(s => s.professionalId === req.preferredProfessionalId)
-        : freeSlots;
+        : req.servicoId
+          ? freeSlots.filter(s => {
+              const pro = professionals.find(p => p.id === s.professionalId);
+              return !pro || pro.services.length === 0 || pro.services.includes(req.servicoId!);
+            })
+          : freeSlots;
 
       // Only keep slots where all consecutive 15-min slots needed are also free
       const candidates = proFreeSlots.filter(candidate => {

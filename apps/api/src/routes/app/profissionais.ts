@@ -64,6 +64,25 @@ export async function profissionaisRoutes(app: FastifyInstance) {
     return prisma.profissional.update({ where: { id }, data: body.data })
   })
 
+  // PUT /app/profissionais/:id/servicos — substitui lista de serviços vinculados
+  app.put('/:id/servicos', { preHandler }, async (request: any, reply) => {
+    const { id } = request.params as { id: string }
+    const body = z.object({ servicoIds: z.array(z.string().uuid()) }).safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const existing = await prisma.profissional.findFirst({ where: { id, empresaId: request.empresaId } })
+    if (!existing) return reply.code(404).send({ error: 'Profissional não encontrado' })
+
+    await prisma.profissionalServico.deleteMany({ where: { profissionalId: id } })
+    if (body.data.servicoIds.length > 0) {
+      await prisma.profissionalServico.createMany({
+        data: body.data.servicoIds.map(servicoId => ({ profissionalId: id, servicoId })),
+        skipDuplicates: true,
+      })
+    }
+    return { profissionalId: id, servicoIds: body.data.servicoIds }
+  })
+
   // DELETE /app/profissionais/:id — desativa (soft delete)
   app.delete('/:id', { preHandler }, async (request: any, reply) => {
     const { id } = request.params as { id: string }

@@ -61,11 +61,16 @@ export function ProfessionalsProvider({ children }: { children: ReactNode }) {
       cor: pro.color,
       aiAccess: pro.aiAccess,
     });
-    if (created?.id && pro.schedule) {
-      const grade = [0,1,2,3,4,5,6]
-        .filter(d => !pro.schedule.daysOff.includes(d))
-        .map(d => ({ diaSemana: d, horaInicio: pro.schedule.workingHoursStart, horaFim: pro.schedule.workingHoursEnd }));
-      await api.put(`/app/profissionais/${created.id}/grade`, grade).catch(() => null);
+    if (created?.id) {
+      if (pro.schedule) {
+        const grade = [0,1,2,3,4,5,6]
+          .filter(d => !pro.schedule.daysOff.includes(d))
+          .map(d => ({ diaSemana: d, horaInicio: pro.schedule.workingHoursStart, horaFim: pro.schedule.workingHoursEnd }));
+        await api.put(`/app/profissionais/${created.id}/grade`, grade).catch(() => null);
+      }
+      if (pro.services && pro.services.length > 0) {
+        await api.put(`/app/profissionais/${created.id}/servicos`, { servicoIds: pro.services }).catch(() => null);
+      }
     }
     await reload();
   }, [reload]);
@@ -82,6 +87,9 @@ export function ProfessionalsProvider({ children }: { children: ReactNode }) {
         .filter(d => !updates.schedule!.daysOff.includes(d))
         .map(d => ({ diaSemana: d, horaInicio: updates.schedule!.workingHoursStart, horaFim: updates.schedule!.workingHoursEnd }));
       await api.put(`/app/profissionais/${id}/grade`, grade).catch(() => null);
+    }
+    if (updates.services !== undefined) {
+      await api.put(`/app/profissionais/${id}/servicos`, { servicoIds: updates.services }).catch(() => null);
     }
     await reload();
   }, [reload]);
