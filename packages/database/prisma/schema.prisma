@@ -25,6 +25,7 @@ model Empresa {
   id        String   @id @default(uuid())
   nome      String
   slug      String   @unique
+  timezone  String   @default("America/Sao_Paulo")
   criadoEm  DateTime @default(now()) @map("criado_em")
 
   usuarios         Usuario[]

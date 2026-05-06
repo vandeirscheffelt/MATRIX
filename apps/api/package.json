@@ -17,6 +17,8 @@
     "@fastify/multipart": "^8.3.1",
     "@fastify/rate-limit": "^9.0.0",
     "@supabase/supabase-js": "^2.101.0",
+    "date-fns": "^3.6.0",
+    "date-fns-tz": "^3.2.0",
     "fastify": "^4.27.0",
     "openai": "^6.34.0",
     "stripe": "^16.0.0",

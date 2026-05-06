@@ -1,7 +1,9 @@
 import { useState, useCallback } from "react";
+import { fromZonedTime } from "date-fns-tz";
 import { type AutoBookRequest, type AutoBookResponse, type ManualBookRequest } from "./types";
 import { useAvailability } from "./useAvailability";
 import { useProfessionals } from "./useProfessionals";
+import { useEmpresa } from "./useEmpresa";
 import { api } from "@/lib/apiClient";
 
 export function useAppointments() {
@@ -9,16 +11,20 @@ export function useAppointments() {
   const [error, setError] = useState<string | null>(null);
   const availability = useAvailability();
   const { professionals, getProfessional } = useProfessionals();
+  const { timezone, fetchEmpresa } = useEmpresa();
+
+  // Ensure timezone is loaded once
+  useState(() => { fetchEmpresa().catch(() => {}); });
 
   const clearError = useCallback(() => setError(null), []);
 
   function buildIso(date: Date, time: string, durationMin = 60) {
-    // Use local date components to avoid UTC shift (e.g. BRT UTC-3 at 23:xx turns May 6 into May 7)
+    // Convert local company time → real UTC using the empresa timezone
     const y = date.getFullYear();
     const mo = String(date.getMonth() + 1).padStart(2, "0");
     const d = String(date.getDate()).padStart(2, "0");
     const dateStr = `${y}-${mo}-${d}`;
-    const inicio = new Date(`${dateStr}T${time}:00Z`);
+    const inicio = fromZonedTime(`${dateStr}T${time}:00`, timezone);
     const fim = new Date(inicio.getTime() + durationMin * 60 * 1000);
     return { inicio: inicio.toISOString(), fim: fim.toISOString() };
   }

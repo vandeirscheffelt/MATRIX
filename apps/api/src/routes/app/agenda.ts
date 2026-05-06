@@ -1,6 +1,9 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
+import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 import { prisma } from '@boilerplate/database'
+
+const DEFAULT_TZ = 'America/Sao_Paulo'
 import { requireAuth, requireActiveSubscription } from '../../lib/auth.js'
 
 const dayQuery = z.object({
@@ -61,18 +64,26 @@ function gerarSlots(horaInicio: string, horaFim: string, duracaoMin: number): Ar
   return slots
 }
 
-function toMinutes(date: Date): number {
-  return date.getUTCHours() * 60 + date.getUTCMinutes()
-}
-
 function formatHora(date: Date): string {
   return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`
+}
+
+// Returns minutes-since-midnight for a Date whose UTC fields represent local HH:mm (slot objects)
+function slotToMin(d: Date): number {
+  return d.getUTCHours() * 60 + d.getUTCMinutes()
+}
+
+// Returns minutes-since-midnight for a real UTC timestamp interpreted in the given timezone
+function utcToLocalMin(d: Date, tz: string): number {
+  const zoned = toZonedTime(d, tz)
+  return zoned.getHours() * 60 + zoned.getMinutes()
 }
 
 async function calcularAgendaDia(
   empresaId: string,
   profissionalId: string,
-  dataStr: string // "YYYY-MM-DD"
+  dataStr: string, // "YYYY-MM-DD"
+  tz: string
 ): Promise<AgendaDia> {
   const profissional = await prisma.profissional.findFirst({
     where: { id: profissionalId, empresaId, ativo: true },
@@ -81,33 +92,29 @@ async function calcularAgendaDia(
 
   if (!profissional) throw new Error(`Profissional ${profissionalId} não encontrado`)
 
-  const dataObj = new Date(`${dataStr}T00:00:00Z`)
-  const diaSemana = dataObj.getUTCDay() // 0=dom ... 6=sáb
+  // Determine day-of-week in the company's timezone
+  const inicioDiaUtc = fromZonedTime(`${dataStr}T00:00:00`, tz)
+  const fimDiaUtc = fromZonedTime(`${dataStr}T23:59:59`, tz)
+  const diaSemana = toZonedTime(inicioDiaUtc, tz).getDay() // 0=dom ... 6=sáb
 
   const hasAnyGrade = profissional.gradeHorarios.length > 0
-  const grade = profissional.gradeHorarios.find(g => g.diaSemana === diaSemana)
+  const grade = profissional.gradeHorarios.find((g: any) => g.diaSemana === diaSemana)
 
-  // Profissional tem grade configurada mas não trabalha neste dia → retorna sem slots
   if (hasAnyGrade && !grade) {
     return { profissionalId, profissionalNome: profissional.nome, data: dataStr, slots: [] }
   }
 
-  // Sem grade alguma: usa horário padrão 08:00–18:00 como fallback
   const horaInicio = grade?.horaInicio ?? '08:00'
   const horaFim = grade?.horaFim ?? '18:00'
   const duracaoMin = profissional.duracaoPadraoMin ?? 60
-  // Always generate 15-min slots so the grid matches the frontend 15-min granularity
   const slotsBrutos = gerarSlots(horaInicio, horaFim, 15)
 
-  // Agendamentos do dia (apenas CONFIRMADO e REMARCADO)
-  const inicioDia = new Date(`${dataStr}T00:00:00Z`)
-  const fimDia = new Date(`${dataStr}T23:59:59Z`)
-
+  // Query agendamentos using company-timezone day bounds (real UTC)
   const agendamentos = await prisma.agendamento.findMany({
     where: {
       profissionalId,
       status: { in: ['CONFIRMADO', 'REMARCADO'] },
-      inicio: { gte: inicioDia, lte: fimDia },
+      inicio: { gte: inicioDiaUtc, lte: fimDiaUtc },
     },
     include: {
       lead: { select: { nomeWpp: true, telefone: true } },
@@ -116,45 +123,44 @@ async function calcularAgendaDia(
   })
 
   const slots: Slot[] = slotsBrutos.map(({ inicio, fim }) => {
-    const slotInicioMin = toMinutes(inicio)
-    const slotFimMin = toMinutes(fim)
+    const slotInicioMin = slotToMin(inicio)
+    const slotFimMin = slotToMin(fim)
 
-    // Verifica bloqueio
+    // Verifica bloqueio — compare UTC bloqueio times against local slot window
     const bloqueio = profissional.bloqueios.find((b: { id: string; dataInicio: Date; dataFim: Date }) => {
-      const bInicio = new Date(b.dataInicio)
-      const bFim = new Date(b.dataFim)
-      return bInicio < new Date(`${dataStr}T${formatHora(fim)}:00Z`) &&
-             bFim > new Date(`${dataStr}T${formatHora(inicio)}:00Z`)
+      const bInicio = fromZonedTime(`${dataStr}T${formatHora(fim)}:00`, tz)
+      const bFim = fromZonedTime(`${dataStr}T${formatHora(inicio)}:00`, tz)
+      return new Date(b.dataInicio) < bInicio && new Date(b.dataFim) > bFim
     })
 
     if (bloqueio) {
-      const bInicioMin = toMinutes(new Date(bloqueio.dataInicio))
+      const bInicioMin = utcToLocalMin(new Date(bloqueio.dataInicio), tz)
       if (bInicioMin !== slotInicioMin) return null as any
       return { hora: formatHora(inicio), horaFim: formatHora(fim), duracaoMin, status: 'BLOQUEADO', bloqueioId: bloqueio.id }
     }
 
-    // Verifica agendamento — only emit AGENDADO for the start slot; inner slots are skipped
-    const agendado = agendamentos.find(a => {
-      const aInicioMin = toMinutes(a.inicio)
-      const aFimMin = toMinutes(a.fim)
+    // Verifica agendamento — compare UTC agendamento times against local slot window
+    const agendado = agendamentos.find((a: any) => {
+      const aInicioMin = utcToLocalMin(a.inicio, tz)
+      const aFimMin = utcToLocalMin(a.fim, tz)
       return aInicioMin < slotFimMin && aFimMin > slotInicioMin
     })
 
     if (agendado) {
-      const aInicioMin = toMinutes(agendado.inicio)
-      // Only emit the AGENDADO block at the appointment's start slot
+      const aInicioMin = utcToLocalMin((agendado as any).inicio, tz)
       if (aInicioMin !== slotInicioMin) return null as any
-      // Prefer service catalog duration (corrects legacy appointments stored with wrong fim)
+      const agFimZoned = toZonedTime((agendado as any).fim, tz)
+      const agFimHora = `${String(agFimZoned.getHours()).padStart(2, '0')}:${String(agFimZoned.getMinutes()).padStart(2, '0')}`
       const agDuracaoMin = (agendado as any).servico?.duracaoMin
-        ?? Math.round((agendado.fim.getTime() - agendado.inicio.getTime()) / 60000)
+        ?? Math.round(((agendado as any).fim.getTime() - (agendado as any).inicio.getTime()) / 60000)
       return {
         hora: formatHora(inicio),
-        horaFim: formatHora(new Date(agendado.fim)),
+        horaFim: agFimHora,
         duracaoMin: agDuracaoMin,
         status: 'AGENDADO',
-        agendamentoId: agendado.id,
-        leadNome: agendado.lead?.nomeWpp ?? agendado.lead?.telefone ?? (agendado as any).clienteNome,
-        leadTelefone: agendado.lead?.telefone ?? (agendado as any).clienteTelefone,
+        agendamentoId: (agendado as any).id,
+        leadNome: (agendado as any).lead?.nomeWpp ?? (agendado as any).lead?.telefone ?? (agendado as any).clienteNome,
+        leadTelefone: (agendado as any).lead?.telefone ?? (agendado as any).clienteTelefone,
         servicoNome: (agendado as any).servicoNome,
       }
     }
@@ -175,6 +181,12 @@ export async function agendaRoutes(app: FastifyInstance) {
 
     const { date, profissionalId } = query.data
 
+    const empresa = await prisma.empresa.findUnique({
+      where: { id: request.empresaId },
+      select: { timezone: true },
+    })
+    const tz = empresa?.timezone ?? DEFAULT_TZ
+
     const profissionais = profissionalId
       ? [{ id: profissionalId }]
       : await prisma.profissional.findMany({
@@ -183,10 +195,10 @@ export async function agendaRoutes(app: FastifyInstance) {
         })
 
     const agendas = await Promise.all(
-      profissionais.map(p => calcularAgendaDia(request.empresaId, p.id, date))
+      profissionais.map((p: any) => calcularAgendaDia(request.empresaId, p.id, date, tz))
     )
 
-    return agendas.filter(a => a.slots.length > 0)
+    return agendas.filter((a: any) => a.slots.length > 0)
   })
 
   // GET /app/agenda/week?date=YYYY-MM-DD&profissionalId=optional
@@ -196,17 +208,25 @@ export async function agendaRoutes(app: FastifyInstance) {
 
     const { date, profissionalId } = query.data
 
-    // Calcula segunda-feira da semana do date informado
-    const ref = new Date(`${date}T00:00:00Z`)
-    const diaSemana = ref.getUTCDay()
-    const diffParaSegunda = diaSemana === 0 ? -6 : 1 - diaSemana
-    const segunda = new Date(ref)
-    segunda.setUTCDate(ref.getUTCDate() + diffParaSegunda)
+    const empresa = await prisma.empresa.findUnique({
+      where: { id: request.empresaId },
+      select: { timezone: true },
+    })
+    const tz = empresa?.timezone ?? DEFAULT_TZ
+
+    // Calcula segunda-feira da semana considerando o timezone da empresa
+    const ref = fromZonedTime(`${date}T00:00:00`, tz)
+    const diaSemanaLocal = toZonedTime(ref, tz).getDay()
+    const diffParaSegunda = diaSemanaLocal === 0 ? -6 : 1 - diaSemanaLocal
+    const segundaUtc = new Date(ref)
+    segundaUtc.setUTCDate(ref.getUTCDate() + diffParaSegunda)
 
     const dias = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(segunda)
-      d.setUTCDate(segunda.getUTCDate() + i)
-      return d.toISOString().slice(0, 10)
+      const d = new Date(segundaUtc)
+      d.setUTCDate(segundaUtc.getUTCDate() + i)
+      // Return date string in company timezone
+      const zoned = toZonedTime(d, tz)
+      return `${zoned.getFullYear()}-${String(zoned.getMonth() + 1).padStart(2, '0')}-${String(zoned.getDate()).padStart(2, '0')}`
     })
 
     const profissionais = profissionalId
@@ -220,9 +240,9 @@ export async function agendaRoutes(app: FastifyInstance) {
 
     for (const dia of dias) {
       const agendas = await Promise.all(
-        profissionais.map(p => calcularAgendaDia(request.empresaId, p.id, dia))
+        profissionais.map((p: any) => calcularAgendaDia(request.empresaId, p.id, dia, tz))
       )
-      resultado[dia] = agendas.filter(a => a.slots.length > 0)
+      resultado[dia] = agendas.filter((a: any) => a.slots.length > 0)
     }
 
     return resultado

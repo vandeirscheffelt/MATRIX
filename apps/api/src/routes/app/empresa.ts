@@ -6,6 +6,7 @@ import { requireAuth, requireActiveSubscription } from '../../lib/auth.js'
 const updateEmpresaBody = z.object({
   nome: z.string().min(1).optional(),
   slug: z.string().min(1).optional(),
+  timezone: z.string().min(1).optional(),
 })
 
 export async function empresaRoutes(app: FastifyInstance) {
@@ -15,7 +16,7 @@ export async function empresaRoutes(app: FastifyInstance) {
   app.get('/', { preHandler }, async (request: any, reply) => {
     const empresa = await prisma.empresa.findUnique({
       where: { id: request.empresaId },
-      select: { id: true, nome: true, slug: true, criadoEm: true },
+      select: { id: true, nome: true, slug: true, timezone: true, criadoEm: true },
     })
     if (!empresa) return reply.code(404).send({ error: 'Empresa não encontrada' })
     return empresa
