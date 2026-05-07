@@ -122,9 +122,32 @@ async function calcularAgendaDia(
     },
   })
 
+  // Intervalo de almoço em minutos (valores locais armazenados como "HH:MM")
+  const intervaloInicioMin = profissional.intervaloInicio
+    ? (() => { const [h, m] = (profissional.intervaloInicio as string).split(':').map(Number); return h * 60 + m })()
+    : null
+  const intervaloFimMin = profissional.intervaloFim
+    ? (() => { const [h, m] = (profissional.intervaloFim as string).split(':').map(Number); return h * 60 + m })()
+    : null
+
   const slots: Slot[] = slotsBrutos.map(({ inicio, fim }) => {
     const slotInicioMin = slotToMin(inicio)
     const slotFimMin = slotToMin(fim)
+
+    // Verifica intervalo de almoço
+    if (intervaloInicioMin !== null && intervaloFimMin !== null) {
+      if (slotInicioMin >= intervaloInicioMin && slotFimMin <= intervaloFimMin) {
+        if (slotInicioMin === intervaloInicioMin) {
+          return {
+            hora: formatHora(inicio),
+            horaFim: `${String(Math.floor(intervaloFimMin / 60)).padStart(2, '0')}:${String(intervaloFimMin % 60).padStart(2, '0')}`,
+            duracaoMin: intervaloFimMin - intervaloInicioMin,
+            status: 'BLOQUEADO' as SlotStatus,
+          }
+        }
+        return null as any
+      }
+    }
 
     // Verifica bloqueio — compare UTC bloqueio times against local slot window
     const bloqueio = profissional.bloqueios.find((b: { id: string; dataInicio: Date; dataFim: Date }) => {
