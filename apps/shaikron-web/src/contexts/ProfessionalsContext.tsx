@@ -18,6 +18,9 @@ function mapApiProfessional(p: any): Professional {
       workingHoursStart: firstGrade?.horaInicio ?? "08:00",
       workingHoursEnd: firstGrade?.horaFim ?? "18:00",
       daysOff,
+      breakPeriod: p.intervaloInicio && p.intervaloFim
+        ? { enabled: true, start: p.intervaloInicio, end: p.intervaloFim }
+        : { enabled: false, start: "12:00", end: "13:00" },
     },
   };
 }
@@ -55,11 +58,14 @@ export function ProfessionalsProvider({ children }: { children: ReactNode }) {
   }, [professionals]);
 
   const addProfessional = useCallback(async (pro: Omit<Professional, "id">) => {
+    const bp = pro.schedule?.breakPeriod;
     const created = await api.post<{ id: string }>("/app/profissionais", {
       nome: pro.name,
       telefone: pro.phone || undefined,
       cor: pro.color,
       aiAccess: pro.aiAccess,
+      intervaloInicio: bp?.enabled ? bp.start : null,
+      intervaloFim: bp?.enabled ? bp.end : null,
     });
     if (created?.id) {
       if (pro.schedule) {
@@ -76,11 +82,14 @@ export function ProfessionalsProvider({ children }: { children: ReactNode }) {
   }, [reload]);
 
   const updateProfessional = useCallback(async (id: string, updates: Partial<Professional>) => {
+    const bp = updates.schedule?.breakPeriod;
     await api.put(`/app/profissionais/${id}`, {
       nome: updates.name,
       telefone: updates.phone || undefined,
       cor: updates.color,
       aiAccess: updates.aiAccess,
+      intervaloInicio: bp?.enabled ? bp.start : null,
+      intervaloFim: bp?.enabled ? bp.end : null,
     });
     if (updates.schedule) {
       const grade = [0,1,2,3,4,5,6]

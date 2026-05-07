@@ -141,6 +141,8 @@ model Profissional {
   cor               String   @default("217 91% 60%") @map("cor")
   aiAccess          Boolean  @default(false) @map("ai_access")
   duracaoPadraoMin  Int      @default(60) @map("duracao_padrao_min")
+  intervaloInicio   String?  @map("intervalo_inicio")
+  intervaloFim      String?  @map("intervalo_fim")
   ativo             Boolean  @default(true)
   criadoEm          DateTime @default(now()) @map("criado_em")
 

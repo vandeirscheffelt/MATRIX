@@ -9,6 +9,8 @@ const profissionalBody = z.object({
   cor: z.string().optional(),
   aiAccess: z.boolean().optional(),
   duracaoPadraoMin: z.number().int().positive().default(60),
+  intervaloInicio: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+  intervaloFim: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
 })
 
 const gradeBody = z.array(z.object({
