@@ -4,7 +4,7 @@ services:
   shaikron-web:
     image: shaikron-web:latest
     container_name: shaikron-web
-    restart: unless-stopped
+    restart: always
     build:
       context: ../../../
       dockerfile: apps/shaikron-web/Dockerfile
