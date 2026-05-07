@@ -55,7 +55,9 @@ export async function profissionaisRoutes(app: FastifyInstance) {
   // PUT /app/profissionais/:id
   app.put('/:id', { preHandler }, async (request: any, reply) => {
     const { id } = request.params as { id: string }
+    request.log.info({ rawBody: request.body }, '[DEBUG] PUT profissional raw body')
     const body = profissionalBody.partial().safeParse(request.body)
+    request.log.info({ parsed: body.success ? body.data : body.error.flatten() }, '[DEBUG] PUT profissional parsed')
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const existing = await prisma.profissional.findFirst({
