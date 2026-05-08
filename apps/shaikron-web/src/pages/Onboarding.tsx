@@ -450,6 +450,7 @@ export default function Onboarding() {
               <Input
                 value={form.businessName}
                 onChange={(e) => update("businessName", e.target.value)}
+                onBlur={(e) => { if (e.target.value.trim()) api.put("/app/empresa", { nome: e.target.value.trim() }).catch(() => null); }}
                 placeholder={t("placeholder.businessName")}
                 className="bg-secondary border-border"
               />
@@ -464,7 +465,7 @@ export default function Onboarding() {
                 {businessTypes.map((type) => (
                   <button
                     key={type}
-                    onClick={() => update("businessType", type)}
+                    onClick={() => { update("businessType", type); api.patch("/app/config/tipo-negocio", { tipoNegocio: type }).catch(() => null); }}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
                       form.businessType === type
                         ? "border-primary bg-primary/15 text-primary glow-blue"
@@ -488,6 +489,7 @@ export default function Onboarding() {
               <Textarea
                 value={form.description}
                 onChange={(e) => update("description", e.target.value)}
+                onBlur={(e) => { if (e.target.value.trim()) api.patch("/app/config/contexto-operacional", { contexto: e.target.value.trim() }).catch(() => null); }}
                 placeholder={t("placeholder.description")}
                 className="bg-secondary border-border min-h-[100px] resize-none"
               />
@@ -533,7 +535,7 @@ export default function Onboarding() {
                 {toneOptions.map((tone) => (
                   <button
                     key={tone}
-                    onClick={() => update("tone", tone)}
+                    onClick={() => { update("tone", tone); api.patch("/app/config/tom", { tom: tone === "Formal" || tone === "Professional" ? "FORMAL" : "INFORMAL" }).catch(() => null); }}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
                       form.tone === tone
                         ? "border-primary bg-primary/15 text-primary glow-blue"
