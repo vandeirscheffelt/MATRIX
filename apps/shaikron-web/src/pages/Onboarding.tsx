@@ -154,6 +154,20 @@ export default function Onboarding() {
     latestFormRef.current = form;
   }, [form]);
 
+  // Auto-save: persiste os campos principais 1s após parar de digitar
+  const autoSaveInitRef = useRef(false);
+  useEffect(() => {
+    if (!autoSaveInitRef.current) { autoSaveInitRef.current = true; return; }
+    const timer = setTimeout(() => {
+      const f = latestFormRef.current;
+      if (f.businessName?.trim()) api.put("/app/empresa", { nome: f.businessName.trim() }).catch(() => null);
+      if (f.businessType) api.patch("/app/config/tipo-negocio", { tipoNegocio: f.businessType }).catch(() => null);
+      if (f.description?.trim()) api.patch("/app/config/contexto-operacional", { contexto: f.description.trim() }).catch(() => null);
+      if (f.tone) api.patch("/app/config/tom", { tom: f.tone === "Formal" || f.tone === "Professional" ? "FORMAL" : "INFORMAL" }).catch(() => null);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [form.businessName, form.businessType, form.description, form.tone]);
+
   useEffect(() => {
     isMountedRef.current = true;
     // Carrega configurações existentes do banco
@@ -450,7 +464,6 @@ export default function Onboarding() {
               <Input
                 value={form.businessName}
                 onChange={(e) => update("businessName", e.target.value)}
-                onBlur={(e) => { if (e.target.value.trim()) api.put("/app/empresa", { nome: e.target.value.trim() }).catch(() => null); }}
                 placeholder={t("placeholder.businessName")}
                 className="bg-secondary border-border"
               />
@@ -489,7 +502,6 @@ export default function Onboarding() {
               <Textarea
                 value={form.description}
                 onChange={(e) => update("description", e.target.value)}
-                onBlur={(e) => { if (e.target.value.trim()) api.patch("/app/config/contexto-operacional", { contexto: e.target.value.trim() }).catch(() => null); }}
                 placeholder={t("placeholder.description")}
                 className="bg-secondary border-border min-h-[100px] resize-none"
               />
