@@ -1,0 +1,17 @@
+version: '3.9'
+
+services:
+  shaikron-simulator:
+    image: shaikron-simulator:latest
+    container_name: shaikron-simulator
+    restart: always
+    build:
+      context: ../../../
+      dockerfile: apps/shaikron-simulator/Dockerfile
+    ports:
+      - "3010:80"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"

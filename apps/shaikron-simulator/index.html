@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shaikron · Simulador de Capacidade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0e0c;
+    --bg-2: #111714;
+    --panel: #161d1a;
+    --line: #1f2925;
+    --line-2: #2a3833;
+    --ink: #e8efe9;
+    --ink-dim: #94a8a0;
+    --ink-faint: #5a6e66;
+    --accent: #7fdba7;
+    --accent-deep: #2d6b4f;
+    --warn: #ffb86b;
+    --danger: #ff7a7a;
+    --gold: #d4b878;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(800px 600px at 10% 0%, rgba(127,219,167,0.06), transparent 60%),
+      radial-gradient(700px 500px at 100% 100%, rgba(212,184,120,0.04), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 24px;
+    margin-bottom: 40px;
+  }
+
+  .brand h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: 42px;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .brand h1 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+  }
+
+  .brand p {
+    color: var(--ink-faint);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    margin-top: 8px;
+  }
+
+  .meta {
+    text-align: right;
+    color: var(--ink-faint);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+  }
+
+  .meta strong {
+    color: var(--gold);
+    font-weight: 500;
+    display: block;
+    font-size: 14px;
+    margin-top: 4px;
+    letter-spacing: 0.08em;
+  }
+
+  /* LAYOUT */
+  .grid {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 32px;
+  }
+
+  @media (max-width: 980px) {
+    .grid { grid-template-columns: 1fr; }
+    header { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .meta { text-align: left; }
+  }
+
+  /* CONTROLS PANEL */
+  .controls {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 28px;
+    height: fit-content;
+    position: sticky;
+    top: 24px;
+  }
+
+  .controls h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-size: 18px;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+
+  .controls h2 + p {
+    font-size: 11px;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 28px;
+  }
+
+  .slider-group {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px dashed var(--line);
+  }
+
+  .slider-group:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+  }
+
+  .slider-row {
+    margin-bottom: 18px;
+  }
+
+  .slider-row:last-child { margin-bottom: 0; }
+
+  .slider-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+  }
+
+  .slider-label {
+    font-size: 11px;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .slider-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--accent);
+  }
+
+  .slider-value .unit {
+    color: var(--ink-faint);
+    font-weight: 400;
+    font-size: 11px;
+    margin-left: 4px;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 2px;
+    background: var(--line-2);
+    outline: none;
+    border-radius: 0;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(127,219,167,0.15);
+    transition: box-shadow .15s ease;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 0 8px rgba(127,219,167,0.2);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+  }
+
+  /* MODEL SELECTOR */
+  .model-selector { display: flex; flex-direction: column; }
+
+  .model-select {
+    width: 100%;
+    background: var(--bg-2);
+    color: var(--ink);
+    border: 1px solid var(--line-2);
+    padding: 12px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    border-radius: 2px;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg width='12' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237fdba7' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+  }
+
+  .model-select:focus { border-color: var(--accent); }
+
+  .model-select optgroup {
+    background: var(--bg);
+    color: var(--gold);
+    font-style: normal;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .model-select option {
+    background: var(--bg-2);
+    color: var(--ink);
+    padding: 8px;
+    font-weight: 400;
+  }
+
+  .model-tag {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: rgba(127,219,167,0.06);
+    border-left: 2px solid var(--accent);
+    font-size: 10px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+  }
+
+  /* RESULTS */
+  .results { min-width: 0; }
+
+  .stage-tag {
+    display: inline-block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    border: 1px solid var(--accent-deep);
+    padding: 4px 10px;
+    border-radius: 2px;
+    margin-bottom: 14px;
+  }
+
+  .stage-name {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: 36px;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+
+  .stage-desc {
+    color: var(--ink-dim);
+    font-size: 13px;
+    margin-bottom: 32px;
+  }
+
+  /* BIG NUMBERS */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin-bottom: 32px;
+  }
+
+  @media (max-width: 600px) {
+    .kpi-row { grid-template-columns: 1fr; }
+  }
+
+  .kpi {
+    background: var(--panel);
+    padding: 22px 20px;
+  }
+
+  .kpi-label {
+    font-size: 10px;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    margin-bottom: 10px;
+  }
+
+  .kpi-value {
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-size: 28px;
+    color: var(--ink);
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+
+  .kpi-value.green { color: var(--accent); }
+  .kpi-value.gold { color: var(--gold); }
+  .kpi-value.warn { color: var(--warn); }
+
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--ink-faint);
+    margin-top: 8px;
+  }
+
+  /* BREAKDOWN */
+  .section-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: 22px;
+    color: var(--ink);
+    margin-bottom: 20px;
+    margin-top: 8px;
+  }
+
+  .breakdown {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    margin-bottom: 32px;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr auto 80px;
+    gap: 20px;
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--line);
+    align-items: center;
+  }
+
+  .row:last-child { border-bottom: none; }
+
+  .row.total {
+    background: var(--bg-2);
+    font-weight: 700;
+  }
+
+  .row-name {
+    font-size: 13px;
+    color: var(--ink);
+  }
+
+  .row-detail {
+    font-size: 11px;
+    color: var(--ink-faint);
+    margin-top: 2px;
+  }
+
+  .row-cost {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--ink);
+    text-align: right;
+  }
+
+  .row.total .row-cost { color: var(--gold); font-size: 18px; }
+
+  .row-bar {
+    height: 4px;
+    background: var(--line);
+    overflow: hidden;
+  }
+
+  .row-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width .3s ease;
+  }
+
+  /* INFRA TABLE */
+  .infra-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin-bottom: 32px;
+  }
+
+  @media (max-width: 600px) {
+    .infra-grid { grid-template-columns: 1fr; }
+  }
+
+  .infra-cell {
+    background: var(--panel);
+    padding: 18px 22px;
+  }
+
+  .infra-cell-label {
+    font-size: 10px;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 6px;
+  }
+
+  .infra-cell-value {
+    font-size: 15px;
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* ALERTS */
+  .alerts {
+    border-left: 2px solid var(--warn);
+    padding: 4px 0 4px 20px;
+    margin-bottom: 32px;
+  }
+
+  .alert {
+    margin-bottom: 14px;
+    color: var(--ink-dim);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .alert:last-child { margin-bottom: 0; }
+
+  .alert strong { color: var(--warn); font-weight: 500; }
+
+  /* SCALE INDICATOR */
+  .scale-bar {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 24px 22px;
+    margin-bottom: 32px;
+  }
+
+  .scale-bar h3 {
+    font-size: 11px;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    margin-bottom: 16px;
+  }
+
+  .scale {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+
+  .scale-stage {
+    background: var(--panel);
+    padding: 12px 14px;
+    text-align: center;
+    font-size: 10px;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    transition: all .2s;
+  }
+
+  .scale-stage.active {
+    background: var(--accent-deep);
+    color: var(--ink);
+  }
+
+  .scale-stage strong {
+    display: block;
+    font-size: 14px;
+    color: var(--ink);
+    margin-bottom: 2px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+  }
+
+  .scale-stage.active strong { color: var(--accent); }
+
+  /* FOOTER NOTES */
+  .footnote {
+    font-size: 11px;
+    color: var(--ink-faint);
+    line-height: 1.7;
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+  }
+
+  .footnote em { color: var(--ink-dim); font-style: normal; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <h1>Shaikron · <em>Simulador</em></h1>
+      <p>Capacidade · Custo · Receita</p>
+    </div>
+    <div class="meta">
+      Modelo BYON · 4 IAs<br>
+      <strong id="exchange-rate">USD 1 = R$ 5,50</strong>
+      <div style="margin-top:6px;font-size:10px;color:var(--ink-faint);">Preços de modelos · Maio 2026</div>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <aside class="controls">
+      <h2>Parâmetros</h2>
+      <p>Ajuste os valores</p>
+
+      <!-- MODEL SELECTOR -->
+      <div class="slider-group">
+        <div class="model-selector">
+          <div class="slider-label" style="margin-bottom:10px;">Provider · Modelo IA</div>
+          <select id="s-model" class="model-select">
+            <optgroup label="Anthropic · Claude">
+              <option value="claude-opus-4-7">Opus 4.7 · $5 / $25</option>
+              <option value="claude-sonnet-4-6" selected>Sonnet 4.6 · $3 / $15</option>
+              <option value="claude-haiku-4-5">Haiku 4.5 · $1 / $5</option>
+            </optgroup>
+            <optgroup label="OpenAI · GPT">
+              <option value="gpt-5-4">GPT-5.4 · $2.50 / $15</option>
+              <option value="gpt-5-4-mini">GPT-5.4 Mini · $0.75 / $4.50</option>
+              <option value="gpt-5-4-nano">GPT-5.4 Nano · $0.20 / $1.25</option>
+              <option value="gpt-4o">GPT-4o · $2.50 / $10</option>
+              <option value="gpt-4o-mini">GPT-4o Mini · $0.15 / $0.60</option>
+            </optgroup>
+            <optgroup label="Google · Gemini">
+              <option value="gemini-3-1-pro">Gemini 3.1 Pro · $2 / $12</option>
+              <option value="gemini-2-5-pro">Gemini 2.5 Pro · $1.25 / $10</option>
+              <option value="gemini-2-5-flash">Gemini 2.5 Flash · $0.30 / $2.50</option>
+              <option value="gemini-2-5-flash-lite">Gemini 2.5 Flash-Lite · $0.10 / $0.40</option>
+            </optgroup>
+          </select>
+          <div class="model-tag" id="model-tag">Recomendado para Shaikron · Equilíbrio qualidade/custo</div>
+        </div>
+      </div>
+        <div class="slider-row">
+          <div class="slider-head">
+            <span class="slider-label">Clientes ativos</span>
+            <span class="slider-value" id="v-clients">300<span class="unit">tenants</span></span>
+          </div>
+          <input type="range" id="s-clients" min="50" max="200000" step="50" value="300">
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-head">
+            <span class="slider-label">Mensagens por dia</span>
+            <span class="slider-value" id="v-msgs">80<span class="unit">por cliente</span></span>
+          </div>
+          <input type="range" id="s-msgs" min="20" max="300" step="10" value="80">
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-head">
+            <span class="slider-label">Plano médio</span>
+            <span class="slider-value" id="v-price">R$ 200<span class="unit">/mês</span></span>
+          </div>
+          <input type="range" id="s-price" min="100" max="800" step="10" value="200">
+        </div>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-row">
+          <div class="slider-head">
+            <span class="slider-label">Tokens médios/turno</span>
+            <span class="slider-value" id="v-tokens">2500<span class="unit">tokens</span></span>
+          </div>
+          <input type="range" id="s-tokens" min="1000" max="6000" step="100" value="2500">
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-head">
+            <span class="slider-label">Prompt cache hit</span>
+            <span class="slider-value" id="v-cache">60<span class="unit">%</span></span>
+          </div>
+          <input type="range" id="s-cache" min="0" max="90" step="5" value="60">
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-head">
+            <span class="slider-label">Desconto enterprise</span>
+            <span class="slider-value" id="v-disc">0<span class="unit">%</span></span>
+          </div>
+          <input type="range" id="s-disc" min="0" max="40" step="5" value="0">
+        </div>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-row">
+          <div class="slider-head">
+            <span class="slider-label">Instâncias por VPS Evo</span>
+            <span class="slider-value" id="v-density">150<span class="unit">por nó</span></span>
+          </div>
+          <input type="range" id="s-density" min="80" max="400" step="10" value="150">
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-head">
+            <span class="slider-label">Países operados</span>
+            <span class="slider-value" id="v-countries">1<span class="unit">país</span></span>
+          </div>
+          <input type="range" id="s-countries" min="1" max="6" step="1" value="1">
+        </div>
+      </div>
+    </aside>
+
+    <main class="results">
+
+      <div class="scale-bar">
+        <h3>Estágio de operação</h3>
+        <div class="scale">
+          <div class="scale-stage" data-stage="1"><strong>I</strong>Validação</div>
+          <div class="scale-stage" data-stage="2"><strong>II</strong>Crescimento</div>
+          <div class="scale-stage" data-stage="3"><strong>III</strong>Industrial</div>
+          <div class="scale-stage" data-stage="4"><strong>IV</strong>Multi-país</div>
+        </div>
+      </div>
+
+      <span class="stage-tag" id="stage-tag">Estágio I</span>
+      <h2 class="stage-name" id="stage-name">Validação</h2>
+      <p class="stage-desc" id="stage-desc">Operação enxuta na Hostinger. Foco em validar produto.</p>
+
+      <div class="kpi-row">
+        <div class="kpi">
+          <div class="kpi-label">Receita mensal</div>
+          <div class="kpi-value gold" id="kpi-revenue">R$ 60.000</div>
+          <div class="kpi-sub" id="kpi-revenue-sub">300 × R$ 200</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Custo total</div>
+          <div class="kpi-value warn" id="kpi-cost">R$ 15.000</div>
+          <div class="kpi-sub" id="kpi-cost-sub">infra + APIs</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Margem bruta</div>
+          <div class="kpi-value green" id="kpi-margin">75%</div>
+          <div class="kpi-sub" id="kpi-margin-sub">R$ 45.000 lucro bruto</div>
+        </div>
+      </div>
+
+      <div class="kpi-row" style="margin-top:-32px;">
+        <div class="kpi">
+          <div class="kpi-label">Custo IA por turno</div>
+          <div class="kpi-value" id="kpi-turn-cost" style="font-size:22px;">R$ 0,02</div>
+          <div class="kpi-sub" id="kpi-turn-cost-sub">por mensagem respondida</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Custo IA por cliente/mês</div>
+          <div class="kpi-value" id="kpi-client-cost" style="font-size:22px;">R$ 50</div>
+          <div class="kpi-sub" id="kpi-client-cost-sub">consumo médio</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Tokens/mês</div>
+          <div class="kpi-value" id="kpi-tokens" style="font-size:22px;">1,8 bi</div>
+          <div class="kpi-sub" id="kpi-tokens-sub">volume processado</div>
+        </div>
+      </div>
+
+      <h3 class="section-title">Composição do custo</h3>
+      <div class="breakdown" id="breakdown"></div>
+
+      <h3 class="section-title">Infraestrutura necessária</h3>
+      <div class="infra-grid" id="infra"></div>
+
+      <h3 class="section-title">Alertas operacionais</h3>
+      <div class="alerts" id="alerts"></div>
+
+      <p class="footnote">
+        <em>Notas técnicas:</em> Preços de modelos verificados em maio de 2026 nas páginas oficiais de Anthropic, OpenAI e Google. Cache reduz input em 90% (suporte universal nos modelos atuais). Evolution API estimada em ~120 MB RAM por instância. KVM 8 da Hostinger a R$ 110/mês com banda 32 TB. Hetzner CPX51 a €50/mês (R$ 300). Câmbio referência R$ 5,50/US$. Estimativas de margem não incluem impostos, taxas de pagamento, suporte ou folha. Os números são aproximações para apoiar decisão — refine com seus dados reais ao longo do crescimento.
+      </p>
+
+    </main>
+  </div>
+</div>
+
+<script>
+const fmt = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
+const fmtMoney = n => 'R$ ' + fmt.format(Math.round(n));
+const fmtMoneyDec = n => 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Preços em USD por milhão de tokens (Maio 2026)
+// supportsCache: cache reduz input para 10% (90% off)
+const MODELS = {
+  // Anthropic
+  'claude-opus-4-7':       { name: 'Claude Opus 4.7',      vendor: 'Anthropic', input: 5,    output: 25,  cache: true,  tag: 'Topo de linha. Reasoning profundo. Caro pra atendimento de volume — reserve pra IA02 (analítica complexa).' },
+  'claude-sonnet-4-6':     { name: 'Claude Sonnet 4.6',    vendor: 'Anthropic', input: 3,    output: 15,  cache: true,  tag: 'Recomendado pra Shaikron. Equilíbrio qualidade/custo. Cache agressivo derruba custo pra US$ 0,30/M efetivo.' },
+  'claude-haiku-4-5':      { name: 'Claude Haiku 4.5',     vendor: 'Anthropic', input: 1,    output: 5,   cache: true,  tag: 'Excelente pra IA03 (secretária) e IA01 em planos básicos. 5x mais barato que Sonnet.' },
+  // OpenAI
+  'gpt-5-4':               { name: 'GPT-5.4',              vendor: 'OpenAI',    input: 2.50, output: 15,  cache: true,  tag: 'Flagship OpenAI. Comparável a Sonnet em preço de input mas output igual.' },
+  'gpt-5-4-mini':          { name: 'GPT-5.4 Mini',         vendor: 'OpenAI',    input: 0.75, output: 4.50,cache: true,  tag: 'Mid-tier mais barato do mercado. Boa opção pra IA01 em volume.' },
+  'gpt-5-4-nano':          { name: 'GPT-5.4 Nano',         vendor: 'OpenAI',    input: 0.20, output: 1.25,cache: true,  tag: 'Ultra barato. Bom pra classificação, roteamento, IA02 simples.' },
+  'gpt-4o':                { name: 'GPT-4o',               vendor: 'OpenAI',    input: 2.50, output: 10,  cache: true,  tag: 'Modelo legado mas ainda competitivo. Output 33% mais barato que Sonnet.' },
+  'gpt-4o-mini':           { name: 'GPT-4o Mini',          vendor: 'OpenAI',    input: 0.15, output: 0.60,cache: true,  tag: 'Imbatível em custo. Ótimo pra IA01 em planos free/básicos. Qualidade menor que mini novos.' },
+  // Google
+  'gemini-3-1-pro':        { name: 'Gemini 3.1 Pro',       vendor: 'Google',    input: 2,    output: 12,  cache: true,  tag: 'Forte em coding e multimodal. Preço entre GPT-5.4 e Sonnet.' },
+  'gemini-2-5-pro':        { name: 'Gemini 2.5 Pro',       vendor: 'Google',    input: 1.25, output: 10,  cache: true,  tag: 'Custo-benefício excelente. Context window de 1M tokens útil pra histórico longo.' },
+  'gemini-2-5-flash':      { name: 'Gemini 2.5 Flash',     vendor: 'Google',    input: 0.30, output: 2.50,cache: true,  tag: 'Velocidade alta, custo baixíssimo. Concorrente direto do Haiku 4.5.' },
+  'gemini-2-5-flash-lite': { name: 'Gemini 2.5 Flash-Lite',vendor: 'Google',    input: 0.10, output: 0.40,cache: true,  tag: 'Modelo mais barato do mercado. Útil pra IA02 e tarefas simples massivas.' },
+};
+
+const stages = [
+  { id: 1, name: 'Validação', tag: 'Estágio I', desc: 'Operação enxuta na Hostinger. Foco em validar produto.', max: 300 },
+  { id: 2, name: 'Crescimento', tag: 'Estágio II', desc: 'Múltiplas VPS Hostinger. Automação de provisionamento começa a importar.', max: 3000 },
+  { id: 3, name: 'Industrialização', tag: 'Estágio III', desc: 'Saída da Hostinger. Kubernetes em cloud (Hetzner ou GCP).', max: 30000 },
+  { id: 4, name: 'Multi-país', tag: 'Estágio IV', desc: 'Cloud multi-região. Operação enterprise.', max: 999999 }
+];
+
+function pickStage(clients) {
+  return stages.find(s => clients <= s.max) || stages[3];
+}
+
+function formatBigNumber(n) {
+  if (n >= 1e9) return (n/1e9).toLocaleString('pt-BR', {maximumFractionDigits:1}) + ' bi';
+  if (n >= 1e6) return (n/1e6).toLocaleString('pt-BR', {maximumFractionDigits:1}) + ' mi';
+  if (n >= 1e3) return (n/1e3).toLocaleString('pt-BR', {maximumFractionDigits:1}) + ' k';
+  return fmt.format(n);
+}
+
+function calc() {
+  const clients = +document.getElementById('s-clients').value;
+  const msgs = +document.getElementById('s-msgs').value;
+  const price = +document.getElementById('s-price').value;
+  const tokensPerTurn = +document.getElementById('s-tokens').value;
+  const cachePct = +document.getElementById('s-cache').value / 100;
+  const discPct = +document.getElementById('s-disc').value / 100;
+  const density = +document.getElementById('s-density').value;
+  const countries = +document.getElementById('s-countries').value;
+  const modelKey = document.getElementById('s-model').value;
+  const model = MODELS[modelKey];
+
+  // update slider displays
+  document.getElementById('v-clients').innerHTML = fmt.format(clients) + '<span class="unit">tenants</span>';
+  document.getElementById('v-msgs').innerHTML = msgs + '<span class="unit">por cliente</span>';
+  document.getElementById('v-price').innerHTML = 'R$ ' + price + '<span class="unit">/mês</span>';
+  document.getElementById('v-tokens').innerHTML = fmt.format(tokensPerTurn) + '<span class="unit">tokens</span>';
+  document.getElementById('v-cache').innerHTML = (cachePct*100) + '<span class="unit">%</span>';
+  document.getElementById('v-disc').innerHTML = (discPct*100) + '<span class="unit">%</span>';
+  document.getElementById('v-density').innerHTML = density + '<span class="unit">por nó</span>';
+  document.getElementById('v-countries').innerHTML = countries + '<span class="unit">' + (countries===1?'país':'países') + '</span>';
+
+  // Update model tag
+  document.getElementById('model-tag').textContent = model.tag;
+
+  const stage = pickStage(clients);
+
+  // Update stage UI
+  document.querySelectorAll('.scale-stage').forEach(el => {
+    el.classList.toggle('active', +el.dataset.stage === stage.id);
+  });
+  document.getElementById('stage-tag').textContent = stage.tag;
+  document.getElementById('stage-name').textContent = stage.name;
+  document.getElementById('stage-desc').textContent = stage.desc;
+
+  // ===== API COST (model-aware) =====
+  const inputT = tokensPerTurn * 0.8;
+  const outputT = tokensPerTurn * 0.2;
+  const turnsPerMonth = clients * msgs * 30;
+  const totalInputT = turnsPerMonth * inputT;
+  const totalOutputT = turnsPerMonth * outputT;
+  const totalTokens = totalInputT + totalOutputT;
+
+  // Cache: 90% off no input cacheado (apenas se modelo suporta)
+  const effectiveCache = model.cache ? cachePct : 0;
+  const cachedInputCost = (totalInputT * effectiveCache * model.input * 0.10) / 1_000_000;
+  const freshInputCost  = (totalInputT * (1-effectiveCache) * model.input) / 1_000_000;
+  const outputCost = (totalOutputT * model.output) / 1_000_000;
+  const apiCostUSD = (cachedInputCost + freshInputCost + outputCost) * (1 - discPct);
+  const apiCost = apiCostUSD * 5.5;
+
+  // Custo por turno (em centavos de real)
+  const costPerTurnUSD = apiCostUSD / Math.max(turnsPerMonth, 1);
+  const costPerTurn = costPerTurnUSD * 5.5;
+  const costPerClient = apiCost / Math.max(clients, 1);
+
+  // ===== INFRA COST =====
+  let infraCost = 0;
+  let evoNodes = Math.ceil(clients / density);
+  let infraDetails = [];
+
+  if (stage.id === 1) {
+    infraCost = 165 + 140;
+    infraDetails = [
+      { label: 'VPS aplicação', val: '1× Hostinger KVM 4 (n8n + apps)' },
+      { label: 'VPS Evolution', val: '1× Hostinger KVM 8 (~150 instâncias)' },
+      { label: 'Banco', val: 'Supabase Pro' },
+      { label: 'Total VPS Evo', val: evoNodes + ' nó' }
+    ];
+  } else if (stage.id === 2) {
+    infraCost = (evoNodes + 2) * 110 + 3300;
+    infraDetails = [
+      { label: 'VPS n8n + workers', val: '1× Hostinger KVM 8' },
+      { label: 'VPS Redis/cache', val: '1× Hostinger KVM 2' },
+      { label: 'VPS Evolution', val: evoNodes + '× Hostinger KVM 8' },
+      { label: 'Banco', val: 'Supabase Team' }
+    ];
+  } else if (stage.id === 3) {
+    infraCost = evoNodes * 300 + 13000;
+    infraDetails = [
+      { label: 'Cluster', val: 'Kubernetes (k3s ou GKE)' },
+      { label: 'Provedor', val: 'Hetzner Cloud (CPX51)' },
+      { label: 'Nós Evolution', val: evoNodes + ' nós × ~' + density + ' instâncias' },
+      { label: 'Banco + Redis + storage', val: 'Postgres gerenciado + Redis Cluster' }
+    ];
+  } else {
+    infraCost = (evoNodes * 300 + 50000) * countries * 0.85;
+    infraDetails = [
+      { label: 'Provedor', val: 'AWS ou GCP multi-região' },
+      { label: 'Regiões', val: countries + ' cluster' + (countries>1?'s':'') + ' Kubernetes' },
+      { label: 'Nós Evolution', val: fmt.format(evoNodes) + ' nós distribuídos' },
+      { label: 'Banco', val: 'Postgres com sharding por região + tenant' }
+    ];
+  }
+
+  let teamCost = 0;
+  if (stage.id === 3) teamCost = 25000;
+  if (stage.id === 4) teamCost = 80000 * Math.max(1, Math.ceil(countries/2));
+
+  const totalCost = apiCost + infraCost + teamCost;
+  const revenue = clients * price;
+  const margin = revenue > 0 ? ((revenue - totalCost) / revenue) * 100 : 0;
+  const profit = revenue - totalCost;
+
+  // KPIs primários
+  document.getElementById('kpi-revenue').textContent = fmtMoney(revenue);
+  document.getElementById('kpi-revenue-sub').textContent = fmt.format(clients) + ' × R$ ' + price;
+  document.getElementById('kpi-cost').textContent = fmtMoney(totalCost);
+  document.getElementById('kpi-cost-sub').textContent = 'infra + APIs' + (teamCost > 0 ? ' + time' : '');
+  document.getElementById('kpi-margin').textContent = Math.round(margin) + '%';
+  document.getElementById('kpi-margin-sub').textContent = (profit >= 0 ? fmtMoney(profit) + ' lucro bruto' : fmtMoney(Math.abs(profit)) + ' déficit');
+  document.getElementById('kpi-margin').className = 'kpi-value ' + (margin > 50 ? 'green' : margin > 20 ? 'gold' : 'warn');
+
+  // KPIs secundários (foco em modelo)
+  document.getElementById('kpi-turn-cost').textContent = costPerTurn < 0.01 ? 'R$ ' + (costPerTurn*100).toFixed(2) + '¢' : fmtMoneyDec(costPerTurn);
+  document.getElementById('kpi-turn-cost-sub').textContent = model.name;
+  document.getElementById('kpi-client-cost').textContent = fmtMoney(costPerClient);
+  document.getElementById('kpi-client-cost-sub').textContent = msgs + ' msgs/dia × 30';
+  document.getElementById('kpi-tokens').textContent = formatBigNumber(totalTokens);
+  document.getElementById('kpi-tokens-sub').textContent = 'cache hit ' + (effectiveCache*100) + '%';
+
+  // Breakdown
+  const breakdown = [
+    { name: model.name + ' API', detail: fmt.format(turnsPerMonth) + ' turnos/mês · ' + model.vendor, cost: apiCost },
+    { name: 'Infraestrutura', detail: evoNodes + ' nós Evolution', cost: infraCost },
+  ];
+  if (teamCost > 0) breakdown.push({ name: 'Time SRE/operação', detail: stage.id === 4 ? '4-6 SREs + suporte' : '1-2 SREs', cost: teamCost });
+
+  const maxCost = Math.max(...breakdown.map(b => b.cost));
+  const breakdownHtml = breakdown.map(b => {
+    const pct = (b.cost / maxCost) * 100;
+    return `
+      <div class="row">
+        <div>
+          <div class="row-name">${b.name}</div>
+          <div class="row-detail">${b.detail}</div>
+        </div>
+        <div class="row-cost">${fmtMoney(b.cost)}</div>
+        <div class="row-bar"><div class="row-bar-fill" style="width:${pct}%"></div></div>
+      </div>
+    `;
+  }).join('') + `
+      <div class="row total">
+        <div><div class="row-name">Total</div></div>
+        <div class="row-cost">${fmtMoney(totalCost)}</div>
+        <div></div>
+      </div>
+  `;
+  document.getElementById('breakdown').innerHTML = breakdownHtml;
+
+  document.getElementById('infra').innerHTML = infraDetails.map(d => `
+    <div class="infra-cell">
+      <div class="infra-cell-label">${d.label}</div>
+      <div class="infra-cell-value">${d.val}</div>
+    </div>
+  `).join('');
+
+  // Alerts
+  const alerts = [];
+  if (apiCost / totalCost > 0.85) alerts.push('<strong>' + model.name + ' representa ' + Math.round(apiCost/totalCost*100) + '% do custo total.</strong> Considere modelo mais barato pra parte do tráfego (roteamento), aumentar cache ou negociar enterprise.');
+  if (margin < 30) alerts.push('<strong>Margem apertada.</strong> Aumente preço, reduza tokens/turno, ative mais caching, ou troque pra modelo mais barato.');
+  if (margin < 0) alerts.push('<strong>Operação no vermelho.</strong> Os parâmetros atuais não fecham conta. Provavelmente o modelo escolhido está caro demais pro volume.');
+  if (model.input >= 3 && clients > 1000) alerts.push('<strong>Modelo premium em alto volume.</strong> ' + model.name + ' é caro pra IA01 em volume. Considere usar Haiku/Mini/Flash pra atendimento e reservar este modelo só pra IA02 (analítica).');
+  if (stage.id === 2 && evoNodes > 10) alerts.push('<strong>Frota de ' + evoNodes + ' VPS sem orquestração</strong> exige automação obrigatória. Considere acelerar migração pro Estágio III.');
+  if (stage.id === 3 && evoNodes > 100) alerts.push('<strong>' + evoNodes + ' nós Evolution rodando.</strong> Auto-scaling de pods e backup automático de sessões Baileys são críticos.');
+  if (stage.id === 4 && countries > 3) alerts.push('<strong>Operação em ' + countries + ' países</strong> exige time de compliance e suporte multi-idioma 24/7.');
+  if (cachePct < 0.4 && stage.id >= 2 && model.cache) alerts.push('<strong>Cache hit baixo.</strong> Reestruture system prompts pra serem estáveis (system prompt do tenant raramente muda) — pode chegar a 80% de cache hit.');
+  if (clients > 5000 && discPct === 0) alerts.push('<strong>Sem desconto enterprise.</strong> Acima de 5k clientes você tem volume pra negociar com ' + model.vendor + '.');
+  if (model.input <= 0.5 && clients < 500) alerts.push('<strong>Modelo ultra-barato em fase inicial.</strong> Você está priorizando custo sobre qualidade. Tenha certeza que ' + model.name + ' atende o nível de resposta esperado pelos clientes — má qualidade aqui mata o produto.');
+  if (alerts.length === 0) alerts.push('<strong>Operação saudável</strong> com os parâmetros atuais. Continue monitorando densidade de instâncias por VPS, cache hit ratio e qualidade de resposta do modelo escolhido.');
+
+  document.getElementById('alerts').innerHTML = alerts.map(a => `<div class="alert">${a}</div>`).join('');
+}
+
+document.querySelectorAll('input[type="range"]').forEach(s => s.addEventListener('input', calc));
+document.getElementById('s-model').addEventListener('change', calc);
+calc();
+</script>
+
+</body>
+</html>
