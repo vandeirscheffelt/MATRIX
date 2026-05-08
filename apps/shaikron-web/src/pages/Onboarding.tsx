@@ -163,6 +163,8 @@ export default function Onboarding() {
     if (f.businessType) api.patch("/app/config/tipo-negocio", { tipoNegocio: f.businessType }).catch(() => null);
     if (f.description?.trim()) api.patch("/app/config/contexto-operacional", { contexto: f.description.trim() }).catch(() => null);
     if (f.tone) api.patch("/app/config/tom", { tom: f.tone === "Formal" || f.tone === "Professional" ? "FORMAL" : "INFORMAL", tomDisplay: f.tone }).catch(() => null);
+    if (f.cmdTakeover?.trim() || f.cmdResume?.trim()) api.patch("/app/config/comandos-controle", { palavraPausa: f.cmdTakeover, palavraRetorno: f.cmdResume }).catch(() => null);
+    if (f.autoResumeMinutes) api.patch("/app/config/auto-retomada", { tempoRetornoMin: f.autoResumeMinutes }).catch(() => null);
     if (Array.isArray(f.keywords)) {
       api.get<any[]>("/app/config/keywords").then(existing => {
         const existingWords = (existing ?? []).map((k: any) => k.palavra as string);
@@ -179,7 +181,7 @@ export default function Onboarding() {
     pendingSaveRef.current = true;
     const timer = setTimeout(doSave, 1000);
     return () => { clearTimeout(timer); };
-  }, [form.businessName, form.businessType, form.description, form.tone, form.keywords, doSave]);
+  }, [form.businessName, form.businessType, form.description, form.tone, form.keywords, form.cmdTakeover, form.cmdResume, form.autoResumeMinutes, doSave]);
   // Salva ao sair da página se houver mudanças pendentes
   useEffect(() => {
     return () => { if (pendingSaveRef.current) doSave(); };
