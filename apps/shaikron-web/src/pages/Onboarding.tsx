@@ -163,6 +163,7 @@ export default function Onboarding() {
     if (f.businessType) api.patch("/app/config/tipo-negocio", { tipoNegocio: f.businessType }).catch(() => null);
     if (f.description?.trim()) api.patch("/app/config/contexto-operacional", { contexto: f.description.trim() }).catch(() => null);
     if (f.tone) api.patch("/app/config/tom", { tom: f.tone === "Formal" || f.tone === "Professional" ? "FORMAL" : "INFORMAL" }).catch(() => null);
+    if (f.keywords?.length > 0) api.put("/app/config/keywords", f.keywords.map((k: string) => ({ palavra: k }))).catch(() => null);
     pendingSaveRef.current = false;
   }, []);
   useEffect(() => {
@@ -170,7 +171,7 @@ export default function Onboarding() {
     pendingSaveRef.current = true;
     const timer = setTimeout(doSave, 1000);
     return () => { clearTimeout(timer); };
-  }, [form.businessName, form.businessType, form.description, form.tone, doSave]);
+  }, [form.businessName, form.businessType, form.description, form.tone, form.keywords, doSave]);
   // Salva ao sair da página se houver mudanças pendentes
   useEffect(() => {
     return () => { if (pendingSaveRef.current) doSave(); };
