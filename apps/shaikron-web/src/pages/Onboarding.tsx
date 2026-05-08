@@ -162,7 +162,7 @@ export default function Onboarding() {
     if (f.businessName?.trim()) api.put("/app/empresa", { nome: f.businessName.trim() }).catch(() => null);
     if (f.businessType) api.patch("/app/config/tipo-negocio", { tipoNegocio: f.businessType }).catch(() => null);
     if (f.description?.trim()) api.patch("/app/config/contexto-operacional", { contexto: f.description.trim() }).catch(() => null);
-    if (f.tone) api.patch("/app/config/tom", { tom: f.tone === "Formal" || f.tone === "Professional" ? "FORMAL" : "INFORMAL" }).catch(() => null);
+    if (f.tone) api.patch("/app/config/tom", { tom: f.tone === "Formal" || f.tone === "Professional" ? "FORMAL" : "INFORMAL", tomDisplay: f.tone }).catch(() => null);
     if (Array.isArray(f.keywords)) {
       api.get<any[]>("/app/config/keywords").then(existing => {
         const existingWords = (existing ?? []).map((k: any) => k.palavra as string);
@@ -199,7 +199,8 @@ export default function Onboarding() {
       if (empresa?.nome) partial.businessName = empresa.nome;
       if (config?.tipoNegocio) partial.businessType = config.tipoNegocio;
       if (config?.contextoOperacional) partial.description = config.contextoOperacional;
-      if (config?.tom) partial.tone = config.tom === "FORMAL" ? "Formal" : "Informal";
+      if (config?.tomDisplay) partial.tone = config.tomDisplay;
+      else if (config?.tom) partial.tone = config.tom === "FORMAL" ? "Formal" : "Informal";
       if (config?.horarioInicio) partial.workingHoursStart = config.horarioInicio;
       if (config?.horarioFim) partial.workingHoursEnd = config.horarioFim;
       if (config?.disponibilidade) partial.aiAvailability = config.disponibilidade === "horario_comercial" ? "same" : config.disponibilidade === "24_7" ? "24/7" : "custom";
@@ -320,8 +321,10 @@ export default function Onboarding() {
   }, [improvingField, pendingSuggestion, queueSuggestion]);
 
   const addKeyword = () => {
-    if (keywordInput.trim() && !form.keywords.includes(keywordInput.trim())) {
-      update("keywords", [...form.keywords, keywordInput.trim()]);
+    const kw = keywordInput.trim();
+    if (kw && !form.keywords.includes(kw)) {
+      update("keywords", [...form.keywords, kw]);
+      api.post("/app/config/keywords", { palavra: kw }).catch(() => null);
       setKeywordInput("");
     }
   };
@@ -565,7 +568,7 @@ export default function Onboarding() {
                 {toneOptions.map((tone) => (
                   <button
                     key={tone}
-                    onClick={() => { update("tone", tone); api.patch("/app/config/tom", { tom: tone === "Formal" || tone === "Professional" ? "FORMAL" : "INFORMAL" }).catch(() => null); }}
+                    onClick={() => { update("tone", tone); api.patch("/app/config/tom", { tom: tone === "Formal" || tone === "Professional" ? "FORMAL" : "INFORMAL", tomDisplay: tone }).catch(() => null); }}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
                       form.tone === tone
                         ? "border-primary bg-primary/15 text-primary glow-blue"
@@ -593,6 +596,10 @@ export default function Onboarding() {
                     <button onClick={() => {
                       update("keywords", form.keywords.filter((k) => k !== kw));
                       setSuggestedKeywords(prev => prev.filter(s => s.toLowerCase() !== kw.toLowerCase()));
+                      api.get<any[]>("/app/config/keywords").then(existing => {
+                        const found = (existing ?? []).find((k: any) => k.palavra === kw);
+                        if (found) api.delete(`/app/config/keywords/${found.id}`).catch(() => null);
+                      }).catch(() => null);
                     }}>
                       <X className="h-3 w-3" />
                     </button>
@@ -641,6 +648,7 @@ export default function Onboarding() {
                         const toAdd = suggestedKeywords.filter(k => !existing.has(k.toLowerCase()));
                         if (toAdd.length > 0) {
                           update("keywords", [...form.keywords, ...toAdd]);
+                          toAdd.forEach((k: string) => api.post("/app/config/keywords", { palavra: k }).catch(() => null));
                           setSuggestedKeywords([]);
                           toast.success(t("keywords.added", { count: toAdd.length }));
                         }
@@ -656,6 +664,7 @@ export default function Onboarding() {
                         onClick={() => {
                           if (!form.keywords.some(k => k.toLowerCase() === kw.toLowerCase())) {
                             update("keywords", [...form.keywords, kw]);
+                            api.post("/app/config/keywords", { palavra: kw }).catch(() => null);
                           }
                           setSuggestedKeywords(prev => prev.filter(s => s !== kw));
                         }}

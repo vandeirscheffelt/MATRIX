@@ -121,13 +121,19 @@ export async function configRoutes(app: FastifyInstance) {
 
   // PATCH /app/config/tom
   app.patch('/tom', { preHandler }, async (request: any, reply) => {
-    const body = z.object({ tom: z.enum(['FORMAL', 'INFORMAL']) }).safeParse(request.body)
+    const body = z.object({
+      tom: z.enum(['FORMAL', 'INFORMAL']).optional(),
+      tomDisplay: z.string().min(1).optional(),
+    }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+    const data: any = {}
+    if (body.data.tom) data.tom = body.data.tom
+    if (body.data.tomDisplay !== undefined) data.tomDisplay = body.data.tomDisplay
     return prisma.configBot.upsert({
       where: { empresaId: request.empresaId },
-      create: { empresaId: request.empresaId, prompt: '', tom: body.data.tom },
-      update: { tom: body.data.tom },
-      select: { tom: true },
+      create: { empresaId: request.empresaId, prompt: '', ...data },
+      update: data,
+      select: { tom: true, tomDisplay: true },
     })
   })
 

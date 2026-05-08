@@ -304,6 +304,7 @@ model ConfigBot {
   horarioInicio        String   @default("08:00") @map("horario_inicio")
   horarioFim           String   @default("18:00") @map("horario_fim")
   nomeAssistente       String   @default("Assistente") @map("nome_assistente")
+  tomDisplay           String?  @map("tom_display")
   criadoEm             DateTime @default(now()) @map("criado_em")
   atualizadoEm         DateTime @updatedAt @map("atualizado_em")
 
