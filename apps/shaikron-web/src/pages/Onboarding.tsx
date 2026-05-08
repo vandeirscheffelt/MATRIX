@@ -303,7 +303,7 @@ export default function Onboarding() {
     try {
       // Salva o contexto atual antes de pedir melhoria
       await api.patch("/app/config/contexto-operacional", { contexto: formSnapshot.description || " " }).catch(() => null);
-      const result = await api.post<{ contexto: string }>("/app/config/melhorar-contexto");
+      const result = await api.post<{ contexto: string }>("/app/config/melhorar-contexto", {});
       if (!result?.contexto) throw new Error("Sem retorno da IA");
       queueSuggestion({ field: "description", label: "Contexto Operacional", original: formSnapshot.description, suggested: result.contexto }, t("suggest.descLooksGood"));
     } catch {
