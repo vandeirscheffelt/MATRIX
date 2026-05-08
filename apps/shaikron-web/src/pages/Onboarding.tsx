@@ -156,17 +156,25 @@ export default function Onboarding() {
 
   // Auto-save: persiste os campos principais 1s após parar de digitar
   const autoSaveInitRef = useRef(false);
+  const pendingSaveRef = useRef(false);
+  const doSave = useCallback(() => {
+    const f = latestFormRef.current;
+    if (f.businessName?.trim()) api.put("/app/empresa", { nome: f.businessName.trim() }).catch(() => null);
+    if (f.businessType) api.patch("/app/config/tipo-negocio", { tipoNegocio: f.businessType }).catch(() => null);
+    if (f.description?.trim()) api.patch("/app/config/contexto-operacional", { contexto: f.description.trim() }).catch(() => null);
+    if (f.tone) api.patch("/app/config/tom", { tom: f.tone === "Formal" || f.tone === "Professional" ? "FORMAL" : "INFORMAL" }).catch(() => null);
+    pendingSaveRef.current = false;
+  }, []);
   useEffect(() => {
     if (!autoSaveInitRef.current) { autoSaveInitRef.current = true; return; }
-    const timer = setTimeout(() => {
-      const f = latestFormRef.current;
-      if (f.businessName?.trim()) api.put("/app/empresa", { nome: f.businessName.trim() }).catch(() => null);
-      if (f.businessType) api.patch("/app/config/tipo-negocio", { tipoNegocio: f.businessType }).catch(() => null);
-      if (f.description?.trim()) api.patch("/app/config/contexto-operacional", { contexto: f.description.trim() }).catch(() => null);
-      if (f.tone) api.patch("/app/config/tom", { tom: f.tone === "Formal" || f.tone === "Professional" ? "FORMAL" : "INFORMAL" }).catch(() => null);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [form.businessName, form.businessType, form.description, form.tone]);
+    pendingSaveRef.current = true;
+    const timer = setTimeout(doSave, 1000);
+    return () => { clearTimeout(timer); };
+  }, [form.businessName, form.businessType, form.description, form.tone, doSave]);
+  // Salva ao sair da página se houver mudanças pendentes
+  useEffect(() => {
+    return () => { if (pendingSaveRef.current) doSave(); };
+  }, [doSave]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -398,6 +406,7 @@ export default function Onboarding() {
 
     if (field === "description") {
       update("description", suggestionText);
+      api.patch("/app/config/contexto-operacional", { contexto: suggestionText }).catch(() => null);
     } else if (field.startsWith("faq-")) {
       const index = parseInt(field.split("-")[1], 10);
       if (Number.isNaN(index) || !currentForm.faqs[index]) {
