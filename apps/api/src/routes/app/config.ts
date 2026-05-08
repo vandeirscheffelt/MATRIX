@@ -112,8 +112,8 @@ export async function configRoutes(app: FastifyInstance) {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4.1-mini',
       messages: [
-        { role: 'system', content: 'Reescreva o contexto operacional abaixo de forma mais clara, profissional e detalhada para ser usado como instrução de um atendente IA. Retorne apenas o texto reescrito.' },
-        { role: 'user', content: `Tipo: ${config.tipoNegocio ?? ''}\nContexto atual: ${config.contextoOperacional}` },
+        { role: 'system', content: `Você é um especialista em configuração de assistentes de IA para empresas. Reescreva o contexto operacional de forma clara, profissional e detalhada em português, para ser usado como instrução de um atendente IA via WhatsApp. Tipo de negócio: ${config.tipoNegocio ?? 'não informado'}. IMPORTANTE: retorne SOMENTE o texto reescrito, sem títulos, rótulos, prefixos ou explicações.` },
+        { role: 'user', content: config.contextoOperacional },
       ],
     })
     return { contexto: completion.choices[0]?.message?.content ?? '' }
