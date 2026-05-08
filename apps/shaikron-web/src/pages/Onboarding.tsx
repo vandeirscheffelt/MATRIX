@@ -163,7 +163,15 @@ export default function Onboarding() {
     if (f.businessType) api.patch("/app/config/tipo-negocio", { tipoNegocio: f.businessType }).catch(() => null);
     if (f.description?.trim()) api.patch("/app/config/contexto-operacional", { contexto: f.description.trim() }).catch(() => null);
     if (f.tone) api.patch("/app/config/tom", { tom: f.tone === "Formal" || f.tone === "Professional" ? "FORMAL" : "INFORMAL" }).catch(() => null);
-    if (f.keywords?.length > 0) api.put("/app/config/keywords", f.keywords.map((k: string) => ({ palavra: k }))).catch(() => null);
+    if (Array.isArray(f.keywords)) {
+      api.get<any[]>("/app/config/keywords").then(existing => {
+        const existingWords = (existing ?? []).map((k: any) => k.palavra as string);
+        const toAdd = f.keywords.filter((k: string) => !existingWords.includes(k));
+        const toRemove = (existing ?? []).filter((k: any) => !f.keywords.includes(k.palavra));
+        toAdd.forEach((k: string) => api.post("/app/config/keywords", { palavra: k }).catch(() => null));
+        toRemove.forEach((k: any) => api.delete(`/app/config/keywords/${k.id}`).catch(() => null));
+      }).catch(() => null);
+    }
     pendingSaveRef.current = false;
   }, []);
   useEffect(() => {
