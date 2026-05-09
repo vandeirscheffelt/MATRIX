@@ -712,7 +712,7 @@
       <div class="alerts" id="alerts"></div>
 
       <p class="footnote">
-        <em>Notas técnicas:</em> Preços de modelos verificados em maio de 2026 nas páginas oficiais de Anthropic, OpenAI e Google. Cache reduz input em 90% (suporte universal nos modelos atuais). Evolution API estimada em ~120 MB RAM por instância. KVM 8 da Hostinger a R$ 110/mês com banda 32 TB. Hetzner CPX51 a €50/mês (R$ 300). Câmbio referência R$ 5,50/US$. Estimativas de margem não incluem impostos, taxas de pagamento, suporte ou folha. Os números são aproximações para apoiar decisão — refine com seus dados reais ao longo do crescimento.
+        <em>Notas técnicas:</em> Arquitetura: cliente hospeda WhatsApp (via Baileys em memória ~120 MB por sessão), você hospeda 1 n8n compartilhado + banco multi-tenant. Preços de modelos verificados em maio de 2026. Cache reduz input em 90% (suporte universal). KVM 8 Hostinger a R$ 110/mês. KVM 32 a R$ 300/mês. Kubernetes nó 256GB a R$ 300/mês. Câmbio R$ 5,50/US$. Estimativas de margem não incluem impostos, taxas de pagamento, suporte ou folha. Os números são aproximações para apoiar decisão — refine com seus dados reais ao longo do crescimento.
       </p>
 
     </main>
@@ -818,42 +818,51 @@ function calc() {
   const costPerTurn = costPerTurnUSD * 5.5;
   const costPerClient = apiCost / Math.max(clients, 1);
 
-  // ===== INFRA COST =====
+  // ===== INFRA COST (CORRIGIDO: Sessões WhatsApp + n8n compartilhado) =====
   let infraCost = 0;
-  let evoNodes = Math.ceil(clients / density);
+  let ramNeeded = clients * 0.120; // 120 MB por sessão WhatsApp
+  let serversNeeded = 0;
   let infraDetails = [];
 
   if (stage.id === 1) {
-    infraCost = 165 + 140;
+    // Degrau I: 0-300 clientes = até 36 GB RAM
+    infraCost = 110 + 140; // 1 KVM 8 (32GB) + Supabase Pro
+    serversNeeded = 1;
     infraDetails = [
-      { label: 'VPS aplicação', val: '1× Hostinger KVM 4 (n8n + apps)' },
-      { label: 'VPS Evolution', val: '1× Hostinger KVM 8 (~150 instâncias)' },
+      { label: 'Servidor WhatsApp', val: '1× KVM 8 (32 GB) - Sessões' },
+      { label: 'n8n', val: '1 instância compartilhada' },
       { label: 'Banco', val: 'Supabase Pro' },
-      { label: 'Total VPS Evo', val: evoNodes + ' nó' }
+      { label: 'RAM utilizada', val: fmt.format(Math.round(ramNeeded * 1000)) + ' MB / 32 GB' }
     ];
   } else if (stage.id === 2) {
-    infraCost = (evoNodes + 2) * 110 + 3300;
+    // Degrau II: 300-3k clientes = até 360 GB RAM
+    serversNeeded = Math.ceil(ramNeeded / 100); // 100 GB por servidor (margem de segurança)
+    infraCost = serversNeeded * 300 + 3300; // Hostinger KVM 32 + Supabase Team
     infraDetails = [
-      { label: 'VPS n8n + workers', val: '1× Hostinger KVM 8' },
-      { label: 'VPS Redis/cache', val: '1× Hostinger KVM 2' },
-      { label: 'VPS Evolution', val: evoNodes + '× Hostinger KVM 8' },
-      { label: 'Banco', val: 'Supabase Team' }
+      { label: 'Servidores WhatsApp', val: serversNeeded + '× KVM 32 (100 GB cada)' },
+      { label: 'n8n', val: '1 instância compartilhada (escalada)' },
+      { label: 'Banco', val: 'Supabase Team' },
+      { label: 'RAM utilizada', val: fmt.format(Math.round(ramNeeded * 1000)) + ' MB / ' + (serversNeeded * 100) + ' GB' }
     ];
   } else if (stage.id === 3) {
-    infraCost = evoNodes * 300 + 13000;
+    // Degrau III: 3k-30k clientes = até 3,6 TB RAM
+    serversNeeded = Math.ceil(ramNeeded / 256); // 256 GB por nó Kubernetes
+    infraCost = serversNeeded * 300 + 10000; // Kubernetes nodes (Hetzner CPX51) + gerenciado
     infraDetails = [
-      { label: 'Cluster', val: 'Kubernetes (k3s ou GKE)' },
-      { label: 'Provedor', val: 'Hetzner Cloud (CPX51)' },
-      { label: 'Nós Evolution', val: evoNodes + ' nós × ~' + density + ' instâncias' },
-      { label: 'Banco + Redis + storage', val: 'Postgres gerenciado + Redis Cluster' }
+      { label: 'Cluster Kubernetes', val: serversNeeded + ' nós (256 GB cada)' },
+      { label: 'Provedor', val: 'Hetzner Cloud ou GCP' },
+      { label: 'n8n', val: '1 instância compartilhada (altamente escalada)' },
+      { label: 'Banco + Redis', val: 'Postgres gerenciado + Redis Cluster' }
     ];
   } else {
-    infraCost = (evoNodes * 300 + 50000) * countries * 0.85;
+    // Degrau IV: 30k-200k clientes = até 24 TB RAM (multi-região)
+    serversNeeded = Math.ceil(ramNeeded / 256);
+    infraCost = (serversNeeded * 300 + 20000) * countries * 0.90; // multi-região desconto
     infraDetails = [
       { label: 'Provedor', val: 'AWS ou GCP multi-região' },
       { label: 'Regiões', val: countries + ' cluster' + (countries>1?'s':'') + ' Kubernetes' },
-      { label: 'Nós Evolution', val: fmt.format(evoNodes) + ' nós distribuídos' },
-      { label: 'Banco', val: 'Postgres com sharding por região + tenant' }
+      { label: 'Servidores total', val: fmt.format(serversNeeded) + ' nós distribuídos' },
+      { label: 'n8n', val: '1 global com replicação' }
     ];
   }
 
@@ -886,7 +895,7 @@ function calc() {
   // Breakdown
   const breakdown = [
     { name: model.name + ' API', detail: fmt.format(turnsPerMonth) + ' turnos/mês · ' + model.vendor, cost: apiCost },
-    { name: 'Infraestrutura', detail: evoNodes + ' nós Evolution', cost: infraCost },
+    { name: 'Infraestrutura (Sessões + n8n)', detail: serversNeeded + ' servidores · ' + fmt.format(Math.round(ramNeeded * 1000)) + ' MB RAM', cost: infraCost },
   ];
   if (teamCost > 0) breakdown.push({ name: 'Time SRE/operação', detail: stage.id === 4 ? '4-6 SREs + suporte' : '1-2 SREs', cost: teamCost });
 
@@ -925,13 +934,13 @@ function calc() {
   if (margin < 30) alerts.push('<strong>Margem apertada.</strong> Aumente preço, reduza tokens/turno, ative mais caching, ou troque pra modelo mais barato.');
   if (margin < 0) alerts.push('<strong>Operação no vermelho.</strong> Os parâmetros atuais não fecham conta. Provavelmente o modelo escolhido está caro demais pro volume.');
   if (model.input >= 3 && clients > 1000) alerts.push('<strong>Modelo premium em alto volume.</strong> ' + model.name + ' é caro pra IA01 em volume. Considere usar Haiku/Mini/Flash pra atendimento e reservar este modelo só pra IA02 (analítica).');
-  if (stage.id === 2 && evoNodes > 10) alerts.push('<strong>Frota de ' + evoNodes + ' VPS sem orquestração</strong> exige automação obrigatória. Considere acelerar migração pro Estágio III.');
-  if (stage.id === 3 && evoNodes > 100) alerts.push('<strong>' + evoNodes + ' nós Evolution rodando.</strong> Auto-scaling de pods e backup automático de sessões Baileys são críticos.');
+  if (stage.id === 2 && serversNeeded > 3) alerts.push('<strong>Crescimento de servidores.</strong> Você tem ' + serversNeeded + ' servidores gerenciados. Considere acelerar migração pro Degrau III (Kubernetes) em breve.');
+  if (stage.id === 3 && serversNeeded > 50) alerts.push('<strong>' + fmt.format(serversNeeded) + ' nós Kubernetes rodando.</strong> Auto-scaling e monitoramento de saúde de sessões são críticos.');
   if (stage.id === 4 && countries > 3) alerts.push('<strong>Operação em ' + countries + ' países</strong> exige time de compliance e suporte multi-idioma 24/7.');
   if (cachePct < 0.4 && stage.id >= 2 && model.cache) alerts.push('<strong>Cache hit baixo.</strong> Reestruture system prompts pra serem estáveis (system prompt do tenant raramente muda) — pode chegar a 80% de cache hit.');
   if (clients > 5000 && discPct === 0) alerts.push('<strong>Sem desconto enterprise.</strong> Acima de 5k clientes você tem volume pra negociar com ' + model.vendor + '.');
   if (model.input <= 0.5 && clients < 500) alerts.push('<strong>Modelo ultra-barato em fase inicial.</strong> Você está priorizando custo sobre qualidade. Tenha certeza que ' + model.name + ' atende o nível de resposta esperado pelos clientes — má qualidade aqui mata o produto.');
-  if (alerts.length === 0) alerts.push('<strong>Operação saudável</strong> com os parâmetros atuais. Continue monitorando densidade de instâncias por VPS, cache hit ratio e qualidade de resposta do modelo escolhido.');
+  if (alerts.length === 0) alerts.push('<strong>Operação saudável</strong> com os parâmetros atuais. Continue monitorando cache hit ratio, memória das sessões e qualidade de resposta do modelo escolhido.');
 
   document.getElementById('alerts').innerHTML = alerts.map(a => `<div class="alert">${a}</div>`).join('');
 }
