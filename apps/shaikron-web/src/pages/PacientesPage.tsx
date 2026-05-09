@@ -28,20 +28,20 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3004";
 type NegocioCategory = "clinica" | "estetica" | "generico";
 
 function detectCategory(tipoNegocio?: string | null): NegocioCategory {
-  const t = (tipoNegocio ?? "").toLowerCase();
-  if (/cl[ií]nica|sa[úu]de|m[ée]dic|odonto|fisio|nutri|psico|farmac/.test(t)) return "clinica";
-  if (/sal[ãa]o|est[ée]tic|beleza|spa|nail|barber|manicure/.test(t)) return "estetica";
+  const t = (tipoNegocio ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  if (/clinic|saude|medic|odonto|fisio|nutri|psico|farmac/.test(t)) return "clinica";
+  if (/salao|estetica|estetico|beleza|spa|nail|barber|manicure/.test(t)) return "estetica";
   return "generico";
 }
 
 // Rótulo da entidade (sidebar, título da página, botão "Novo")
 function entityLabel(tipoNegocio?: string | null) {
-  const t = (tipoNegocio ?? "").toLowerCase();
-  if (/cl[ií]nica|sa[úu]de|m[ée]dic|odonto|fisio|nutri|psico|farmac/.test(t))
+  const t = (tipoNegocio ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  if (/clinic|saude|medic|odonto|fisio|nutri|psico|farmac/.test(t))
     return { singular: "Paciente", plural: "Pacientes" };
-  if (/sal[ãa]o|est[ée]tic|beleza|spa|nail|barber|manicure/.test(t))
+  if (/salao|estetica|estetico|beleza|spa|nail|barber|manicure/.test(t))
     return { singular: "Cliente", plural: "Clientes" };
-  if (/imobili|im[oó]vel|alug/.test(t))
+  if (/imobil|imovel|alug/.test(t))
     return { singular: "Contato", plural: "Contatos" };
   return { singular: "Cliente", plural: "Clientes" };
 }
