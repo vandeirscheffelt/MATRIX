@@ -705,6 +705,7 @@ export default function Onboarding() {
                   <Input
                     value={form.cmdTakeover}
                     onChange={(e) => update("cmdTakeover", e.target.value)}
+                    onBlur={(e) => { if (e.target.value.trim()) api.patch("/app/config/comandos-controle", { palavraPausa: e.target.value.trim(), palavraRetorno: latestFormRef.current.cmdResume }).catch(() => null); }}
                     placeholder="e.g. atendente"
                     className="bg-secondary border-border"
                   />
@@ -716,6 +717,7 @@ export default function Onboarding() {
                   <Input
                     value={form.cmdResume}
                     onChange={(e) => update("cmdResume", e.target.value)}
+                    onBlur={(e) => { if (e.target.value.trim()) api.patch("/app/config/comandos-controle", { palavraPausa: latestFormRef.current.cmdTakeover, palavraRetorno: e.target.value.trim() }).catch(() => null); }}
                     placeholder="e.g. voltar"
                     className="bg-secondary border-border"
                   />
@@ -781,6 +783,7 @@ export default function Onboarding() {
                   min={1}
                   value={form.autoResumeMinutes}
                   onChange={(e) => update("autoResumeMinutes", Number(e.target.value))}
+                  onBlur={(e) => { const v = Number(e.target.value); if (v > 0) api.patch("/app/config/auto-retomada", { tempoRetornoMin: v }).catch(() => null); }}
                   placeholder="e.g. 10"
                   className="bg-secondary border-border w-32"
                 />
