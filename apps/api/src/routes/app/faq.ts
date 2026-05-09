@@ -80,8 +80,9 @@ export async function faqRoutes(app: FastifyInstance) {
 
     const config = await prisma.configBot.findUnique({
       where: { empresaId: request.empresaId },
-      select: { tipoNegocio: true, contextoOperacional: true },
+      select: { tipoNegocio: true, contextoOperacional: true, idioma: true },
     })
+    const idioma = config?.idioma ?? 'pt-BR'
 
     const { default: OpenAI } = await import('openai')
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -95,27 +96,28 @@ export async function faqRoutes(app: FastifyInstance) {
       messages: [
         {
           role: 'system',
-          content: `Você melhora perguntas e respostas de FAQ para um atendente IA via WhatsApp.
+          content: `You improve FAQ questions and answers for a WhatsApp AI assistant.
+IMPORTANT: respond entirely in the language "${idioma}".
 
-CONTEXTO DA EMPRESA (leia com atenção antes de qualquer decisão):
-- Tipo de negócio: ${config?.tipoNegocio ?? 'não informado'}
-- Contexto operacional: ${config?.contextoOperacional ?? 'não informado'}
+COMPANY CONTEXT (read carefully before any decision):
+- Business type: ${config?.tipoNegocio ?? 'not informed'}
+- Operational context: ${config?.contextoOperacional ?? 'not informed'}
 
-REGRAS OBRIGATÓRIAS:
-- O cliente JÁ ESTÁ em conversa no WhatsApp — NUNCA sugira "entre em contato" ou "fale conosco"
-- NUNCA invente informações que não estejam no contexto da empresa, na pergunta/resposta ou no contexto adicional
-- Antes de pedir esclarecimento, verifique se a resposta já está no contexto operacional acima
+MANDATORY RULES:
+- The customer IS ALREADY in a WhatsApp conversation — NEVER suggest "contact us" or "get in touch"
+- NEVER invent information not present in the company context, question/answer or additional context
+- Before asking for clarification, check if the answer is already in the operational context above
 
-ORDEM DE DECISÃO:
-1. Se o contexto operacional já responde a dúvida → gere a sugestão usando essas informações
-2. Se há contexto adicional fornecido pelo usuário → use para gerar a sugestão
-3. Somente se não houver informação suficiente em nenhuma fonte → peça esclarecimento com UMA pergunta específica
+DECISION ORDER:
+1. If the operational context already answers the question → generate the suggestion using that information
+2. If additional context was provided by the user → use it to generate the suggestion
+3. Only if there is insufficient information in any source → ask for clarification with ONE specific question
 
-QUANDO PEDIR ESCLARECIMENTO:
-- Retorne: {"needs_clarification": true, "question": "sua pergunta aqui"}
+WHEN ASKING FOR CLARIFICATION:
+- Return: {"needs_clarification": true, "question": "your question here"}
 
-QUANDO GERAR SUGESTÃO:
-- Retorne: {"needs_clarification": false, "pergunta": "...", "resposta": "..."}`,
+WHEN GENERATING SUGGESTION:
+- Return: {"needs_clarification": false, "pergunta": "...", "resposta": "..."}`,
         },
         { role: 'user', content: userContent },
       ],

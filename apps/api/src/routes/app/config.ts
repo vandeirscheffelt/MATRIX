@@ -102,17 +102,18 @@ export async function configRoutes(app: FastifyInstance) {
   app.post('/melhorar-contexto', { preHandler }, async (request: any, reply) => {
     const config = await prisma.configBot.findUnique({
       where: { empresaId: request.empresaId },
-      select: { contextoOperacional: true, tipoNegocio: true },
+      select: { contextoOperacional: true, tipoNegocio: true, idioma: true },
     })
     if (!config?.contextoOperacional) {
       return reply.code(422).send({ error: 'Nenhum contexto para melhorar' })
     }
+    const idioma = config.idioma ?? 'pt-BR'
     const { default: OpenAI } = await import('openai')
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
     const completion = await openai.chat.completions.create({
       model: 'gpt-5-mini',
       messages: [
-        { role: 'system', content: `Você é um especialista em configuração de assistentes de IA para empresas. Reescreva o contexto operacional de forma clara, profissional e detalhada em português, para ser usado como instrução de um atendente IA via WhatsApp. Tipo de negócio: ${config.tipoNegocio ?? 'não informado'}. IMPORTANTE: retorne SOMENTE o texto reescrito, sem títulos, rótulos, prefixos ou explicações. NÃO mencione tom de comunicação, estilo ou forma de falar — isso é configurado separadamente.` },
+        { role: 'system', content: `You are an expert in configuring AI assistants for businesses. Rewrite the operational context in a clear, professional and detailed way, to be used as an instruction for an AI assistant via WhatsApp. Business type: ${config.tipoNegocio ?? 'not informed'}. IMPORTANT: respond ONLY in the language "${idioma}". Return ONLY the rewritten text, without titles, labels, prefixes or explanations. Do NOT mention communication tone, style or way of speaking — that is configured separately.` },
         { role: 'user', content: config.contextoOperacional },
       ],
     })
@@ -240,6 +241,12 @@ export async function configRoutes(app: FastifyInstance) {
 
     const { tipoNegocio, nomeEmpresa, descricao } = body.data
 
+    const configDb = await prisma.configBot.findUnique({
+      where: { empresaId: request.empresaId },
+      select: { idioma: true },
+    })
+    const idioma = configDb?.idioma ?? 'pt-BR'
+
     const { default: OpenAI } = await import('openai')
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -248,17 +255,16 @@ export async function configRoutes(app: FastifyInstance) {
       messages: [
         {
           role: 'system',
-          content: `Você é um especialista em criar prompts para atendentes IA de WhatsApp focados em agendamento.
-Crie um system prompt completo, profissional e em português brasileiro para um atendente virtual.
-O prompt deve incluir: persona, objetivo, regras de agendamento, fluxos de atendimento e instruções de escalada para humano.
-NÃO inclua tom de comunicação, estilo de linguagem ou forma de falar — isso é configurado separadamente e será injetado automaticamente.
-Retorne APENAS o prompt, sem explicações adicionais.`,
+          content: `You are an expert in creating prompts for WhatsApp AI assistants focused on scheduling.
+Create a complete, professional system prompt for a virtual assistant.
+The prompt must include: persona, objective, scheduling rules, service flows and escalation instructions to humans.
+Do NOT include communication tone, language style or way of speaking — that is configured separately and will be injected automatically.
+IMPORTANT: write the entire prompt in the language "${idioma}".
+Return ONLY the prompt, without any additional explanations.`,
         },
         {
           role: 'user',
-          content: `Tipo de negócio: ${tipoNegocio}
-Nome da empresa: ${nomeEmpresa}
-${descricao ? `Descrição adicional: ${descricao}` : ''}`,
+          content: `Business type: ${tipoNegocio}\nBusiness name: ${nomeEmpresa}${descricao ? `\nAdditional description: ${descricao}` : ''}`,
         },
       ],
     })
