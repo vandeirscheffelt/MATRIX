@@ -846,23 +846,32 @@ export default function Onboarding() {
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
                 Coleta de Dados do Cliente
               </label>
+              {(() => {
+                const perfis = [
+                  { value: "BASICO",   label: "Básico",    add: "Nome + Telefone",             campos: ["Nome", "Telefone"] },
+                  { value: "PADRAO",   label: "Padrão",    add: "+ E-mail + Nascimento",        campos: ["Nome", "Telefone", "E-mail", "Data de nascimento"] },
+                  { value: "COMPLETO", label: "Completo",  add: "+ CPF + Convênio + Alergias",  campos: ["Nome", "Telefone", "E-mail", "Data de nascimento", "CPF", "Convênio", "Alergias"] },
+                  { value: "CLINICO",  label: "Clínico",   add: "+ Medicações + Histórico",     campos: ["Nome", "Telefone", "E-mail", "Data de nascimento", "CPF", "Convênio", "Alergias", "Medicações em uso", "Histórico médico"] },
+                ];
+                const selected = perfis.find(p => p.value === form.perfilColeta) ?? perfis[1];
+                const allCampos = selected.campos.concat(form.coletarEndereco ? ["Endereço"] : []);
+                return (
               <div className="rounded-lg border border-border bg-secondary p-3 space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { value: "BASICO", label: "Básico", desc: "Nome + Telefone" },
-                    { value: "PADRAO", label: "Padrão", desc: "+ E-mail + Nascimento" },
-                    { value: "COMPLETO", label: "Completo", desc: "+ CPF + Convênio + Alergias" },
-                    { value: "CLINICO", label: "Clínico", desc: "+ Medicações + Histórico" },
-                  ].map((perfil) => (
+                  {perfis.map((perfil) => (
                     <button
                       key={perfil.value}
                       onClick={() => { update("perfilColeta", perfil.value); api.patch("/app/config/coleta-dados", { perfilColeta: perfil.value }).catch(() => null); }}
                       className={`rounded-lg border px-3 py-2 text-left transition-all ${form.perfilColeta === perfil.value ? "border-primary bg-primary/15 text-primary" : "border-border bg-muted text-secondary-foreground hover:border-primary/50"}`}
                     >
                       <div className="text-xs font-medium">{perfil.label}</div>
-                      <div className="text-xs opacity-60 mt-0.5">{perfil.desc}</div>
+                      <div className="text-xs opacity-60 mt-0.5">{perfil.add}</div>
                     </button>
                   ))}
+                </div>
+                <div className="rounded-md bg-muted/50 border border-border px-3 py-2">
+                  <p className="text-xs text-muted-foreground mb-1">Campos coletados:</p>
+                  <p className="text-xs text-foreground">{allCampos.join(", ")}</p>
                 </div>
                 <div className="flex items-center justify-between pt-1 border-t border-border">
                   <div>
@@ -899,6 +908,8 @@ export default function Onboarding() {
                   />
                 )}
               </div>
+                );
+              })()}
             </div>
 
             {/* FAQ */}
