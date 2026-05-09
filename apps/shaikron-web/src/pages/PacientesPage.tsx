@@ -19,10 +19,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Search, Plus, X, Clock, User, Pencil, Trash2, Check } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3004";
+import { api } from "@/lib/apiClient";
 
 // ─── Tipo de negócio → categoria + labels dinâmicos ───────────────────────
 type NegocioCategory = "clinica" | "estetica" | "generico";
@@ -157,7 +155,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 // ─── Componente principal ─────────────────────────────────────────────────
 export default function PacientesPage() {
-  const { token } = useAuth();
   const [pacientes, setPacientes] = useState<PacienteListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -182,43 +179,31 @@ export default function PacientesPage() {
   const [creating, setCreating] = useState(false);
 
   const limit = 20;
-  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
   // Carregar tipoNegocio da config
   useEffect(() => {
-    if (!token) return;
-    fetch(`${API_BASE}/app/config`, { headers })
-      .then(r => r.ok ? r.json() : null)
+    api.get<any>('/app/config')
       .then(d => { if (d?.tipoNegocio) setTipoNegocio(d.tipoNegocio); })
       .catch(() => {});
-  }, [token]);
+  }, []);
 
   const fetchList = useCallback(async (search: string, pg: number) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(pg), limit: String(limit) });
       if (search) params.set("q", search);
-      const res = await fetch(`${API_BASE}/app/pacientes?${params}`, { headers });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(JSON.stringify(err));
-      }
-      const data = await res.json();
+      const data = await api.get<any>(`/app/pacientes?${params}`);
       setPacientes(data.data);
       setTotal(data.total);
     } catch (e) {
-      console.error("Erro listar pacientes:", e);
-      toast.error("Erro ao carregar pacientes");
+      console.error("Erro listar:", e);
+      toast.error("Erro ao carregar");
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
-  // Aguarda o token estar disponível antes de buscar
-  useEffect(() => {
-    if (!token) return;
-    fetchList(q, page);
-  }, [token, page]);
+  useEffect(() => { fetchList(q, page); }, [page]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,9 +216,7 @@ export default function PacientesPage() {
     setEditing(false);
     setProfileLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/app/pacientes/${id}`, { headers });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      const data = await api.get<Paciente>(`/app/pacientes/${id}`);
       setSelected(data);
       setEditForm(toEditForm(data));
     } catch {
@@ -247,7 +230,7 @@ export default function PacientesPage() {
     if (!selected || !editForm) return;
     setSaving(true);
     try {
-      const ef = editForm;
+      const ef = editForm!;
       const body: any = {
         nome: ef.nome,
         whatsapp: ef.whatsapp || undefined,
@@ -273,11 +256,7 @@ export default function PacientesPage() {
           cep: ef.endereco_cep || undefined,
         };
       }
-      const res = await fetch(`${API_BASE}/app/pacientes/${selected.id}`, {
-        method: "PUT", headers, body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error();
-      const updated = await res.json();
+      const updated = await api.put<any>(`/app/pacientes/${selected.id}`, body);
       setSelected({ ...updated, agendamentos: selected.agendamentos });
       setEditForm(toEditForm({ ...updated, agendamentos: selected.agendamentos }));
       setEditing(false);
@@ -294,9 +273,8 @@ export default function PacientesPage() {
     if (!selected) return;
     if (!confirm(`Excluir ${selected.nome}?`)) return;
     try {
-      const res = await fetch(`${API_BASE}/app/pacientes/${selected.id}`, { method: "DELETE", headers });
-      if (!res.ok) throw new Error();
-      toast.success("Paciente excluído");
+      await api.delete(`/app/pacientes/${selected.id}`);
+      toast.success("Excluído com sucesso");
       setProfileOpen(false);
       fetchList(q, page);
     } catch {
@@ -316,15 +294,8 @@ export default function PacientesPage() {
       if (newForm.email.trim()) body.email = newForm.email.trim();
       if (newForm.dataNascimento) body.dataNascimento = newForm.dataNascimento;
 
-      const res = await fetch(`${API_BASE}/app/pacientes`, {
-        method: "POST", headers, body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        console.error("Erro criar paciente:", err);
-        throw new Error(JSON.stringify(err));
-      }
-      toast.success("Paciente cadastrado");
+      await api.post('/app/pacientes', body);
+      toast.success(`${labels.singular} cadastrado`);
       setNewOpen(false);
       setNewForm({ nome: "", contato: "", email: "", dataNascimento: "" });
       fetchList(q, 1);
