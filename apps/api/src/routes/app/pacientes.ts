@@ -90,13 +90,24 @@ export async function pacientesRoutes(app: FastifyInstance) {
 
   // POST /app/pacientes
   app.post('/', { preHandler }, async (request: any, reply) => {
+    request.log.info({ body: request.body, empresaId: request.empresaId }, 'paciente POST recebido')
+
     const body = pacienteBody.safeParse(request.body)
-    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+    if (!body.success) {
+      request.log.warn({ errors: body.error.flatten() }, 'paciente validacao falhou')
+      return reply.code(400).send({ error: body.error.flatten() })
+    }
 
     const data: any = { empresaId: request.empresaId, ...body.data }
     if (body.data.dataNascimento) data.dataNascimento = new Date(body.data.dataNascimento)
 
-    return reply.code(201).send(await prisma.paciente.create({ data }))
+    try {
+      const result = await prisma.paciente.create({ data })
+      return reply.code(201).send(result)
+    } catch (err: any) {
+      request.log.error({ err: err?.message, code: err?.code, meta: err?.meta, data }, 'paciente.create failed')
+      return reply.code(500).send({ error: err?.message ?? 'db error', code: err?.code })
+    }
   })
 
   // PUT /app/pacientes/:id
