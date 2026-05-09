@@ -36,11 +36,7 @@
 
 ### Produto
 
-- 4 IAs integradas:
-  - **IA01** — Atendente: conversa com o cliente final no WhatsApp. Faz vendas, responde dúvidas, agenda, qualifica lead. É a "face" do sistema.
-  - **IA02** — Secretária: atua para gerente/profissional. Comportamento duplo dependendo de quem fala. Agenda, confirmações, organização operacional, visão do profissional.
-  - **IA03** — Copiloto (painel interno): consultora on-demand do dono do negócio. Configura, melhora prompts, FAQ, fluxos, campanhas, mensagens. **Modelo: `gpt-5-mini`**
-  - **IA04** — Analista de Lacunas (background n8n): analisa conversas, detecta falhas de FAQ, gargalos, padrões de perda de venda. Sugere conteúdos e otimizações. **Modelo: Gemini 2.5 Flash-Lite Flex**
+- 4 IAs integradas — ver seção 12 para arquitetura completa de modelos e fluxos
 - CRM básico (leads, conversas, histórico de mensagens)
 - Agenda multi-profissional com grade de horários
 - Billing por assinatura Stripe (trial 3 dias, R$97/mês + R$29,90/usuário extra)
@@ -473,3 +469,136 @@ Prefixo base: `https://api.shaikron.scheffelt.xyz`
 8. **Admin routes** protegidas por role `ADMIN_GLOBAL`, não por `empresaId`
 9. **NUNCA matar portas na VPS** — sempre mudar a porta do novo serviço
 10. **Reload nginx via nsenter** — `kill -HUP` não funciona neste ambiente
+
+---
+
+## 12. ARQUITETURA DAS IAs — MODELOS, PAPÉIS E FLUXOS
+
+> Decisões tomadas em 2026-05-09. Fonte da verdade para implementação no n8n.
+
+---
+
+### Visão geral
+
+```
+Cliente WhatsApp
+      ↓
+IA01 — Orquestradora (Gemini 2.5 Flash + Context Cache)
+  ├── FAQ / preços / dúvidas → responde direto (contexto no cache)
+  └── Agendamento → aciona Agente Agenda (GPT-5 mini)
+                         ↓
+               Consulta API Fastify
+               Devolve opções / confirmação
+                         ↓
+              IA01 comunica com o cliente
+```
+
+---
+
+### IA01 — Orquestradora
+
+| Campo | Valor |
+|-------|-------|
+| Modelo | Gemini 2.5 Flash |
+| Estratégia de custo | Context Caching (Gemini) |
+| O que cacheia | System prompt + FAQ + keywords + horários comerciais |
+| Cache ID | Salvo em `config_bot.cacheId` — renovado quando config muda |
+| Quem gerencia o cache | Fastify — cria/renova cache ao detectar mudança de config |
+| FAQ e preços | Respondidos direto pela orquestradora (já no cache — zero chamada extra) |
+| Agente Comercial | **Fora do MVP** — preços no FAQ são suficientes por enquanto |
+
+**Papel:** entende a intenção do cliente, aciona especialistas quando necessário, monta e envia a resposta final. É a única IA que fala com o cliente.
+
+---
+
+### Agente Agenda (sub-agente especialista da IA01)
+
+| Campo | Valor |
+|-------|-------|
+| Modelo | GPT-5 mini (reasoning tokens ativos) |
+| Quando é acionado | Somente quando o cliente demonstra intenção de agendar |
+| Frequência | Baixa — mas alta criticidade |
+| O que recebe da IA01 | Resumo estruturado: "cliente quer corte, próxima quinta, tarde, com Ana" + data/hora atual |
+
+**Fluxo multi-turn (agentic loop):**
+
+```
+Turno 1 — Busca disponibilidade:
+  GPT-5 mini interpreta pedido em linguagem natural
+  → GET /app/agenda/day (consulta slots disponíveis)
+  → devolve opções para IA01
+  IA01 → cliente: "Tenho 14h, 15h ou 16h na quinta com Ana. Qual prefere?"
+
+Turno 2 — Confirmação:
+  Cliente escolhe horário
+  IA01 aciona Agente Agenda novamente
+  → POST /app/agendamentos (confirma no banco)
+  → devolve confirmação para IA01
+  IA01 → cliente: "Perfeito! Quinta às 15h com Ana confirmado. ✅"
+```
+
+> O GPT-5 mini é acionado apenas para interpretar a linguagem natural do pedido.
+> Chamadas subsequentes (após horário estruturado) vão direto à API Fastify — sem LLM extra.
+
+**Implementação no n8n:** AI Agent node com tools + memória PostgreSQL (histórico por cliente).
+
+---
+
+### IA02 — Secretária
+
+| Campo | Valor |
+|-------|-------|
+| Modelo | A definir |
+| Papel | Atua para gerente/profissional (não para o cliente final) |
+| Comportamento | Duplo: muda conforme quem está falando (gerente vs profissional) |
+| Foco | Agenda, confirmações, organização operacional, visão do profissional |
+
+---
+
+### IA03 — Copiloto (painel interno)
+
+| Campo | Valor |
+|-------|-------|
+| Modelo | `gpt-5-mini` (configurado e deployado) |
+| Onde vive | Painel web Shaikron — não no WhatsApp |
+| Papel | Consultora on-demand do dono do negócio |
+| Faz | Melhora prompts, sugere FAQ, otimiza fluxos, campanhas, mensagens |
+| Quando é chamado | Sob demanda — usuário clica no painel |
+| Cache | Não justifica — contexto pequeno, chamadas esporádicas |
+
+---
+
+### IA04 — Analista de Lacunas
+
+| Campo | Valor |
+|-------|-------|
+| Modelo | Gemini 2.5 Flash-Lite **Flex** |
+| Onde vive | n8n — fluxos de background |
+| Papel | Analisa conversas, detecta falhas de FAQ, gargalos, padrões de perda de venda |
+| Quando roda | Cron job (ex: diário ou semanal) — nunca em tempo real |
+| Latência aceitável | Sim — 1 a 15 min de latência do Flex é irrelevante para análise em background |
+| Output | Sugestões salvas em `faq_sugestoes` e gaps para o copiloto exibir no painel |
+| Por que Flex | 50% mais barato que Standard — tarefas analíticas pesadas (ler muitas conversas) com baixo volume de execuções |
+
+---
+
+### Módulo Comercial — Futuro (add-on pago)
+
+Não faz parte do MVP. Preços e serviços comercializados ficam no FAQ da IA01.
+
+Quando implementado, será um **módulo adicional na assinatura** com:
+- Agente Comercial: contorno de objeções, argumentação de vendas
+- Sequências de follow-up proativo
+- Upsell baseado em histórico do cliente
+
+---
+
+### Resumo de modelos por IA
+
+| IA | Modelo | Onde roda | Custo relativo |
+|----|--------|-----------|---------------|
+| IA01 Orquestradora | Gemini 2.5 Flash + Cache | n8n (WhatsApp) | Baixo (cache elimina 75-90% dos tokens) |
+| Agente Agenda | GPT-5 mini | n8n (sub-agente) | Muito baixo (acionado raramente) |
+| IA02 Secretária | A definir | n8n | — |
+| IA03 Copiloto | gpt-5-mini | Painel web | Baixo (esporádico) |
+| IA04 Analista | Gemini 2.5 Flash-Lite Flex | n8n cron | Mínimo (batch, 50% off) |
