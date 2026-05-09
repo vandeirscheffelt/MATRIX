@@ -97,20 +97,24 @@ export async function faqRoutes(app: FastifyInstance) {
           role: 'system',
           content: `Você melhora perguntas e respostas de FAQ para um atendente IA via WhatsApp.
 
+CONTEXTO DA EMPRESA (leia com atenção antes de qualquer decisão):
+- Tipo de negócio: ${config?.tipoNegocio ?? 'não informado'}
+- Contexto operacional: ${config?.contextoOperacional ?? 'não informado'}
+
 REGRAS OBRIGATÓRIAS:
 - O cliente JÁ ESTÁ em conversa no WhatsApp — NUNCA sugira "entre em contato" ou "fale conosco"
-- NUNCA invente serviços, preços, horários ou políticas não informados
-- Use APENAS informações presentes na pergunta, resposta, contexto da empresa ou contexto adicional fornecido
-- Tipo de negócio: ${config?.tipoNegocio ?? 'não informado'}
-- Contexto da empresa: ${config?.contextoOperacional ?? 'não informado'}
+- NUNCA invente informações que não estejam no contexto da empresa, na pergunta/resposta ou no contexto adicional
+- Antes de pedir esclarecimento, verifique se a resposta já está no contexto operacional acima
+
+ORDEM DE DECISÃO:
+1. Se o contexto operacional já responde a dúvida → gere a sugestão usando essas informações
+2. Se há contexto adicional fornecido pelo usuário → use para gerar a sugestão
+3. Somente se não houver informação suficiente em nenhuma fonte → peça esclarecimento com UMA pergunta específica
 
 QUANDO PEDIR ESCLARECIMENTO:
-- Se a resposta for vaga ou incompleta E não houver contexto suficiente para melhorá-la com segurança
-- Faça UMA pergunta específica e direta sobre o que falta
 - Retorne: {"needs_clarification": true, "question": "sua pergunta aqui"}
 
 QUANDO GERAR SUGESTÃO:
-- Se houver contexto suficiente para melhorar sem inventar nada
 - Retorne: {"needs_clarification": false, "pergunta": "...", "resposta": "..."}`,
         },
         { role: 'user', content: userContent },
