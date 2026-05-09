@@ -82,6 +82,8 @@ interface PacienteListItem {
   email?: string;
   dataNascimento?: string;
   convenio?: string;
+  carteirinha?: string;
+  alergias?: string;
   origem?: string;
   criadoEm: string;
   agendamentos: { inicio: string; status: string; servicoNome: string }[];
@@ -97,7 +99,9 @@ const STATUS_COLORS: Record<string, string> = {
 
 function formatDate(iso?: string) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("pt-BR");
+  // Extrair direto da string para evitar shift de timezone UTC→local
+  const [y, m, d] = iso.slice(0, 10).split("-");
+  return `${d}/${m}/${y}`;
 }
 
 function formatDateTime(iso?: string) {
@@ -107,8 +111,12 @@ function formatDateTime(iso?: string) {
 
 function calcAge(dataNascimento?: string) {
   if (!dataNascimento) return null;
-  const diff = Date.now() - new Date(dataNascimento).getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+  const [y, m, d] = dataNascimento.slice(0, 10).split("-").map(Number);
+  const today = new Date();
+  let age = today.getFullYear() - y;
+  const monthDiff = today.getMonth() + 1 - m;
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d)) age--;
+  return age;
 }
 
 function toDateInput(iso?: string) {
@@ -394,7 +402,17 @@ export default function PacientesPage() {
                       ) : "—"}
                     </TableCell>
                     {category === "clinica" && (
-                      <TableCell className="text-sm text-muted-foreground">{p.convenio || "—"}</TableCell>
+                      <TableCell className="text-sm">
+                        <div className="space-y-0.5">
+                          <span className="text-muted-foreground">
+                            {p.convenio || "—"}
+                            {p.carteirinha && <span className="text-xs text-muted-foreground/60 ml-1">({p.carteirinha})</span>}
+                          </span>
+                          {p.alergias && (
+                            <div className="text-xs text-amber-400 font-medium">⚠ {p.alergias}</div>
+                          )}
+                        </div>
+                      </TableCell>
                     )}
                     {category === "estetica" && (
                       <TableCell className="text-sm text-muted-foreground">—</TableCell>

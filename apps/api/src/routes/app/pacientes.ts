@@ -55,7 +55,7 @@ export async function pacientesRoutes(app: FastifyInstance) {
         take: Number(limit),
         select: {
           id: true, nome: true, whatsapp: true, telefone: true,
-          email: true, dataNascimento: true, convenio: true,
+          email: true, dataNascimento: true, convenio: true, carteirinha: true, alergias: true,
           origem: true, criadoEm: true,
           agendamentos: {
             orderBy: { inicio: 'desc' },
