@@ -175,7 +175,7 @@ export default function PacientesPage() {
 
   // New patient dialog
   const [newOpen, setNewOpen] = useState(false);
-  const [newForm, setNewForm] = useState({ nome: "", contato: "", email: "", dataNascimento: "", observacoes: "" });
+  const [newForm, setNewForm] = useState({ nome: "", contato: "", email: "", dataNascimento: "", convenio: "", carteirinha: "", alergias: "", observacoes: "" });
   const [creating, setCreating] = useState(false);
 
   const limit = 20;
@@ -293,12 +293,15 @@ export default function PacientesPage() {
       else if (newForm.contato.trim()) body.telefone = newForm.contato.trim();
       if (newForm.email.trim()) body.email = newForm.email.trim();
       if (newForm.dataNascimento) body.dataNascimento = newForm.dataNascimento;
+      if (newForm.convenio.trim()) body.convenio = newForm.convenio.trim();
+      if (newForm.carteirinha.trim()) body.carteirinha = newForm.carteirinha.trim();
+      if (newForm.alergias.trim()) body.alergias = newForm.alergias.trim();
       if (newForm.observacoes.trim()) body.observacoes = newForm.observacoes.trim();
 
       await api.post('/app/pacientes', body);
       toast.success(`${labels.singular} cadastrado`);
       setNewOpen(false);
-      setNewForm({ nome: "", contato: "", email: "", dataNascimento: "", observacoes: "" });
+      setNewForm({ nome: "", contato: "", email: "", dataNascimento: "", convenio: "", carteirinha: "", alergias: "", observacoes: "" });
       fetchList(q, 1);
     } catch (err) {
       console.error(err);
@@ -614,7 +617,7 @@ export default function PacientesPage() {
 
       {/* ── New patient dialog ── */}
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Novo {labels.singular}</DialogTitle>
           </DialogHeader>
@@ -630,14 +633,41 @@ export default function PacientesPage() {
               <Input value={newForm.contato} onChange={e => setNewForm(f => ({ ...f, contato: e.target.value }))}
                 placeholder="61 9 9999-9999" />
             </Field>
-            <Field label="Data de nascimento">
-              <Input type="date" value={newForm.dataNascimento}
-                onChange={e => setNewForm(f => ({ ...f, dataNascimento: e.target.value }))} />
-            </Field>
-            <Field label="E-mail">
-              <Input type="email" value={newForm.email} onChange={e => setNewForm(f => ({ ...f, email: e.target.value }))}
-                placeholder="email@exemplo.com" />
-            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Data de nascimento">
+                <Input type="date" value={newForm.dataNascimento}
+                  onChange={e => setNewForm(f => ({ ...f, dataNascimento: e.target.value }))} />
+              </Field>
+              <Field label="E-mail">
+                <Input type="email" value={newForm.email} onChange={e => setNewForm(f => ({ ...f, email: e.target.value }))}
+                  placeholder="email@exemplo.com" />
+              </Field>
+            </div>
+
+            {category === "clinica" && (
+              <>
+                <div className="border-t border-border pt-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Dados Clínicos</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Convênio">
+                      <Input value={newForm.convenio} onChange={e => setNewForm(f => ({ ...f, convenio: e.target.value }))}
+                        placeholder="Ex: Assefaz, Unimed..." />
+                    </Field>
+                    <Field label="Nº Carteirinha">
+                      <Input value={newForm.carteirinha} onChange={e => setNewForm(f => ({ ...f, carteirinha: e.target.value }))}
+                        placeholder="Número" />
+                    </Field>
+                  </div>
+                  <div className="mt-3">
+                    <Field label="Alergias">
+                      <Textarea value={newForm.alergias} onChange={e => setNewForm(f => ({ ...f, alergias: e.target.value }))}
+                        placeholder="Ex: dipirona, látex, penicilina..." rows={2} />
+                    </Field>
+                  </div>
+                </div>
+              </>
+            )}
+
             <Field label="Observações">
               <Textarea value={newForm.observacoes} onChange={e => setNewForm(f => ({ ...f, observacoes: e.target.value }))}
                 placeholder={obsPlaceholder} rows={3} />
