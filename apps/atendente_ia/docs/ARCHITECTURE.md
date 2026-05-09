@@ -1,7 +1,7 @@
 # Shaikron — Atendente IA · ARCHITECTURE.md
 
 > **Fonte da verdade do projeto** — leia este arquivo antes de qualquer módulo.
-> **Última atualização:** 2026-05-01
+> **Última atualização:** 2026-05-09
 > **Regra:** Atualizar ao concluir cada módulo, ao tomar decisões arquiteturais ou ao resolver bugs relevantes.
 > **Propósito:** Qualquer novo chat com Claude deve entender o projeto completo lendo apenas este arquivo.
 
@@ -21,12 +21,12 @@
 | M08 — Admin Panel | pricing-versions, products, modules | ✅ Concluído |
 | M09 — Tutoriais | CRUD admin + página pública por categoria | ✅ Concluído |
 | M10 — Afiliados | Vitrine MasterSaaS (localStorage → API futura) | ✅ Concluído |
-| M11 — Dashboard Real | Wiring hook `useDashboard` → `GET /app/dashboard/overview` | ⬜ Pendente |
+| M11 — Dashboard Real | Wiring hook `useDashboard` → `GET /app/dashboard/overview` | ✅ Concluído |
 | M12 — Billing (tela cliente) | Checkout Stripe + portal do cliente | ⬜ Pendente |
 | M13 — Integração n8n | Webhooks WhatsApp, leads, conversas, agendamento | ⬜ Pendente |
 | M14 — IA02 Analítica | Relatórios e insights de conversas | ⬜ Pendente |
 
-**Conclusão estimada:** 10 / 14 módulos (71%)
+**Conclusão estimada:** 11 / 14 módulos (79%)
 
 ---
 
@@ -37,10 +37,10 @@
 ### Produto
 
 - 4 IAs integradas:
-  - **IA01** — Atendente WhatsApp (responde clientes, agenda, FAQ)
-  - **IA02** — Analítica (insights de conversas, relatórios)
-  - **IA03** — Agenda (motor de slots, confirmação de horários)
-  - **IA04** — Facilitadora (sugestões de FAQ, keywords, copiloto de config)
+  - **IA01** — Atendente: conversa com o cliente final no WhatsApp. Faz vendas, responde dúvidas, agenda, qualifica lead. É a "face" do sistema.
+  - **IA02** — Secretária: atua para gerente/profissional. Comportamento duplo dependendo de quem fala. Agenda, confirmações, organização operacional, visão do profissional.
+  - **IA03** — Copiloto (painel interno): consultora on-demand do dono do negócio. Configura, melhora prompts, FAQ, fluxos, campanhas, mensagens. **Modelo: `gpt-5-mini`**
+  - **IA04** — Analista de Lacunas (background n8n): analisa conversas, detecta falhas de FAQ, gargalos, padrões de perda de venda. Sugere conteúdos e otimizações. **Modelo: Gemini 2.5 Flash-Lite Flex**
 - CRM básico (leads, conversas, histórico de mensagens)
 - Agenda multi-profissional com grade de horários
 - Billing por assinatura Stripe (trial 3 dias, R$97/mês + R$29,90/usuário extra)
@@ -377,7 +377,7 @@ Prefixo base: `https://api.shaikron.scheffelt.xyz`
 | `useProfessionals` | `/app/profissionais` | ✅ wired (via ProfessionalsContext) |
 | `useAvailability` | `/app/agenda/day` | ✅ wired — cache síncrono |
 | `useAppointments` | `/app/agendamentos` | ✅ wired |
-| `useDashboard` | `/app/dashboard/overview` | ⬜ wiring pendente |
+| `useDashboard` | `/app/dashboard/overview` | ✅ wired |
 | `useBilling` | `/app/billing/status` | ⬜ wiring pendente |
 
 ### Decisão arquitetural: `useAvailability` — cache síncrono
@@ -437,7 +437,7 @@ Prefixo base: `https://api.shaikron.scheffelt.xyz`
 | Aba Afiliados | ✅ `/affiliates` — vitrine MasterSaaS |
 | Aba Tutoriais | ✅ `/tutorials` — embed YouTube por categoria |
 | Admin (pricing, products, modules, tutorials, affiliates) | ✅ Funcionando |
-| Dashboard real (hook `useDashboard`) | ⬜ Wiring pendente |
+| Dashboard real (hook `useDashboard`) | ✅ Wired e deployado |
 | n8n integrado | ⬜ Pendente |
 | Billing Stripe (tela cliente) | ⬜ Pendente |
 
@@ -445,8 +445,9 @@ Prefixo base: `https://api.shaikron.scheffelt.xyz`
 
 ## 10. PRÓXIMOS MÓDULOS (em ordem)
 
-1. **M11 — Dashboard Real** — wiring do hook `useDashboard` para `GET /app/dashboard/overview`
+1. ~~**M11 — Dashboard Real**~~ ✅ Concluído
 2. **M12 — Billing (tela cliente)** — checkout Stripe + portal do cliente
+3. **M15 — Gestão de Equipe** — convite de funcionários ao painel web por e-mail (ACCOUNT_OWNER convida MANAGER/RECEPTIONIST); usuário extra dispara cobrança Stripe; implementar junto com M12
 3. **M13 — Integração n8n** — fluxos de WhatsApp chamar endpoints de `api.shaikron.scheffelt.xyz`:
    - Criar/atualizar leads e conversas via webhook
    - Salvar mensagens no histórico
