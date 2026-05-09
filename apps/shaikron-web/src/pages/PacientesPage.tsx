@@ -175,7 +175,7 @@ export default function PacientesPage() {
 
   // New patient dialog
   const [newOpen, setNewOpen] = useState(false);
-  const [newForm, setNewForm] = useState({ nome: "", contato: "", email: "", dataNascimento: "" });
+  const [newForm, setNewForm] = useState({ nome: "", contato: "", email: "", dataNascimento: "", observacoes: "" });
   const [creating, setCreating] = useState(false);
 
   const limit = 20;
@@ -293,11 +293,12 @@ export default function PacientesPage() {
       else if (newForm.contato.trim()) body.telefone = newForm.contato.trim();
       if (newForm.email.trim()) body.email = newForm.email.trim();
       if (newForm.dataNascimento) body.dataNascimento = newForm.dataNascimento;
+      if (newForm.observacoes.trim()) body.observacoes = newForm.observacoes.trim();
 
       await api.post('/app/pacientes', body);
       toast.success(`${labels.singular} cadastrado`);
       setNewOpen(false);
-      setNewForm({ nome: "", contato: "", email: "", dataNascimento: "" });
+      setNewForm({ nome: "", contato: "", email: "", dataNascimento: "", observacoes: "" });
       fetchList(q, 1);
     } catch (err) {
       console.error(err);
@@ -317,6 +318,13 @@ export default function PacientesPage() {
     category === "clinica" ? "Dados clínicos" :
     category === "estetica" ? "Perfil estético" :
     null;
+
+  const obsPlaceholder =
+    category === "clinica"
+      ? "Ex: alergia a dipirona, usa omeprazol, hipertenso..."
+      : category === "estetica"
+      ? "Ex: cabelo com química, prefere escova, pele sensível..."
+      : "Anotações gerais sobre este contato...";
 
   return (
     <AppLayout>
@@ -629,6 +637,10 @@ export default function PacientesPage() {
             <Field label="E-mail">
               <Input type="email" value={newForm.email} onChange={e => setNewForm(f => ({ ...f, email: e.target.value }))}
                 placeholder="email@exemplo.com" />
+            </Field>
+            <Field label="Observações">
+              <Textarea value={newForm.observacoes} onChange={e => setNewForm(f => ({ ...f, observacoes: e.target.value }))}
+                placeholder={obsPlaceholder} rows={3} />
             </Field>
             <div className="flex justify-end gap-2 pt-1">
               <Button type="button" variant="ghost" onClick={() => setNewOpen(false)}>Cancelar</Button>
