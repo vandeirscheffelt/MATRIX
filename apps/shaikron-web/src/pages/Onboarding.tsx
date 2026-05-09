@@ -155,6 +155,11 @@ export default function Onboarding() {
   }, [form]);
 
   // Auto-save: persiste os campos principais 1s após parar de digitar
+  const saveFaqs = useCallback((faqs: typeof form.faqs) => {
+    const valid = faqs.filter(f => f.question.trim() && f.answer.trim()).map(f => ({ pergunta: f.question, resposta: f.answer }));
+    api.put("/app/faq", valid).catch(() => null);
+  }, []);
+
   const autoSaveInitRef = useRef(false);
   const pendingSaveRef = useRef(false);
   const doSave = useCallback(() => {
@@ -781,11 +786,12 @@ export default function Onboarding() {
                           updated[i] = { ...updated[i], question: e.target.value };
                           update("faqs", updated);
                         }}
+                        onBlur={() => saveFaqs(latestFormRef.current.faqs)}
                         placeholder={t("faq.questionPlaceholder")}
                         className="bg-muted border-border text-sm flex-1"
                       />
                       <button
-                        onClick={() => update("faqs", form.faqs.filter((_, idx) => idx !== i))}
+                        onClick={() => { const updated = form.faqs.filter((_, idx) => idx !== i); update("faqs", updated); saveFaqs(updated); }}
                         disabled={isSuggestionLocked}
                         className="text-muted-foreground hover:text-destructive transition-colors"
                       >
@@ -799,6 +805,7 @@ export default function Onboarding() {
                         updated[i] = { ...updated[i], answer: e.target.value };
                         update("faqs", updated);
                       }}
+                      onBlur={() => saveFaqs(latestFormRef.current.faqs)}
                       placeholder={t("faq.answerPlaceholder")}
                       className="bg-muted border-border text-sm"
                     />
