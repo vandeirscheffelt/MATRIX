@@ -24,7 +24,7 @@ import { toast } from "sonner";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3004";
 
-// ─── Tipo de negócio → qual seção extra mostrar ────────────────────────────
+// ─── Tipo de negócio → categoria + labels dinâmicos ───────────────────────
 type NegocioCategory = "clinica" | "estetica" | "generico";
 
 function detectCategory(tipoNegocio?: string | null): NegocioCategory {
@@ -32,6 +32,18 @@ function detectCategory(tipoNegocio?: string | null): NegocioCategory {
   if (/cl[ií]nica|sa[úu]de|m[ée]dic|odonto|fisio|nutri|psico|farmac/.test(t)) return "clinica";
   if (/sal[ãa]o|est[ée]tic|beleza|spa|nail|barber|manicure/.test(t)) return "estetica";
   return "generico";
+}
+
+// Rótulo da entidade (sidebar, título da página, botão "Novo")
+function entityLabel(tipoNegocio?: string | null) {
+  const t = (tipoNegocio ?? "").toLowerCase();
+  if (/cl[ií]nica|sa[úu]de|m[ée]dic|odonto|fisio|nutri|psico|farmac/.test(t))
+    return { singular: "Paciente", plural: "Pacientes" };
+  if (/sal[ãa]o|est[ée]tic|beleza|spa|nail|barber|manicure/.test(t))
+    return { singular: "Cliente", plural: "Clientes" };
+  if (/imobili|im[oó]vel|alug/.test(t))
+    return { singular: "Contato", plural: "Contatos" };
+  return { singular: "Cliente", plural: "Clientes" };
 }
 
 // ─── Interfaces ───────────────────────────────────────────────────────────
@@ -154,6 +166,7 @@ export default function PacientesPage() {
 
   const [tipoNegocio, setTipoNegocio] = useState<string | null>(null);
   const category = detectCategory(tipoNegocio);
+  const labels = entityLabel(tipoNegocio);
 
   // Profile dialog
   const [selected, setSelected] = useState<Paciente | null>(null);
@@ -173,6 +186,7 @@ export default function PacientesPage() {
 
   // Carregar tipoNegocio da config
   useEffect(() => {
+    if (!token) return;
     fetch(`${API_BASE}/app/config`, { headers })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.tipoNegocio) setTipoNegocio(d.tipoNegocio); })
@@ -200,7 +214,11 @@ export default function PacientesPage() {
     }
   }, [token]);
 
-  useEffect(() => { fetchList(q, page); }, [page]);
+  // Aguarda o token estar disponível antes de buscar
+  useEffect(() => {
+    if (!token) return;
+    fetchList(q, page);
+  }, [token, page]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -335,14 +353,14 @@ export default function PacientesPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Pacientes</h1>
+            <h1 className="text-2xl font-bold text-foreground">{labels.plural}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {total} {total === 1 ? "cadastrado" : "cadastrados"}
             </p>
           </div>
           <Button onClick={() => setNewOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
-            Novo
+            Novo {labels.singular}
           </Button>
         </div>
 
@@ -350,7 +368,7 @@ export default function PacientesPage() {
         <form onSubmit={handleSearch} className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar por nome, WhatsApp, e-mail, CPF..." className="pl-9"
+            <Input placeholder={`Buscar ${labels.plural.toLowerCase()} por nome, WhatsApp, e-mail, CPF...`} className="pl-9"
               value={q} onChange={e => setQ(e.target.value)} />
           </div>
           <Button type="submit" variant="secondary">Buscar</Button>
@@ -378,7 +396,7 @@ export default function PacientesPage() {
               {loading ? (
                 <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Carregando...</TableCell></TableRow>
               ) : pacientes.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Nenhum registro encontrado</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Nenhum {labels.singular.toLowerCase()} encontrado</TableCell></TableRow>
               ) : pacientes.map(p => {
                 const ultimo = p.agendamentos?.[0];
                 const age = calcAge(p.dataNascimento);
@@ -611,10 +629,10 @@ export default function PacientesPage() {
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Novo cadastro</DialogTitle>
+            <DialogTitle>Novo {labels.singular}</DialogTitle>
           </DialogHeader>
           <p className="text-xs text-muted-foreground -mt-2">
-            Quem chega pelo WhatsApp é cadastrado automaticamente pela IA.
+            {labels.plural} que chegam pelo WhatsApp são cadastrados automaticamente pela IA.
           </p>
           <form onSubmit={handleCreate} className="space-y-4 pt-1">
             <Field label="Nome *">
