@@ -69,21 +69,26 @@ export async function faqRoutes(app: FastifyInstance) {
     return reply.code(204).send()
   })
 
-  // POST /app/faq/melhorar — IA melhora pergunta e resposta de um FAQ
+  // POST /app/faq/melhorar — IA melhora FAQ ou pede esclarecimento se contexto insuficiente
   app.post('/melhorar', { preHandler }, async (request: any, reply) => {
     const body = z.object({
       pergunta: z.string().min(1),
       resposta: z.string().min(1),
+      contexto_adicional: z.string().optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const config = await prisma.configBot.findUnique({
       where: { empresaId: request.empresaId },
-      select: { tipoNegocio: true, contextoOperacional: true, nomeAssistente: true },
+      select: { tipoNegocio: true, contextoOperacional: true },
     })
 
     const { default: OpenAI } = await import('openai')
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+    const userContent = body.data.contexto_adicional
+      ? `Pergunta: ${body.data.pergunta}\nResposta: ${body.data.resposta}\nContexto adicional fornecido pelo usuário: ${body.data.contexto_adicional}`
+      : `Pergunta: ${body.data.pergunta}\nResposta: ${body.data.resposta}`
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-5-mini',
@@ -91,24 +96,39 @@ export async function faqRoutes(app: FastifyInstance) {
         {
           role: 'system',
           content: `Você melhora perguntas e respostas de FAQ para um atendente IA via WhatsApp.
+
 REGRAS OBRIGATÓRIAS:
 - O cliente JÁ ESTÁ em conversa no WhatsApp — NUNCA sugira "entre em contato" ou "fale conosco"
-- Use apenas informações reais fornecidas — NUNCA invente preços, horários ou políticas
-- Se a resposta for curta mas correta (ex: "50 reais"), expanda com contexto útil sem inventar dados
+- NUNCA invente serviços, preços, horários ou políticas não informados
+- Use APENAS informações presentes na pergunta, resposta, contexto da empresa ou contexto adicional fornecido
 - Tipo de negócio: ${config?.tipoNegocio ?? 'não informado'}
-- Contexto: ${config?.contextoOperacional ?? 'não informado'}
-- Retorne JSON: {"pergunta": "...", "resposta": "..."}`,
+- Contexto da empresa: ${config?.contextoOperacional ?? 'não informado'}
+
+QUANDO PEDIR ESCLARECIMENTO:
+- Se a resposta for vaga ou incompleta E não houver contexto suficiente para melhorá-la com segurança
+- Faça UMA pergunta específica e direta sobre o que falta
+- Retorne: {"needs_clarification": true, "question": "sua pergunta aqui"}
+
+QUANDO GERAR SUGESTÃO:
+- Se houver contexto suficiente para melhorar sem inventar nada
+- Retorne: {"needs_clarification": false, "pergunta": "...", "resposta": "..."}`,
         },
-        {
-          role: 'user',
-          content: `Pergunta: ${body.data.pergunta}\nResposta: ${body.data.resposta}`,
-        },
+        { role: 'user', content: userContent },
       ],
       response_format: { type: 'json_object' },
     })
 
     const result = JSON.parse(completion.choices[0]?.message?.content ?? '{}')
-    return { pergunta: result.pergunta ?? body.data.pergunta, resposta: result.resposta ?? body.data.resposta }
+
+    if (result.needs_clarification) {
+      return { needs_clarification: true, question: result.question ?? 'Pode fornecer mais detalhes sobre esta resposta?' }
+    }
+
+    return {
+      needs_clarification: false,
+      pergunta: result.pergunta ?? body.data.pergunta,
+      resposta: result.resposta ?? body.data.resposta,
+    }
   })
 
   // GET /app/faq/sugestoes

@@ -144,6 +144,8 @@ export default function Onboarding() {
   const [improvingField, setImprovingField] = useState<string | null>(null);
   const [pendingSuggestion, setPendingSuggestion] = useState<PendingSuggestion | null>(null);
   const [improveError, setImproveError] = useState<ImproveErrorState | null>(null);
+  const [faqClarification, setFaqClarification] = useState<{ field: string; index: number; question: string; faq: { question: string; answer: string } } | null>(null);
+  const [faqClarificationInput, setFaqClarificationInput] = useState("");
   const [saving, setSaving] = useState(false);
   const latestFormRef = useRef(form);
   const requestIdRef = useRef(0);
@@ -371,15 +373,23 @@ export default function Onboarding() {
     setImproveError(null);
     setImprovingField(field);
 
-    const run = async () => {
+    const run = async (contextoAdicional?: string) => {
       try {
-        const result = await api.post<{ pergunta: string; resposta: string }>("/app/faq/melhorar", {
+        const result = await api.post<any>("/app/faq/melhorar", {
           pergunta: faq.question,
           resposta: faq.answer,
+          ...(contextoAdicional ? { contexto_adicional: contextoAdicional } : {}),
         });
 
         if (!isMountedRef.current || requestId !== requestIdRef.current) return;
 
+        if (result?.needs_clarification) {
+          setFaqClarification({ field, index, question: result.question, faq: { question: faq.question, answer: faq.answer } });
+          setFaqClarificationInput("");
+          return;
+        }
+
+        setFaqClarification(null);
         const answerText = result?.resposta?.trim() ?? "";
         const questionText = result?.pergunta?.trim() ?? "";
 
@@ -399,7 +409,6 @@ export default function Onboarding() {
         }
       } catch (error) {
         if (!isMountedRef.current || requestId !== requestIdRef.current) return;
-        console.error(`AI improve failed for ${field}:`, error);
         setPendingSuggestion(null);
         setImproveError({ field, message: t("error.improveText") });
         toast.error(t("error.improveText"));
@@ -411,6 +420,61 @@ export default function Onboarding() {
 
     void run();
   }, [buildFormSnapshot, improvingField, pendingSuggestion]);
+
+  const handleImproveFaqWithContext = useCallback((index: number, contextoAdicional: string) => {
+    const formSnapshot = buildFormSnapshot();
+    const faq = formSnapshot.faqs[index];
+    if (!faq) return;
+
+    requestLockRef.current = true;
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    const field = `faq-${index}`;
+
+    setImproveError(null);
+    setImprovingField(field);
+
+    const run = async () => {
+      try {
+        const result = await api.post<any>("/app/faq/melhorar", {
+          pergunta: faq.question,
+          resposta: faq.answer,
+          contexto_adicional: contextoAdicional,
+        });
+
+        if (!isMountedRef.current || requestId !== requestIdRef.current) return;
+
+        if (result?.needs_clarification) {
+          setFaqClarification({ field, index, question: result.question, faq: { question: faq.question, answer: faq.answer } });
+          setFaqClarificationInput("");
+          return;
+        }
+
+        setFaqClarification(null);
+        const answerText = result?.resposta?.trim() ?? "";
+        const questionText = result?.pergunta?.trim() ?? "";
+
+        setImproveError(null);
+        setPendingSuggestion({
+          field,
+          label: `FAQ #${index + 1}`,
+          original: faq.answer,
+          suggested: answerText || faq.answer,
+          originalQuestion: faq.question,
+          suggestedQuestion: questionText || faq.question,
+        });
+      } catch {
+        if (!isMountedRef.current || requestId !== requestIdRef.current) return;
+        setImproveError({ field, message: t("error.improveText") });
+        toast.error(t("error.improveText"));
+      } finally {
+        if (requestId === requestIdRef.current) requestLockRef.current = false;
+        if (isMountedRef.current && requestId === requestIdRef.current) setImprovingField(null);
+      }
+    };
+
+    void run();
+  }, [buildFormSnapshot, t]);
 
   const handleApplySuggestion = useCallback((text: string, question?: string) => {
     if (!pendingSuggestion) return;
@@ -828,6 +892,50 @@ export default function Onboarding() {
                       <div className="flex items-center gap-1.5 text-xs text-destructive">
                         <AlertCircle className="h-3 w-3" />
                         {improveError.message}
+                      </div>
+                    )}
+                    {faqClarification?.field === `faq-${i}` && (
+                      <div className="mt-2 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 space-y-2">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="h-4 w-4 text-yellow-400 mt-0.5 shrink-0" />
+                          <div className="space-y-1.5 flex-1">
+                            <p className="text-xs font-medium text-yellow-300">A IA precisa de mais contexto</p>
+                            <p className="text-xs text-yellow-200/80">{faqClarification.question}</p>
+                            <Input
+                              value={faqClarificationInput}
+                              onChange={(e) => setFaqClarificationInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && faqClarificationInput.trim()) {
+                                  setFaqClarification(null);
+                                  handleImproveFaqWithContext(i, faqClarificationInput.trim());
+                                }
+                              }}
+                              placeholder="Responda aqui..."
+                              className="bg-yellow-950/40 border-yellow-500/30 text-yellow-100 placeholder:text-yellow-500/50 text-xs h-8"
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                className="h-7 text-xs bg-yellow-500 hover:bg-yellow-400 text-black"
+                                onClick={() => {
+                                  if (!faqClarificationInput.trim()) return;
+                                  setFaqClarification(null);
+                                  handleImproveFaqWithContext(i, faqClarificationInput.trim());
+                                }}
+                              >
+                                Gerar sugestão
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-xs text-yellow-400 hover:text-yellow-300"
+                                onClick={() => { setFaqClarification(null); setFaqClarificationInput(""); }}
+                              >
+                                Cancelar
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                     {pendingSuggestion?.field === `faq-${i}` && (
