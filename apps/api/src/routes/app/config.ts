@@ -219,6 +219,20 @@ export async function configRoutes(app: FastifyInstance) {
     })
   })
 
+  // PATCH /app/config/confirmacao-antecedencia
+  app.patch('/confirmacao-antecedencia', { preHandler }, async (request: any, reply) => {
+    const body = z.object({
+      confirmacaoAntecedenciaHoras: z.number().int().min(1).max(48),
+    }).safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+    return prisma.configBot.upsert({
+      where: { empresaId: request.empresaId },
+      create: { empresaId: request.empresaId, prompt: '', confirmacaoAntecedenciaHoras: body.data.confirmacaoAntecedenciaHoras },
+      update: { confirmacaoAntecedenciaHoras: body.data.confirmacaoAntecedenciaHoras },
+      select: { confirmacaoAntecedenciaHoras: true },
+    })
+  })
+
   // POST /app/config/gerar-prompt — IA gera prompt com base no tipo de negócio
   app.post('/gerar-prompt', { preHandler }, async (request: any, reply) => {
     const body = gerarPromptBody.safeParse(request.body)

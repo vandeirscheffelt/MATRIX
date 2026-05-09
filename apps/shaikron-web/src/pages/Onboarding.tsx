@@ -211,6 +211,7 @@ export default function Onboarding() {
       if (config?.palavraPausa) partial.cmdTakeover = config.palavraPausa;
       if (config?.palavraRetorno) partial.cmdResume = config.palavraRetorno;
       if (config?.tempoRetornoMin) partial.autoResumeMinutes = config.tempoRetornoMin;
+      if (config?.confirmacaoAntecedenciaHoras) partial.confirmacaoAntecedenciaHoras = config.confirmacaoAntecedenciaHoras;
       if (Array.isArray(keywords) && keywords.length > 0) partial.keywords = keywords.map((k: any) => k.palavra ?? k);
       if (Array.isArray(faqs) && faqs.length > 0) partial.faqs = faqs.map((f: any) => ({ question: f.pergunta, answer: f.resposta }));
       reset(partial);
@@ -726,52 +727,23 @@ export default function Onboarding() {
 
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  {t("cmd.customLabel")}
+                  Antecedência para confirmação de agendamento
                 </label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {form.cmdCustom.map((cmd) => (
-                    <span
-                      key={cmd}
-                      className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary px-2.5 py-1 text-xs font-medium"
-                    >
-                      {cmd}
-                      <button onClick={() => update("cmdCustom", form.cmdCustom.filter((c) => c !== cmd))}>
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <Input
-                    id="custom-cmd-input"
-                    placeholder={t("cmd.customPlaceholder")}
-                    className="bg-secondary border-border flex-1"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const val = (e.target as HTMLInputElement).value.trim();
-                        if (val && !form.cmdCustom.includes(val)) {
-                          update("cmdCustom", [...form.cmdCustom, val]);
-                          (e.target as HTMLInputElement).value = "";
-                        }
-                      }
-                    }}
+                    type="number"
+                    min={1}
+                    max={48}
+                    value={form.confirmacaoAntecedenciaHoras ?? 2}
+                    onChange={(e) => update("confirmacaoAntecedenciaHoras", Number(e.target.value))}
+                    onBlur={(e) => { const v = Number(e.target.value); if (v >= 1) api.patch("/app/config/confirmacao-antecedencia", { confirmacaoAntecedenciaHoras: v }).catch(() => null); }}
+                    className="bg-secondary border-border w-32"
                   />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const input = document.getElementById("custom-cmd-input") as HTMLInputElement;
-                      const val = input?.value.trim();
-                      if (val && !form.cmdCustom.includes(val)) {
-                        update("cmdCustom", [...form.cmdCustom, val]);
-                        input.value = "";
-                      }
-                    }}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                  <span className="text-sm text-muted-foreground">horas antes da consulta</span>
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  A IA enviará uma confirmação via WhatsApp este tempo antes do agendamento
+                </p>
               </div>
 
               <div>

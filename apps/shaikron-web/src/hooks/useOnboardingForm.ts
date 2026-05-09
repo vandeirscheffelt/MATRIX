@@ -27,6 +27,7 @@ export interface OnboardingFormState {
   cmdResume: string;
   cmdCustom: string[];
   autoResumeMinutes: number;
+  confirmacaoAntecedenciaHoras: number;
 }
 
 export type OnboardingField = keyof OnboardingFormState;
@@ -50,6 +51,7 @@ const INITIAL_STATE: OnboardingFormState = {
   cmdResume: "voltar",
   cmdCustom: [],
   autoResumeMinutes: 10,
+  confirmacaoAntecedenciaHoras: 2,
 };
 
 const FIELD_WEIGHTS: Record<string, number> = {
