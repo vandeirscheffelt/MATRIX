@@ -651,6 +651,9 @@ export default function Onboarding() {
                   </button>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                O tom é aplicado automaticamente pelo assistente, independente das instruções acima.
+              </p>
             </div>
 
             {/* Keywords */}

@@ -112,7 +112,7 @@ export async function configRoutes(app: FastifyInstance) {
     const completion = await openai.chat.completions.create({
       model: 'gpt-5-mini',
       messages: [
-        { role: 'system', content: `Você é um especialista em configuração de assistentes de IA para empresas. Reescreva o contexto operacional de forma clara, profissional e detalhada em português, para ser usado como instrução de um atendente IA via WhatsApp. Tipo de negócio: ${config.tipoNegocio ?? 'não informado'}. IMPORTANTE: retorne SOMENTE o texto reescrito, sem títulos, rótulos, prefixos ou explicações.` },
+        { role: 'system', content: `Você é um especialista em configuração de assistentes de IA para empresas. Reescreva o contexto operacional de forma clara, profissional e detalhada em português, para ser usado como instrução de um atendente IA via WhatsApp. Tipo de negócio: ${config.tipoNegocio ?? 'não informado'}. IMPORTANTE: retorne SOMENTE o texto reescrito, sem títulos, rótulos, prefixos ou explicações. NÃO mencione tom de comunicação, estilo ou forma de falar — isso é configurado separadamente.` },
         { role: 'user', content: config.contextoOperacional },
       ],
     })
@@ -250,7 +250,8 @@ export async function configRoutes(app: FastifyInstance) {
           role: 'system',
           content: `Você é um especialista em criar prompts para atendentes IA de WhatsApp focados em agendamento.
 Crie um system prompt completo, profissional e em português brasileiro para um atendente virtual.
-O prompt deve incluir: persona, objetivo, tom, regras de agendamento, e instruções de escalada para humano.
+O prompt deve incluir: persona, objetivo, regras de agendamento, fluxos de atendimento e instruções de escalada para humano.
+NÃO inclua tom de comunicação, estilo de linguagem ou forma de falar — isso é configurado separadamente e será injetado automaticamente.
 Retorne APENAS o prompt, sem explicações adicionais.`,
         },
         {
