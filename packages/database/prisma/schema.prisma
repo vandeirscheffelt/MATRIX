@@ -44,6 +44,7 @@ model Empresa {
   faqSugestoes     FaqSugestao[]
   keywords         Keyword[]
   produtosAfiliados ProdutoAfiliado[]
+  pacientes        Paciente[]
 
   @@map("empresas")
   @@schema("atendente_ia")
@@ -222,6 +223,7 @@ model Agendamento {
   empresaId       String             @map("empresa_id")
   profissionalId  String             @map("profissional_id")
   leadId          String?            @map("lead_id")
+  pacienteId      String?            @map("paciente_id")
   clienteNome     String?            @map("cliente_nome")
   clienteTelefone String?            @map("cliente_telefone")
   servicoNome     String?            @map("servico_nome")
@@ -234,6 +236,7 @@ model Agendamento {
   empresa      Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
   lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  paciente     Paciente?    @relation(fields: [pacienteId], references: [id], onDelete: SetNull)
   servico      Servico?     @relation(fields: [servicoId], references: [id], onDelete: SetNull)
 
   @@index([empresaId, inicio])
@@ -279,6 +282,39 @@ enum StatusInstancia {
   CONNECTED
 
   @@map("status_instancia_enum")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
+// CRM — Pacientes / Clientes
+// -----------------------------------------------------------------------------
+
+model Paciente {
+  id               String    @id @default(uuid())
+  empresaId        String    @map("empresa_id")
+  whatsapp         String?
+  nome             String
+  telefone         String?
+  email            String?
+  dataNascimento   DateTime? @map("data_nascimento") @db.Date
+  cpf              String?
+  endereco         Json?
+  convenio         String?
+  carteirinha      String?
+  alergias         String?   @db.Text
+  medicacoes       String?   @db.Text
+  historicoMedico  String?   @map("historico_medico") @db.Text
+  lgpdAceitoEm     DateTime? @map("lgpd_aceito_em")
+  origem           String    @default("manual")
+  observacoes      String?   @db.Text
+  criadoEm         DateTime  @default(now()) @map("criado_em")
+  atualizadoEm     DateTime  @updatedAt @map("atualizado_em")
+
+  empresa      Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  agendamentos Agendamento[]
+
+  @@unique([empresaId, whatsapp])
+  @@map("paciente")
   @@schema("atendente_ia")
 }
 

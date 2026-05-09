@@ -30,6 +30,7 @@ import SignupPage from "./pages/SignupPage.tsx";
 import ResetPasswordPage from "./pages/ResetPasswordPage.tsx";
 import BillingSuccessPage from "./pages/BillingSuccessPage.tsx";
 import BillingCancelPage from "./pages/BillingCancelPage.tsx";
+import PacientesPage from "./pages/PacientesPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
                   <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                   <Route path="/agenda" element={<ProtectedRoute><AgendaPage /></ProtectedRoute>} />
                   <Route path="/conversations" element={<ProtectedRoute><ConversationsPage /></ProtectedRoute>} />
+                  <Route path="/crm" element={<ProtectedRoute><PacientesPage /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
                   <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
                   <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />

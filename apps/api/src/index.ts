@@ -20,6 +20,7 @@ import { afiliadosRoutes } from './routes/app/afiliados.js'
 import { conversasRoutes } from './routes/app/conversas.js'
 import { dashboardRoutes } from './routes/app/dashboard.js'
 import { faqRoutes } from './routes/app/faq.js'
+import { pacientesRoutes } from './routes/app/pacientes.js'
 import { keywordsRoutes } from './routes/app/keywords.js'
 import { copilotoRoutes } from './routes/app/copiloto.js'
 import { billingRoutes } from './routes/app/billing.js'
@@ -68,6 +69,7 @@ await app.register(afiliadosRoutes, { prefix: '/app/afiliados' })
 await app.register(conversasRoutes, { prefix: '/app/conversas' })
 await app.register(dashboardRoutes, { prefix: '/app/dashboard' })
 await app.register(faqRoutes, { prefix: '/app/faq' })
+await app.register(pacientesRoutes, { prefix: '/app/pacientes' })
 await app.register(keywordsRoutes, { prefix: '/app/config/keywords' })
 await app.register(copilotoRoutes, { prefix: '/app/copiloto' })
 await app.register(billingRoutes, { prefix: '/app/billing' })

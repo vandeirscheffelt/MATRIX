@@ -1,4 +1,4 @@
-import { LayoutDashboard, CalendarDays, MessageSquare, Settings, UserCircle, Shield, Zap, Puzzle, Package, Settings2, Handshake, GraduationCap } from "lucide-react";
+import { LayoutDashboard, CalendarDays, MessageSquare, Settings, UserCircle, Shield, Zap, Puzzle, Package, Settings2, Handshake, GraduationCap, Users } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,7 @@ export function AppSidebar() {
     { title: t("nav.dashboard"), url: "/", icon: LayoutDashboard },
     { title: t("nav.agenda"), url: "/agenda", icon: CalendarDays },
     { title: t("nav.conversations"), url: "/conversations", icon: MessageSquare },
+    { title: "Pacientes", url: "/crm", icon: Users },
     { title: t("nav.settings"), url: "/settings", icon: Settings },
     { title: t("nav.account"), url: "/account", icon: UserCircle },
     { title: t("nav.admin"), url: "/admin", icon: Shield, adminOnly: true },
