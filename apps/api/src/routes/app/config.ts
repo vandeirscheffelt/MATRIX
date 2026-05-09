@@ -110,7 +110,7 @@ export async function configRoutes(app: FastifyInstance) {
     const { default: OpenAI } = await import('openai')
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
+      model: 'gpt-5-mini',
       messages: [
         { role: 'system', content: `Você é um especialista em configuração de assistentes de IA para empresas. Reescreva o contexto operacional de forma clara, profissional e detalhada em português, para ser usado como instrução de um atendente IA via WhatsApp. Tipo de negócio: ${config.tipoNegocio ?? 'não informado'}. IMPORTANTE: retorne SOMENTE o texto reescrito, sem títulos, rótulos, prefixos ou explicações.` },
         { role: 'user', content: config.contextoOperacional },
@@ -244,7 +244,7 @@ export async function configRoutes(app: FastifyInstance) {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
+      model: 'gpt-5-mini',
       messages: [
         {
           role: 'system',
