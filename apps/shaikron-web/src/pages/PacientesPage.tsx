@@ -358,6 +358,8 @@ export default function PacientesPage() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead>Aniversário</TableHead>
+                {category === "clinica" && <TableHead>Convênio</TableHead>}
+                {category === "estetica" && <TableHead>Preferências</TableHead>}
                 <TableHead>Origem</TableHead>
                 <TableHead>Último agendamento</TableHead>
                 <TableHead>Cadastro</TableHead>
@@ -365,9 +367,9 @@ export default function PacientesPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Carregando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={category !== "generico" ? 7 : 6} className="text-center py-10 text-muted-foreground">Carregando...</TableCell></TableRow>
               ) : pacientes.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Nenhum {labels.singular.toLowerCase()} encontrado</TableCell></TableRow>
+                <TableRow><TableCell colSpan={category !== "generico" ? 7 : 6} className="text-center py-10 text-muted-foreground">Nenhum {labels.singular.toLowerCase()} encontrado</TableCell></TableRow>
               ) : pacientes.map(p => {
                 const ultimo = p.agendamentos?.[0];
                 const age = calcAge(p.dataNascimento);
@@ -380,6 +382,12 @@ export default function PacientesPage() {
                         <span>{formatDate(p.dataNascimento)}{age !== null && <span className="text-xs ml-1 text-muted-foreground/60">({age}a)</span>}</span>
                       ) : "—"}
                     </TableCell>
+                    {category === "clinica" && (
+                      <TableCell className="text-sm text-muted-foreground">{p.convenio || "—"}</TableCell>
+                    )}
+                    {category === "estetica" && (
+                      <TableCell className="text-sm text-muted-foreground">—</TableCell>
+                    )}
                     <TableCell>
                       {p.origem === "whatsapp"
                         ? <Badge variant="outline" className="text-xs bg-green-500/10 text-green-400 border-green-500/20">WhatsApp</Badge>
