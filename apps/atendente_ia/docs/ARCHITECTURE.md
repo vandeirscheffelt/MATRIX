@@ -509,6 +509,8 @@ IA01 — Orquestradora (Gemini 2.5 Flash + Context Cache)
 
 **Papel:** entende a intenção do cliente, aciona especialistas quando necessário, monta e envia a resposta final. É a única IA que fala com o cliente.
 
+> ⚠️ **IA01 NÃO faz vendas ativas.** Ela informa preços e formas de pagamento exatamente como o dono do negócio descrever no FAQ — nada além disso. Argumentação comercial, upsell e negociação são responsabilidade do Módulo Comercial futuro.
+
 ---
 
 ### Agente Agenda (sub-agente especialista da IA01)
