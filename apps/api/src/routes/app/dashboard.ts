@@ -111,18 +111,31 @@ export async function dashboardRoutes(app: FastifyInstance) {
     const vagasAgendadas = agendamentosHoje.length
     const vagasLivres = Math.max(0, vagasTotais - vagasAgendadas - vagasBloqueadas)
 
+    const fmtHora = (d: Date) => {
+      // Converte para horário de Brasília (UTC-3)
+      const br = new Date(d.getTime() - 3 * 60 * 60 * 1000)
+      return br.toISOString().slice(11, 16)
+    }
+
+    const nomeCliente = (a: any) =>
+      (a as any).clienteNome ?? a.lead?.nomeWpp ?? a.lead?.telefone ?? 'Lead'
+
     // Timeline do dia (agendamentos ordenados)
     const timeline = agendamentosHoje.map(a => ({
       tipo: 'agendamento' as const,
-      hora: a.inicio.toTimeString().slice(0, 5),
-      descricao: `${a.lead?.nomeWpp ?? a.lead?.telefone ?? 'Lead'} com ${a.profissional.nome}`,
+      hora: fmtHora(a.inicio),
+      cliente: nomeCliente(a),
+      profissional: a.profissional.nome,
+      servico: (a as any).servicoNome ?? '',
       id: a.id,
     }))
 
     // Próximas ações (próximos agendamentos)
     const proximaAcao = proximosAgendamentos.map(a => ({
-      hora: a.inicio.toTimeString().slice(0, 5),
-      descricao: `${a.lead?.nomeWpp ?? a.lead?.telefone ?? 'Lead'} com ${a.profissional.nome}`,
+      hora: fmtHora(a.inicio),
+      cliente: nomeCliente(a),
+      profissional: a.profissional.nome,
+      servico: (a as any).servicoNome ?? '',
       agendamentoId: a.id,
     }))
 

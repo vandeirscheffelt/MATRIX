@@ -1,21 +1,37 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { api } from "@/lib/apiClient";
 
 interface AiModeContextType {
   aiActive: boolean;
-  setAiActive: (v: boolean) => void;
-  toggleAi: () => void;
+  toggleAi: () => Promise<void>;
 }
 
 const AiModeContext = createContext<AiModeContextType>({
   aiActive: true,
-  setAiActive: () => {},
-  toggleAi: () => {},
+  toggleAi: async () => {},
 });
 
 export function AiModeProvider({ children }: { children: ReactNode }) {
   const [aiActive, setAiActive] = useState(true);
+
+  useEffect(() => {
+    api.get<any>("/app/config")
+      .then(d => { if (typeof d?.botAtivo === "boolean") setAiActive(d.botAtivo); })
+      .catch(() => {});
+  }, []);
+
+  const toggleAi = async () => {
+    const next = !aiActive;
+    setAiActive(next);
+    try {
+      await api.patch("/app/config/bot-ativo", { botAtivo: next });
+    } catch {
+      setAiActive(!next);
+    }
+  };
+
   return (
-    <AiModeContext.Provider value={{ aiActive, setAiActive, toggleAi: () => setAiActive(p => !p) }}>
+    <AiModeContext.Provider value={{ aiActive, toggleAi }}>
       {children}
     </AiModeContext.Provider>
   );

@@ -8,6 +8,7 @@ export { useAvailability } from "./useAvailability";
 export { useConversations, type ConversationDetail, type Message } from "./useConversations";
 export { useSettings } from "./useSettings";
 export { useServices } from "./useServices";
+export { useDashboard, type DashboardOverview } from "./useDashboard";
 
 // Re-export types for convenience
 export type {
