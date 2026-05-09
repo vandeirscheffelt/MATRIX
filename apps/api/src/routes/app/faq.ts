@@ -69,6 +69,48 @@ export async function faqRoutes(app: FastifyInstance) {
     return reply.code(204).send()
   })
 
+  // POST /app/faq/melhorar — IA melhora pergunta e resposta de um FAQ
+  app.post('/melhorar', { preHandler }, async (request: any, reply) => {
+    const body = z.object({
+      pergunta: z.string().min(1),
+      resposta: z.string().min(1),
+    }).safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const config = await prisma.configBot.findUnique({
+      where: { empresaId: request.empresaId },
+      select: { tipoNegocio: true, contextoOperacional: true, nomeAssistente: true },
+    })
+
+    const { default: OpenAI } = await import('openai')
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `Você melhora perguntas e respostas de FAQ para um atendente IA via WhatsApp.
+REGRAS OBRIGATÓRIAS:
+- O cliente JÁ ESTÁ em conversa no WhatsApp — NUNCA sugira "entre em contato" ou "fale conosco"
+- Use apenas informações reais fornecidas — NUNCA invente preços, horários ou políticas
+- Se a resposta for curta mas correta (ex: "50 reais"), expanda com contexto útil sem inventar dados
+- Tipo de negócio: ${config?.tipoNegocio ?? 'não informado'}
+- Contexto: ${config?.contextoOperacional ?? 'não informado'}
+- Retorne JSON: {"pergunta": "...", "resposta": "..."}`,
+        },
+        {
+          role: 'user',
+          content: `Pergunta: ${body.data.pergunta}\nResposta: ${body.data.resposta}`,
+        },
+      ],
+      response_format: { type: 'json_object' },
+    })
+
+    const result = JSON.parse(completion.choices[0]?.message?.content ?? '{}')
+    return { pergunta: result.pergunta ?? body.data.pergunta, resposta: result.resposta ?? body.data.resposta }
+  })
+
   // GET /app/faq/sugestoes
   app.get('/sugestoes', { preHandler }, async (request: any) => {
     return prisma.faqSugestao.findMany({

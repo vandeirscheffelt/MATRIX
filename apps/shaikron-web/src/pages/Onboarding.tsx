@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useOnboardingForm } from "@/hooks/useOnboardingForm";
 import AICopilot from "@/components/onboarding/AICopilot";
 import AISuggestionCard from "@/components/onboarding/AISuggestionCard";
-import { expandDescription, generateDescription, improveAnswer, improveQuestion, generateKeywords } from "@/components/onboarding/copilot/generators";
+import { expandDescription, generateDescription, generateKeywords } from "@/components/onboarding/copilot/generators";
 import WhatsAppConnection from "@/components/onboarding/WhatsAppConnection";
 import ServicesManager from "@/components/onboarding/ServicesManager";
 import ProfessionalSettings from "@/components/onboarding/ProfessionalSettings";
@@ -373,17 +373,17 @@ export default function Onboarding() {
 
     const run = async () => {
       try {
-        const [improvedAnswer, improvedQ] = await Promise.all([
-          simulateAiSuggestion(() => improveAnswer(faq, formSnapshot), 600),
-          simulateAiSuggestion(() => improveQuestion(faq, formSnapshot), 400),
-        ]);
+        const result = await api.post<{ pergunta: string; resposta: string }>("/app/faq/melhorar", {
+          pergunta: faq.question,
+          resposta: faq.answer,
+        });
 
         if (!isMountedRef.current || requestId !== requestIdRef.current) return;
 
-        const answerText = typeof improvedAnswer === "string" ? improvedAnswer.trim() : "";
-        const questionText = typeof improvedQ === "string" ? improvedQ.trim() : "";
+        const answerText = result?.resposta?.trim() ?? "";
+        const questionText = result?.pergunta?.trim() ?? "";
 
-        if (!answerText && !questionText) {
+        if (answerText === faq.answer.trim() && questionText === faq.question.trim()) {
           toast(t("suggest.faqLooksGood"));
           setPendingSuggestion(null);
         } else {
