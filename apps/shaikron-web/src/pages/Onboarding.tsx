@@ -219,6 +219,10 @@ export default function Onboarding() {
       if (config?.palavraRetorno) partial.cmdResume = config.palavraRetorno;
       if (config?.tempoRetornoMin) partial.autoResumeMinutes = config.tempoRetornoMin;
       if (config?.confirmacaoAntecedenciaHoras) partial.confirmacaoAntecedenciaHoras = config.confirmacaoAntecedenciaHoras;
+      if (config?.perfilColeta) partial.perfilColeta = config.perfilColeta;
+      if (config?.coletarEndereco !== undefined) partial.coletarEndereco = config.coletarEndereco;
+      if (config?.lgpdAtivo !== undefined) partial.lgpdAtivo = config.lgpdAtivo;
+      if (config?.lgpdTexto) partial.lgpdTexto = config.lgpdTexto;
       if (Array.isArray(keywords) && keywords.length > 0) partial.keywords = keywords.map((k: any) => k.palavra ?? k);
       if (Array.isArray(faqs) && faqs.length > 0) partial.faqs = faqs.map((f: any) => ({ question: f.pergunta, answer: f.resposta }));
       reset(partial);
@@ -834,6 +838,66 @@ export default function Onboarding() {
                 <p className="text-xs text-muted-foreground mt-1">
                   {t("cmd.autoResumeDesc")}
                 </p>
+              </div>
+            </div>
+
+            {/* Coleta de Dados */}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                Coleta de Dados do Cliente
+              </label>
+              <div className="rounded-lg border border-border bg-secondary p-3 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: "BASICO", label: "Básico", desc: "Nome + Telefone" },
+                    { value: "PADRAO", label: "Padrão", desc: "+ E-mail + Nascimento" },
+                    { value: "COMPLETO", label: "Completo", desc: "+ CPF + Convênio + Alergias" },
+                    { value: "CLINICO", label: "Clínico", desc: "+ Medicações + Histórico" },
+                  ].map((perfil) => (
+                    <button
+                      key={perfil.value}
+                      onClick={() => { update("perfilColeta", perfil.value); api.patch("/app/config/coleta-dados", { perfilColeta: perfil.value }).catch(() => null); }}
+                      className={`rounded-lg border px-3 py-2 text-left transition-all ${form.perfilColeta === perfil.value ? "border-primary bg-primary/15 text-primary" : "border-border bg-muted text-secondary-foreground hover:border-primary/50"}`}
+                    >
+                      <div className="text-xs font-medium">{perfil.label}</div>
+                      <div className="text-xs opacity-60 mt-0.5">{perfil.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-border">
+                  <div>
+                    <p className="text-xs font-medium">Coletar endereço</p>
+                    <p className="text-xs text-muted-foreground">Solicitar endereço completo do cliente</p>
+                  </div>
+                  <button
+                    onClick={() => { const v = !form.coletarEndereco; update("coletarEndereco", v); api.patch("/app/config/coleta-dados", { coletarEndereco: v }).catch(() => null); }}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${form.coletarEndereco ? "bg-primary" : "bg-muted-foreground/30"}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${form.coletarEndereco ? "translate-x-4" : "translate-x-1"}`} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between border-t border-border pt-1">
+                  <div>
+                    <p className="text-xs font-medium">Consentimento LGPD</p>
+                    <p className="text-xs text-muted-foreground">Solicitar aceite antes de coletar dados</p>
+                  </div>
+                  <button
+                    onClick={() => { const v = !form.lgpdAtivo; update("lgpdAtivo", v); api.patch("/app/config/coleta-dados", { lgpdAtivo: v }).catch(() => null); }}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${form.lgpdAtivo ? "bg-primary" : "bg-muted-foreground/30"}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${form.lgpdAtivo ? "translate-x-4" : "translate-x-1"}`} />
+                  </button>
+                </div>
+                {form.lgpdAtivo && (
+                  <textarea
+                    value={form.lgpdTexto}
+                    onChange={(e) => update("lgpdTexto", e.target.value)}
+                    onBlur={(e) => { if (e.target.value.trim()) api.patch("/app/config/coleta-dados", { lgpdTexto: e.target.value.trim() }).catch(() => null); }}
+                    placeholder="Texto do consentimento (opcional — será usado um texto padrão se vazio)"
+                    rows={2}
+                    className="w-full rounded-md border border-border bg-muted px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                )}
               </div>
             </div>
 

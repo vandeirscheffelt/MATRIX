@@ -234,6 +234,23 @@ export async function configRoutes(app: FastifyInstance) {
     })
   })
 
+  // PATCH /app/config/coleta-dados
+  app.patch('/coleta-dados', { preHandler }, async (request: any, reply) => {
+    const body = z.object({
+      perfilColeta: z.enum(['BASICO', 'PADRAO', 'COMPLETO', 'CLINICO']).optional(),
+      coletarEndereco: z.boolean().optional(),
+      lgpdAtivo: z.boolean().optional(),
+      lgpdTexto: z.string().max(500).optional(),
+    }).safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+    return prisma.configBot.upsert({
+      where: { empresaId: request.empresaId },
+      create: { empresaId: request.empresaId, prompt: '', ...body.data },
+      update: body.data,
+      select: { perfilColeta: true, coletarEndereco: true, lgpdAtivo: true, lgpdTexto: true },
+    })
+  })
+
   // POST /app/config/gerar-prompt — IA gera prompt com base no tipo de negócio
   app.post('/gerar-prompt', { preHandler }, async (request: any, reply) => {
     const body = gerarPromptBody.safeParse(request.body)

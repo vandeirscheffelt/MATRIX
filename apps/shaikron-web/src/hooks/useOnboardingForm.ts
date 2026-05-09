@@ -28,6 +28,10 @@ export interface OnboardingFormState {
   cmdCustom: string[];
   autoResumeMinutes: number;
   confirmacaoAntecedenciaHoras: number;
+  perfilColeta: string;
+  coletarEndereco: boolean;
+  lgpdAtivo: boolean;
+  lgpdTexto: string;
 }
 
 export type OnboardingField = keyof OnboardingFormState;
@@ -52,6 +56,10 @@ const INITIAL_STATE: OnboardingFormState = {
   cmdCustom: [],
   autoResumeMinutes: 10,
   confirmacaoAntecedenciaHoras: 2,
+  perfilColeta: "PADRAO",
+  coletarEndereco: false,
+  lgpdAtivo: true,
+  lgpdTexto: "",
 };
 
 const FIELD_WEIGHTS: Record<string, number> = {
