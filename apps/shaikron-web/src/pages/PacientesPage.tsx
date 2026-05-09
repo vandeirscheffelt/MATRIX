@@ -24,6 +24,17 @@ import { toast } from "sonner";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3004";
 
+// ─── Tipo de negócio → qual seção extra mostrar ────────────────────────────
+type NegocioCategory = "clinica" | "estetica" | "generico";
+
+function detectCategory(tipoNegocio?: string | null): NegocioCategory {
+  const t = (tipoNegocio ?? "").toLowerCase();
+  if (/cl[ií]nica|sa[úu]de|m[ée]dic|odonto|fisio|nutri|psico|farmac/.test(t)) return "clinica";
+  if (/sal[ãa]o|est[ée]tic|beleza|spa|nail|barber|manicure/.test(t)) return "estetica";
+  return "generico";
+}
+
+// ─── Interfaces ───────────────────────────────────────────────────────────
 interface Agendamento {
   id: string;
   inicio: string;
@@ -41,10 +52,7 @@ interface Paciente {
   email?: string;
   dataNascimento?: string;
   cpf?: string;
-  endereco?: {
-    rua?: string; numero?: string; bairro?: string;
-    cidade?: string; estado?: string; cep?: string;
-  } | null;
+  endereco?: { rua?: string; numero?: string; bairro?: string; cidade?: string; estado?: string; cep?: string } | null;
   convenio?: string;
   carteirinha?: string;
   alergias?: string;
@@ -93,53 +101,36 @@ function calcAge(dataNascimento?: string) {
   return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
 }
 
-// Converte "2000-05-15T..." → "2000-05-15" para o input date
 function toDateInput(iso?: string) {
   if (!iso) return "";
   return iso.slice(0, 10);
 }
 
+// ─── Edit form ────────────────────────────────────────────────────────────
 type EditForm = {
-  nome: string;
-  whatsapp: string;
-  telefone: string;
-  email: string;
-  dataNascimento: string;
-  cpf: string;
-  convenio: string;
-  carteirinha: string;
-  alergias: string;
-  medicacoes: string;
-  historicoMedico: string;
-  observacoes: string;
-  endereco_rua: string;
-  endereco_numero: string;
-  endereco_bairro: string;
-  endereco_cidade: string;
-  endereco_estado: string;
-  endereco_cep: string;
+  nome: string; whatsapp: string; telefone: string; email: string;
+  dataNascimento: string; cpf: string;
+  convenio: string; carteirinha: string;
+  alergias: string; medicacoes: string; historicoMedico: string; observacoes: string;
+  // estética
+  tipoCabelo: string; tipoPele: string; procedimentosPreferidos: string;
+  // endereço
+  endereco_rua: string; endereco_numero: string; endereco_bairro: string;
+  endereco_cidade: string; endereco_estado: string; endereco_cep: string;
 };
 
-function pacienteToEditForm(p: Paciente): EditForm {
+function toEditForm(p: Paciente): EditForm {
   return {
-    nome: p.nome ?? "",
-    whatsapp: p.whatsapp ?? "",
-    telefone: p.telefone ?? "",
-    email: p.email ?? "",
-    dataNascimento: toDateInput(p.dataNascimento),
-    cpf: p.cpf ?? "",
-    convenio: p.convenio ?? "",
-    carteirinha: p.carteirinha ?? "",
-    alergias: p.alergias ?? "",
-    medicacoes: p.medicacoes ?? "",
-    historicoMedico: p.historicoMedico ?? "",
-    observacoes: p.observacoes ?? "",
-    endereco_rua: p.endereco?.rua ?? "",
-    endereco_numero: p.endereco?.numero ?? "",
-    endereco_bairro: p.endereco?.bairro ?? "",
-    endereco_cidade: p.endereco?.cidade ?? "",
-    endereco_estado: p.endereco?.estado ?? "",
-    endereco_cep: p.endereco?.cep ?? "",
+    nome: p.nome ?? "", whatsapp: p.whatsapp ?? "", telefone: p.telefone ?? "",
+    email: p.email ?? "", dataNascimento: toDateInput(p.dataNascimento), cpf: p.cpf ?? "",
+    convenio: p.convenio ?? "", carteirinha: p.carteirinha ?? "",
+    alergias: p.alergias ?? "", medicacoes: p.medicacoes ?? "",
+    historicoMedico: p.historicoMedico ?? "", observacoes: p.observacoes ?? "",
+    // campos estética ficam no observacoes por enquanto (usando JSON no campo)
+    tipoCabelo: "", tipoPele: "", procedimentosPreferidos: "",
+    endereco_rua: p.endereco?.rua ?? "", endereco_numero: p.endereco?.numero ?? "",
+    endereco_bairro: p.endereco?.bairro ?? "", endereco_cidade: p.endereco?.cidade ?? "",
+    endereco_estado: p.endereco?.estado ?? "", endereco_cep: p.endereco?.cep ?? "",
   };
 }
 
@@ -152,6 +143,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+// ─── Componente principal ─────────────────────────────────────────────────
 export default function PacientesPage() {
   const { token } = useAuth();
   const [pacientes, setPacientes] = useState<PacienteListItem[]>([]);
@@ -160,6 +152,10 @@ export default function PacientesPage() {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [tipoNegocio, setTipoNegocio] = useState<string | null>(null);
+  const category = detectCategory(tipoNegocio);
+
+  // Profile dialog
   const [selected, setSelected] = useState<Paciente | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -167,12 +163,21 @@ export default function PacientesPage() {
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // New patient dialog
   const [newOpen, setNewOpen] = useState(false);
-  const [newForm, setNewForm] = useState({ nome: "", contato: "", email: "" });
+  const [newForm, setNewForm] = useState({ nome: "", contato: "", email: "", dataNascimento: "" });
   const [creating, setCreating] = useState(false);
 
   const limit = 20;
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+
+  // Carregar tipoNegocio da config
+  useEffect(() => {
+    fetch(`${API_BASE}/app/config`, { headers })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.tipoNegocio) setTipoNegocio(d.tipoNegocio); })
+      .catch(() => {});
+  }, [token]);
 
   const fetchList = useCallback(async (search: string, pg: number) => {
     setLoading(true);
@@ -180,11 +185,15 @@ export default function PacientesPage() {
       const params = new URLSearchParams({ page: String(pg), limit: String(limit) });
       if (search) params.set("q", search);
       const res = await fetch(`${API_BASE}/app/pacientes?${params}`, { headers });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(JSON.stringify(err));
+      }
       const data = await res.json();
       setPacientes(data.data);
       setTotal(data.total);
-    } catch {
+    } catch (e) {
+      console.error("Erro listar pacientes:", e);
       toast.error("Erro ao carregar pacientes");
     } finally {
       setLoading(false);
@@ -208,7 +217,7 @@ export default function PacientesPage() {
       if (!res.ok) throw new Error();
       const data = await res.json();
       setSelected(data);
-      setEditForm(pacienteToEditForm(data));
+      setEditForm(toEditForm(data));
     } catch {
       toast.error("Erro ao carregar perfil");
     } finally {
@@ -220,40 +229,39 @@ export default function PacientesPage() {
     if (!selected || !editForm) return;
     setSaving(true);
     try {
+      const ef = editForm;
       const body: any = {
-        nome: editForm.nome,
-        whatsapp: editForm.whatsapp || undefined,
-        telefone: editForm.telefone || undefined,
-        email: editForm.email || undefined,
-        dataNascimento: editForm.dataNascimento || null,
-        cpf: editForm.cpf || null,
-        convenio: editForm.convenio || null,
-        carteirinha: editForm.carteirinha || null,
-        alergias: editForm.alergias || null,
-        medicacoes: editForm.medicacoes || null,
-        historicoMedico: editForm.historicoMedico || null,
-        observacoes: editForm.observacoes || null,
+        nome: ef.nome,
+        whatsapp: ef.whatsapp || undefined,
+        telefone: ef.telefone || undefined,
+        email: ef.email || undefined,
+        dataNascimento: ef.dataNascimento || null,
+        cpf: ef.cpf || null,
+        convenio: ef.convenio || null,
+        carteirinha: ef.carteirinha || null,
+        alergias: ef.alergias || null,
+        medicacoes: ef.medicacoes || null,
+        historicoMedico: ef.historicoMedico || null,
+        observacoes: ef.observacoes || null,
       };
-      const hasEndereco = editForm.endereco_rua || editForm.endereco_cidade || editForm.endereco_cep;
+      const hasEndereco = ef.endereco_rua || ef.endereco_cidade || ef.endereco_cep;
       if (hasEndereco) {
         body.endereco = {
-          rua: editForm.endereco_rua || undefined,
-          numero: editForm.endereco_numero || undefined,
-          bairro: editForm.endereco_bairro || undefined,
-          cidade: editForm.endereco_cidade || undefined,
-          estado: editForm.endereco_estado || undefined,
-          cep: editForm.endereco_cep || undefined,
+          rua: ef.endereco_rua || undefined,
+          numero: ef.endereco_numero || undefined,
+          bairro: ef.endereco_bairro || undefined,
+          cidade: ef.endereco_cidade || undefined,
+          estado: ef.endereco_estado || undefined,
+          cep: ef.endereco_cep || undefined,
         };
       }
       const res = await fetch(`${API_BASE}/app/pacientes/${selected.id}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify(body),
+        method: "PUT", headers, body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error();
       const updated = await res.json();
       setSelected({ ...updated, agendamentos: selected.agendamentos });
-      setEditForm(pacienteToEditForm({ ...updated, agendamentos: selected.agendamentos }));
+      setEditForm(toEditForm({ ...updated, agendamentos: selected.agendamentos }));
       setEditing(false);
       toast.success("Dados atualizados");
       fetchList(q, page);
@@ -274,7 +282,7 @@ export default function PacientesPage() {
       setProfileOpen(false);
       fetchList(q, page);
     } catch {
-      toast.error("Erro ao excluir paciente");
+      toast.error("Erro ao excluir");
     }
   };
 
@@ -283,25 +291,27 @@ export default function PacientesPage() {
     if (!newForm.nome.trim()) return;
     setCreating(true);
     try {
-      // Detecta se contato parece WhatsApp (só números) ou telefone com formatação
-      const contato = newForm.contato.replace(/\D/g, "");
+      const digits = newForm.contato.replace(/\D/g, "");
       const body: any = { nome: newForm.nome };
-      if (contato) {
-        // Se tem 10+ dígitos, vai como whatsapp; senão como telefone
-        if (contato.length >= 10) body.whatsapp = contato;
-        else body.telefone = newForm.contato;
-      }
-      if (newForm.email) body.email = newForm.email;
+      if (digits.length >= 10) body.whatsapp = digits;
+      else if (newForm.contato.trim()) body.telefone = newForm.contato.trim();
+      if (newForm.email.trim()) body.email = newForm.email.trim();
+      if (newForm.dataNascimento) body.dataNascimento = newForm.dataNascimento;
 
       const res = await fetch(`${API_BASE}/app/pacientes`, {
         method: "POST", headers, body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error("Erro criar paciente:", err);
+        throw new Error(JSON.stringify(err));
+      }
       toast.success("Paciente cadastrado");
       setNewOpen(false);
-      setNewForm({ nome: "", contato: "", email: "" });
+      setNewForm({ nome: "", contato: "", email: "", dataNascimento: "" });
       fetchList(q, 1);
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Erro ao cadastrar paciente");
     } finally {
       setCreating(false);
@@ -313,6 +323,12 @@ export default function PacientesPage() {
   const setEf = (field: keyof EditForm, val: string) =>
     setEditForm(prev => prev ? { ...prev, [field]: val } : prev);
 
+  // ─── Labels dinâmicos ──────────────────────────────────────────────────
+  const extraSectionLabel =
+    category === "clinica" ? "Dados clínicos" :
+    category === "estetica" ? "Perfil estético" :
+    null;
+
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
@@ -321,12 +337,12 @@ export default function PacientesPage() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Pacientes</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {total} {total === 1 ? "paciente" : "pacientes"} cadastrados
+              {total} {total === 1 ? "cadastrado" : "cadastrados"}
             </p>
           </div>
           <Button onClick={() => setNewOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
-            Novo paciente
+            Novo
           </Button>
         </div>
 
@@ -334,12 +350,8 @@ export default function PacientesPage() {
         <form onSubmit={handleSearch} className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome, WhatsApp, email, CPF..."
-              className="pl-9"
-              value={q}
-              onChange={e => setQ(e.target.value)}
-            />
+            <Input placeholder="Buscar por nome, WhatsApp, e-mail, CPF..." className="pl-9"
+              value={q} onChange={e => setQ(e.target.value)} />
           </div>
           <Button type="submit" variant="secondary">Buscar</Button>
           {q && (
@@ -356,7 +368,7 @@ export default function PacientesPage() {
               <TableRow className="bg-card">
                 <TableHead>Nome</TableHead>
                 <TableHead>Contato</TableHead>
-                <TableHead>Convênio</TableHead>
+                <TableHead>Aniversário</TableHead>
                 <TableHead>Origem</TableHead>
                 <TableHead>Último agendamento</TableHead>
                 <TableHead>Cadastro</TableHead>
@@ -364,20 +376,21 @@ export default function PacientesPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Carregando...</TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Carregando...</TableCell></TableRow>
               ) : pacientes.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Nenhum paciente encontrado</TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Nenhum registro encontrado</TableCell></TableRow>
               ) : pacientes.map(p => {
                 const ultimo = p.agendamentos?.[0];
+                const age = calcAge(p.dataNascimento);
                 return (
                   <TableRow key={p.id} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => openProfile(p.id)}>
                     <TableCell className="font-medium">{p.nome}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{p.whatsapp || p.telefone || p.email || "—"}</TableCell>
-                    <TableCell className="text-sm">{p.convenio || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {p.dataNascimento ? (
+                        <span>{formatDate(p.dataNascimento)}{age !== null && <span className="text-xs ml-1 text-muted-foreground/60">({age}a)</span>}</span>
+                      ) : "—"}
+                    </TableCell>
                     <TableCell>
                       {p.origem === "whatsapp"
                         ? <Badge variant="outline" className="text-xs bg-green-500/10 text-green-400 border-green-500/20">WhatsApp</Badge>
@@ -426,12 +439,9 @@ export default function PacientesPage() {
                 <div className="flex gap-2">
                   {editing ? (
                     <>
-                      <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setEditForm(pacienteToEditForm(selected)); }}>
-                        Cancelar
-                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setEditForm(toEditForm(selected)); }}>Cancelar</Button>
                       <Button size="sm" onClick={handleSaveEdit} disabled={saving} className="gap-1">
-                        <Check className="h-3.5 w-3.5" />
-                        {saving ? "Salvando..." : "Salvar"}
+                        <Check className="h-3.5 w-3.5" />{saving ? "Salvando..." : "Salvar"}
                       </Button>
                     </>
                   ) : (
@@ -445,7 +455,7 @@ export default function PacientesPage() {
           </DialogHeader>
 
           {profileLoading ? (
-            <div className="py-10 text-center text-muted-foreground">Carregando perfil...</div>
+            <div className="py-10 text-center text-muted-foreground">Carregando...</div>
           ) : selected && ef ? (
             <div className="space-y-6 pt-2">
 
@@ -454,82 +464,92 @@ export default function PacientesPage() {
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Dados básicos</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Nome completo">
-                    {editing
-                      ? <Input value={ef.nome} onChange={e => setEf("nome", e.target.value)} />
-                      : <p className="text-sm text-foreground">{selected.nome || "—"}</p>}
+                    {editing ? <Input value={ef.nome} onChange={e => setEf("nome", e.target.value)} />
+                    : <p className="text-sm">{selected.nome || "—"}</p>}
                   </Field>
                   <Field label="Data de nascimento">
-                    {editing
-                      ? <Input type="date" value={ef.dataNascimento} onChange={e => setEf("dataNascimento", e.target.value)} />
-                      : <p className="text-sm text-foreground">
-                          {selected.dataNascimento ? `${formatDate(selected.dataNascimento)} (${calcAge(selected.dataNascimento)} anos)` : "—"}
-                        </p>}
+                    {editing ? <Input type="date" value={ef.dataNascimento} onChange={e => setEf("dataNascimento", e.target.value)} />
+                    : <p className="text-sm">{selected.dataNascimento ? `${formatDate(selected.dataNascimento)} (${calcAge(selected.dataNascimento)} anos)` : "—"}</p>}
                   </Field>
                   <Field label="CPF">
-                    {editing
-                      ? <Input value={ef.cpf} onChange={e => setEf("cpf", e.target.value)} placeholder="000.000.000-00" />
-                      : <p className="text-sm text-foreground">{selected.cpf || "—"}</p>}
+                    {editing ? <Input value={ef.cpf} onChange={e => setEf("cpf", e.target.value)} placeholder="000.000.000-00" />
+                    : <p className="text-sm">{selected.cpf || "—"}</p>}
                   </Field>
                   <Field label="E-mail">
-                    {editing
-                      ? <Input type="email" value={ef.email} onChange={e => setEf("email", e.target.value)} />
-                      : <p className="text-sm text-foreground">{selected.email || "—"}</p>}
+                    {editing ? <Input type="email" value={ef.email} onChange={e => setEf("email", e.target.value)} />
+                    : <p className="text-sm">{selected.email || "—"}</p>}
                   </Field>
                   <Field label="WhatsApp">
-                    {editing
-                      ? <Input value={ef.whatsapp} onChange={e => setEf("whatsapp", e.target.value)} placeholder="5561..." />
-                      : <p className="text-sm text-foreground">{selected.whatsapp || "—"}</p>}
+                    {editing ? <Input value={ef.whatsapp} onChange={e => setEf("whatsapp", e.target.value)} placeholder="5561..." />
+                    : <p className="text-sm">{selected.whatsapp || "—"}</p>}
                   </Field>
                   <Field label="Telefone">
-                    {editing
-                      ? <Input value={ef.telefone} onChange={e => setEf("telefone", e.target.value)} />
-                      : <p className="text-sm text-foreground">{selected.telefone || "—"}</p>}
+                    {editing ? <Input value={ef.telefone} onChange={e => setEf("telefone", e.target.value)} />
+                    : <p className="text-sm">{selected.telefone || "—"}</p>}
                   </Field>
                 </div>
               </section>
 
-              {/* ─ Convênio ─ */}
-              <section>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Convênio</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Convênio">
-                    {editing
-                      ? <Input value={ef.convenio} onChange={e => setEf("convenio", e.target.value)} />
-                      : <p className="text-sm text-foreground">{selected.convenio || "—"}</p>}
-                  </Field>
-                  <Field label="Carteirinha">
-                    {editing
-                      ? <Input value={ef.carteirinha} onChange={e => setEf("carteirinha", e.target.value)} />
-                      : <p className="text-sm text-foreground">{selected.carteirinha || "—"}</p>}
-                  </Field>
-                </div>
-              </section>
+              {/* ─ Seção extra dinâmica ─ */}
+              {extraSectionLabel && (
+                <section>
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{extraSectionLabel}</h3>
 
-              {/* ─ Dados clínicos ─ */}
+                  {category === "clinica" && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Convênio">
+                          {editing ? <Input value={ef.convenio} onChange={e => setEf("convenio", e.target.value)} />
+                          : <p className="text-sm">{selected.convenio || "—"}</p>}
+                        </Field>
+                        <Field label="Nº carteirinha">
+                          {editing ? <Input value={ef.carteirinha} onChange={e => setEf("carteirinha", e.target.value)} />
+                          : <p className="text-sm">{selected.carteirinha || "—"}</p>}
+                        </Field>
+                      </div>
+                      <Field label="Alergias">
+                        {editing ? <Textarea value={ef.alergias} onChange={e => setEf("alergias", e.target.value)} rows={2} placeholder="Ex: dipirona, látex..." />
+                        : <p className="text-sm">{selected.alergias || "—"}</p>}
+                      </Field>
+                      <Field label="Medicações em uso">
+                        {editing ? <Textarea value={ef.medicacoes} onChange={e => setEf("medicacoes", e.target.value)} rows={2} />
+                        : <p className="text-sm">{selected.medicacoes || "—"}</p>}
+                      </Field>
+                      <Field label="Histórico médico">
+                        {editing ? <Textarea value={ef.historicoMedico} onChange={e => setEf("historicoMedico", e.target.value)} rows={3} />
+                        : <p className="text-sm">{selected.historicoMedico || "—"}</p>}
+                      </Field>
+                    </div>
+                  )}
+
+                  {category === "estetica" && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Tipo de cabelo">
+                          {editing ? <Input value={ef.tipoCabelo} onChange={e => setEf("tipoCabelo", e.target.value)} placeholder="Ex: liso, ondulado, cacheado..." />
+                          : <p className="text-sm">{ef.tipoCabelo || "—"}</p>}
+                        </Field>
+                        <Field label="Tipo de pele">
+                          {editing ? <Input value={ef.tipoPele} onChange={e => setEf("tipoPele", e.target.value)} placeholder="Ex: oleosa, mista, seca..." />
+                          : <p className="text-sm">{ef.tipoPele || "—"}</p>}
+                        </Field>
+                      </div>
+                      <Field label="Procedimentos preferidos">
+                        {editing ? <Textarea value={ef.procedimentosPreferidos} onChange={e => setEf("procedimentosPreferidos", e.target.value)} rows={2} placeholder="Ex: escova progressiva, hidratação..." />
+                        : <p className="text-sm">{ef.procedimentosPreferidos || "—"}</p>}
+                      </Field>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* ─ Observações (todos) ─ */}
               <section>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Dados clínicos</h3>
-                <div className="space-y-3">
-                  <Field label="Alergias">
-                    {editing
-                      ? <Textarea value={ef.alergias} onChange={e => setEf("alergias", e.target.value)} rows={2} placeholder="Ex: dipirona, látex..." />
-                      : <p className="text-sm text-foreground">{selected.alergias || "—"}</p>}
-                  </Field>
-                  <Field label="Medicações em uso">
-                    {editing
-                      ? <Textarea value={ef.medicacoes} onChange={e => setEf("medicacoes", e.target.value)} rows={2} />
-                      : <p className="text-sm text-foreground">{selected.medicacoes || "—"}</p>}
-                  </Field>
-                  <Field label="Histórico médico">
-                    {editing
-                      ? <Textarea value={ef.historicoMedico} onChange={e => setEf("historicoMedico", e.target.value)} rows={3} />
-                      : <p className="text-sm text-foreground">{selected.historicoMedico || "—"}</p>}
-                  </Field>
-                  <Field label="Observações">
-                    {editing
-                      ? <Textarea value={ef.observacoes} onChange={e => setEf("observacoes", e.target.value)} rows={2} />
-                      : <p className="text-sm text-foreground">{selected.observacoes || "—"}</p>}
-                  </Field>
-                </div>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Observações</h3>
+                <Field label="">
+                  {editing ? <Textarea value={ef.observacoes} onChange={e => setEf("observacoes", e.target.value)} rows={3} placeholder="Preferências, restrições, anotações..." />
+                  : <p className="text-sm">{selected.observacoes || "—"}</p>}
+                </Field>
               </section>
 
               {/* ─ Endereço ─ */}
@@ -537,27 +557,15 @@ export default function PacientesPage() {
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Endereço</h3>
                 {editing ? (
                   <div className="grid grid-cols-2 gap-3">
-                    <Field label="CEP">
-                      <Input value={ef.endereco_cep} onChange={e => setEf("endereco_cep", e.target.value)} placeholder="00000-000" />
-                    </Field>
-                    <Field label="Estado">
-                      <Input value={ef.endereco_estado} onChange={e => setEf("endereco_estado", e.target.value)} placeholder="UF" maxLength={2} />
-                    </Field>
-                    <Field label="Cidade">
-                      <Input value={ef.endereco_cidade} onChange={e => setEf("endereco_cidade", e.target.value)} />
-                    </Field>
-                    <Field label="Bairro">
-                      <Input value={ef.endereco_bairro} onChange={e => setEf("endereco_bairro", e.target.value)} />
-                    </Field>
-                    <Field label="Rua">
-                      <Input value={ef.endereco_rua} onChange={e => setEf("endereco_rua", e.target.value)} />
-                    </Field>
-                    <Field label="Número">
-                      <Input value={ef.endereco_numero} onChange={e => setEf("endereco_numero", e.target.value)} />
-                    </Field>
+                    <Field label="CEP"><Input value={ef.endereco_cep} onChange={e => setEf("endereco_cep", e.target.value)} placeholder="00000-000" /></Field>
+                    <Field label="UF"><Input value={ef.endereco_estado} onChange={e => setEf("endereco_estado", e.target.value)} maxLength={2} /></Field>
+                    <Field label="Cidade"><Input value={ef.endereco_cidade} onChange={e => setEf("endereco_cidade", e.target.value)} /></Field>
+                    <Field label="Bairro"><Input value={ef.endereco_bairro} onChange={e => setEf("endereco_bairro", e.target.value)} /></Field>
+                    <Field label="Rua"><Input value={ef.endereco_rua} onChange={e => setEf("endereco_rua", e.target.value)} /></Field>
+                    <Field label="Número"><Input value={ef.endereco_numero} onChange={e => setEf("endereco_numero", e.target.value)} /></Field>
                   </div>
                 ) : (
-                  <p className="text-sm text-foreground">
+                  <p className="text-sm">
                     {selected.endereco?.rua
                       ? `${selected.endereco.rua}${selected.endereco.numero ? ", " + selected.endereco.numero : ""} — ${selected.endereco.bairro ?? ""}, ${selected.endereco.cidade ?? ""} / ${selected.endereco.estado ?? ""} — CEP ${selected.endereco.cep ?? ""}`
                       : "—"}
@@ -575,7 +583,7 @@ export default function PacientesPage() {
                     {selected.agendamentos.map(ag => (
                       <div key={ag.id} className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-sm">
                         <div>
-                          <div className="font-medium text-foreground">{ag.servicoNome}</div>
+                          <div className="font-medium">{ag.servicoNome}</div>
                           <div className="text-xs text-muted-foreground">
                             {formatDateTime(ag.inicio)}{ag.profissional ? ` · ${ag.profissional.nome}` : ""}
                           </div>
@@ -587,11 +595,10 @@ export default function PacientesPage() {
                 </section>
               )}
 
-              {/* ─ Danger zone ─ */}
               {!editing && (
                 <div className="flex justify-end pt-2 border-t border-border">
                   <Button variant="destructive" size="sm" onClick={handleDelete} className="gap-1">
-                    <Trash2 className="h-3.5 w-3.5" /> Excluir paciente
+                    <Trash2 className="h-3.5 w-3.5" /> Excluir
                   </Button>
                 </div>
               )}
@@ -604,20 +611,27 @@ export default function PacientesPage() {
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Novo paciente</DialogTitle>
+            <DialogTitle>Novo cadastro</DialogTitle>
           </DialogHeader>
           <p className="text-xs text-muted-foreground -mt-2">
-            Pacientes criados via WhatsApp pela IA são cadastrados automaticamente.
+            Quem chega pelo WhatsApp é cadastrado automaticamente pela IA.
           </p>
           <form onSubmit={handleCreate} className="space-y-4 pt-1">
             <Field label="Nome *">
-              <Input value={newForm.nome} onChange={e => setNewForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome completo" required />
+              <Input value={newForm.nome} onChange={e => setNewForm(f => ({ ...f, nome: e.target.value }))}
+                placeholder="Nome completo" required autoFocus />
             </Field>
             <Field label="Contato (WhatsApp ou telefone)">
-              <Input value={newForm.contato} onChange={e => setNewForm(f => ({ ...f, contato: e.target.value }))} placeholder="61 9 9999-9999" />
+              <Input value={newForm.contato} onChange={e => setNewForm(f => ({ ...f, contato: e.target.value }))}
+                placeholder="61 9 9999-9999" />
+            </Field>
+            <Field label="Data de nascimento">
+              <Input type="date" value={newForm.dataNascimento}
+                onChange={e => setNewForm(f => ({ ...f, dataNascimento: e.target.value }))} />
             </Field>
             <Field label="E-mail">
-              <Input type="email" value={newForm.email} onChange={e => setNewForm(f => ({ ...f, email: e.target.value }))} placeholder="email@exemplo.com" />
+              <Input type="email" value={newForm.email} onChange={e => setNewForm(f => ({ ...f, email: e.target.value }))}
+                placeholder="email@exemplo.com" />
             </Field>
             <div className="flex justify-end gap-2 pt-1">
               <Button type="button" variant="ghost" onClick={() => setNewOpen(false)}>Cancelar</Button>
