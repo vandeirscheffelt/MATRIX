@@ -342,9 +342,28 @@ export async function configRoutes(app: FastifyInstance) {
       ? 'Tom de comunicação: informal e próximo.'
       : 'Tom de comunicação: profissional e cordial.'
 
-    const coletaInstrucao = config.coletarCadastroCompleto
-      ? 'Ao agendar pela primeira vez, colete: nome completo, telefone, e-mail e data de nascimento do cliente.'
-      : 'Ao agendar, colete apenas nome e telefone do cliente.'
+    const tipo = (config.tipoNegocio ?? '').toLowerCase()
+    const isClinica = /clinic|saude|medic|odonto|fisio|nutri|psico|farmac/.test(tipo)
+    const isSalao = /salon|salao|estetica|beleza|spa|nail|barber|manicure/.test(tipo)
+
+    let camposCompletos = ''
+    if (config.coletarCadastroCompleto) {
+      if (isClinica) {
+        camposCompletos = ', e-mail, data de nascimento, convênio (plano de saúde), número da carteirinha e alergias ou medicações em uso'
+      } else if (isSalao) {
+        camposCompletos = ', e-mail, data de nascimento e preferências (tipo de cabelo, procedimentos anteriores, pele sensível)'
+      } else {
+        camposCompletos = ', e-mail e data de nascimento'
+      }
+    }
+
+    const coletaInstrucao = `Ao atender um cliente pela primeira vez, colete durante a conversa de forma natural: nome completo e WhatsApp${camposCompletos}. Não faça todas as perguntas de uma vez — colete progressivamente ao longo da conversa.`
+
+    const horasConf = config.confirmacaoAntecedenciaHoras ?? 24
+    const confirmacaoInstrucao = `${horasConf} horas antes de cada agendamento o sistema envia automaticamente uma mensagem pedindo confirmação de presença. Quando o cliente responder:
+- Confirmação (sim, confirmo, estarei lá, pode ser, ok): agradeça e confirme o horário com cordialidade
+- Cancelamento (não, cancelar, não posso, não vou): pergunte gentilmente se deseja remarcar e ofereça ajuda para encontrar outro horário disponível
+- Dúvida ou resposta vaga: esclareça o horário e reforce a importância da confirmação`
 
     const { default: OpenAI } = await import('openai')
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -372,7 +391,8 @@ Regras obrigatórias:
 
 IDENTIDADE: ${identidadeInstrucao}
 TOM: ${tomInstrucao}
-COLETA DE DADOS: ${coletaInstrucao}
+COLETA DE DADOS NO CRM: ${coletaInstrucao}
+CONFIRMAÇÃO DE AGENDAMENTOS: ${confirmacaoInstrucao}
 
 DADOS DO NEGÓCIO:
 ${contexto}`,
