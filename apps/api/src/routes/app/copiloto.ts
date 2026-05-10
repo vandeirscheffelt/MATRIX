@@ -205,6 +205,9 @@ export async function copilotoRoutes(app: FastifyInstance) {
       equipe,
       servicosDisponiveis: servicos.map((s: any) => `${s.nome}${s.duracaoMin ? ` (${s.duracaoMin}min)` : ''}`),
       palavrasChave: keywords.map((k: any) => k.palavra),
+      coletaDados: config?.coletarCadastroCompleto
+        ? 'Ao agendar pela primeira vez, solicite: nome completo, telefone, e-mail e data de nascimento.'
+        : 'Ao agendar, solicite apenas o nome e o telefone do cliente.',
     }
 
     const temProfissionais = equipe.length > 0
@@ -223,8 +226,9 @@ ESTRUTURA OBRIGATÓRIA (nesta ordem):
 1. Apresentação: quem é o assistente, para qual empresa e qual o tipo de negócio
 2. Se houver equipe no campo "equipe": para cada profissional, mencione o nome, os serviços (com duração) e os dias/horários de atendimento
 3. Comportamento: regras de atendimento usando o tom informado
-4. Se houver "palavrasChave": inclua uma instrução do tipo "Use preferencialmente termos como: [palavras-chave]" — isso guia o vocabulário do assistente nas conversas
-5. Encerre com esta instrução exata para a IA: "Para responder sobre preços e informações específicas, baseie-se no FAQ disponível."
+4. Coleta de dados: inclua exatamente a instrução do campo "coletaDados"
+5. Se houver "palavrasChave": inclua uma instrução do tipo "Use preferencialmente termos como: [palavras-chave]" — isso guia o vocabulário do assistente nas conversas
+6. Encerre com esta instrução exata para a IA: "Para responder sobre preços e informações específicas, baseie-se no FAQ disponível."
 
 REGRAS:
 - Máximo ${limitepalavras} palavras
