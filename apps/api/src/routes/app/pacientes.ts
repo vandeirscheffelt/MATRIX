@@ -136,12 +136,74 @@ export async function pacientesRoutes(app: FastifyInstance) {
     return reply.code(204).send()
   })
 
+  // GET /app/pacientes/buscar — lookup para n8n antes de iniciar conversa
+  // Prioridade: whatsapp → cpf → nome (contains, case-insensitive)
+  app.get('/buscar', { preHandler }, async (request: any) => {
+    const { whatsapp, cpf, nome } = request.query as Record<string, string>
+
+    const base = { empresaId: request.empresaId }
+
+    let paciente = null
+
+    if (whatsapp) {
+      paciente = await prisma.paciente.findFirst({
+        where: { ...base, whatsapp },
+        select: {
+          id: true, nome: true, whatsapp: true, telefone: true, email: true,
+          dataNascimento: true, cpf: true, convenio: true, carteirinha: true,
+          alergias: true, medicacoes: true, observacoes: true, origem: true,
+          agendamentos: {
+            orderBy: { inicio: 'desc' },
+            take: 1,
+            select: { inicio: true, status: true, servicoNome: true },
+          },
+        },
+      })
+    }
+
+    if (!paciente && cpf) {
+      paciente = await prisma.paciente.findFirst({
+        where: { ...base, cpf },
+        select: {
+          id: true, nome: true, whatsapp: true, telefone: true, email: true,
+          dataNascimento: true, cpf: true, convenio: true, carteirinha: true,
+          alergias: true, medicacoes: true, observacoes: true, origem: true,
+          agendamentos: {
+            orderBy: { inicio: 'desc' },
+            take: 1,
+            select: { inicio: true, status: true, servicoNome: true },
+          },
+        },
+      })
+    }
+
+    if (!paciente && nome) {
+      paciente = await prisma.paciente.findFirst({
+        where: { ...base, nome: { contains: nome, mode: 'insensitive' } },
+        select: {
+          id: true, nome: true, whatsapp: true, telefone: true, email: true,
+          dataNascimento: true, cpf: true, convenio: true, carteirinha: true,
+          alergias: true, medicacoes: true, observacoes: true, origem: true,
+          agendamentos: {
+            orderBy: { inicio: 'desc' },
+            take: 1,
+            select: { inicio: true, status: true, servicoNome: true },
+          },
+        },
+      })
+    }
+
+    return { encontrado: !!paciente, paciente: paciente ?? null }
+  })
+
   // POST /app/pacientes/upsert-por-whatsapp — usado pela IA01 via n8n
   // Aceita todos os campos que o prompt instrui a coletar (clínica, salão, genérico)
+  // Deduplicação: CPF > WhatsApp (evita duplicatas quando cliente troca de número)
   app.post('/upsert-por-whatsapp', { preHandler }, async (request: any, reply) => {
     const body = z.object({
       whatsapp: z.string().min(1),
       nome: z.string().min(1),
+      cpf: z.string().optional().nullable(),
       telefone: z.string().optional(),
       email: z.string().email().optional().nullable(),
       dataNascimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
@@ -156,12 +218,13 @@ export async function pacientesRoutes(app: FastifyInstance) {
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
-    const { whatsapp, nome, lgpdAceitoEm, dataNascimento, ...rest } = body.data
+    const { whatsapp, nome, cpf, lgpdAceitoEm, dataNascimento, ...rest } = body.data
 
     const data: any = {
       nome,
       origem: 'whatsapp',
       ...rest,
+      ...(cpf ? { cpf } : {}),
       ...(dataNascimento ? { dataNascimento: new Date(dataNascimento) } : {}),
       ...(lgpdAceitoEm ? { lgpdAceitoEm: new Date(lgpdAceitoEm) } : {}),
     }
@@ -169,11 +232,24 @@ export async function pacientesRoutes(app: FastifyInstance) {
     // Remove campos undefined para não sobrescrever dados existentes com null
     Object.keys(data).forEach(k => data[k] === undefined && delete data[k])
 
-    const paciente = await prisma.paciente.upsert({
+    // Deduplicação por CPF: se paciente já existe com esse CPF, atualiza e vincula whatsapp
+    if (cpf) {
+      const porCpf = await prisma.paciente.findFirst({
+        where: { empresaId: request.empresaId, cpf },
+      })
+      if (porCpf) {
+        return prisma.paciente.update({
+          where: { id: porCpf.id },
+          data: { whatsapp, ...data },
+        })
+      }
+    }
+
+    // Fallback: upsert por whatsapp (comportamento original)
+    return prisma.paciente.upsert({
       where: { empresaId_whatsapp: { empresaId: request.empresaId, whatsapp } },
       create: { empresaId: request.empresaId, whatsapp, ...data },
       update: data,
     })
-    return paciente
   })
 }
