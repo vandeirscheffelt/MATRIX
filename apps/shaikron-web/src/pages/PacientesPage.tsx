@@ -326,10 +326,11 @@ export default function PacientesPage() {
       const data = await api.get<any>("/app/pacientes?limit=9999&page=1");
       const rows: PacienteListItem[] = data.data ?? [];
 
+      const SEP = ";";
       const esc = (v?: string | null) => {
         if (!v) return "";
         const s = String(v);
-        return s.includes(",") || s.includes('"') || s.includes("\n")
+        return s.includes(SEP) || s.includes('"') || s.includes("\n")
           ? `"${s.replace(/"/g, '""')}"` : s;
       };
 
@@ -352,10 +353,11 @@ export default function PacientesPage() {
           esc(p.origem),
           formatDate(p.criadoEm),
           ultimo ? formatDateTime(ultimo.inicio) : "",
-        ].join(",");
+        ].join(SEP);
       });
 
-      const csv = "﻿" + [headers.join(","), ...csvRows].join("\r\n");
+      // sep= instrui o Excel a usar ; como delimitador (funciona no Excel BR/PT)
+      const csv = "﻿sep=;\r\n" + [headers.join(SEP), ...csvRows].join("\r\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
