@@ -56,8 +56,8 @@ export default function AccountPage() {
     setPixData(null);
     setBoletoData(null);
     try {
-      const successUrl = `${window.location.origin}/billing/sucesso`;
-      const cancelUrl = `${window.location.origin}/conta`;
+      const successUrl = `${window.location.origin}/billing/success`;
+      const cancelUrl = `${window.location.origin}/account`;
       const data = await api.post<any>("/app/billing/checkout", { successUrl, cancelUrl, paymentMethod });
       if (data.url) {
         window.location.href = data.url;
