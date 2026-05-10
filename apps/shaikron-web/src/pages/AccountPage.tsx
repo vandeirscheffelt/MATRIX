@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Phone, CreditCard, Users, Calculator, ShieldCheck, Plus, Bot, Zap, AlertTriangle, Info } from "lucide-react";
+import { Phone, CreditCard, Users, Calculator, ShieldCheck, Plus, Bot, Zap, AlertTriangle, Info, QrCode, FileText, Globe } from "lucide-react";
 import { useProfessionalsContext } from "@/contexts/ProfessionalsContext";
 import { usePricingContext } from "@/contexts/PricingContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -46,29 +46,37 @@ export default function AccountPage() {
   };
 
   const navigate = useNavigate();
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [pixData, setPixData] = useState<{ qrCode: string; qrCodeBase64: string; expiresAt: string; valor: number } | null>(null);
+  const [boletoData, setBoletoData] = useState<{ url: string; barcode: string; expiresAt: string } | null>(null);
 
-  const handleActivateSubscription = useCallback(async () => {
-    setIsRedirecting(true);
+  const handleActivateSubscription = useCallback(async (paymentMethod: "pix" | "boleto" | "card_br" | "card_intl") => {
+    setCheckoutLoading(paymentMethod);
+    setPixData(null);
+    setBoletoData(null);
     try {
       const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
-      const res = await fetch(`${API_BASE}/billing/checkout`, {
+      const successUrl = `${window.location.origin}/billing/sucesso`;
+      const cancelUrl = `${window.location.origin}/conta`;
+      const res = await fetch(`${API_BASE}/app/billing/checkout`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: "current-user-id",
-          user_email: "user@example.com",
-        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
+        body: JSON.stringify({ successUrl, cancelUrl, paymentMethod }),
       });
       const data = await res.json();
-      if (data.checkout_url) {
-        window.location.href = data.checkout_url;
+      if (data.url) {
+        window.location.href = data.url;
+      } else if (data.pix) {
+        setPixData(data.pix);
+      } else if (data.boleto) {
+        setBoletoData(data.boleto);
       } else {
-        throw new Error("No checkout URL");
+        throw new Error(data.error ?? "Erro ao iniciar checkout");
       }
-    } catch {
-      setIsRedirecting(false);
-      alert(t("billing.errorRedirect"));
+    } catch (err: any) {
+      alert(err?.message ?? t("billing.errorRedirect"));
+    } finally {
+      setCheckoutLoading(null);
     }
   }, [t]);
 
@@ -119,29 +127,118 @@ export default function AccountPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {accountStatus === "trial" && (
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
+            {(accountStatus === "trial" || accountStatus === "inactive") && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4">
                 <div className="flex items-center gap-2">
-                  <Badge variant="default" className="text-xs">{t("account.trialActive")}</Badge>
+                  <Badge variant={accountStatus === "trial" ? "default" : "destructive"} className="text-xs">
+                    {accountStatus === "trial" ? t("account.trialActive") : t("account.inactive")}
+                  </Badge>
                 </div>
-                <p className="text-sm font-medium text-foreground">{t("account.inTrial")}</p>
-                <p className="text-xs text-muted-foreground">{t("account.daysRemaining")}</p>
-                <Button onClick={handleActivateSubscription} className="w-full" disabled={isRedirecting}>
-                  {isRedirecting ? t("billing.redirecting") : t("account.activateSubscription")}
-                </Button>
-              </div>
-            )}
+                <p className="text-sm font-medium text-foreground">
+                  {accountStatus === "trial" ? t("account.inTrial") : t("account.noSubscription")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Escolha como deseja pagar — R$ 97/mês
+                </p>
 
-            {accountStatus === "inactive" && (
-              <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Badge variant="destructive" className="text-xs">{t("account.inactive")}</Badge>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex flex-col h-auto py-3 gap-1 border-primary/40 hover:border-primary hover:bg-primary/5"
+                    onClick={() => handleActivateSubscription("pix")}
+                    disabled={!!checkoutLoading}
+                  >
+                    <QrCode className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-medium">PIX</span>
+                    <span className="text-[10px] text-muted-foreground">Aprovação imediata</span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="flex flex-col h-auto py-3 gap-1 border-primary/40 hover:border-primary hover:bg-primary/5"
+                    onClick={() => handleActivateSubscription("boleto")}
+                    disabled={!!checkoutLoading}
+                  >
+                    <FileText className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-medium">Boleto</span>
+                    <span className="text-[10px] text-muted-foreground">Vence em 3 dias</span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="flex flex-col h-auto py-3 gap-1 border-primary/40 hover:border-primary hover:bg-primary/5"
+                    onClick={() => handleActivateSubscription("card_br")}
+                    disabled={!!checkoutLoading}
+                  >
+                    <CreditCard className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-medium">Cartão BR</span>
+                    <span className="text-[10px] text-muted-foreground">Débito ou crédito</span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="flex flex-col h-auto py-3 gap-1 border-muted-foreground/30 hover:border-muted-foreground hover:bg-muted/10"
+                    onClick={() => handleActivateSubscription("card_intl")}
+                    disabled={!!checkoutLoading}
+                  >
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground">Cartão Internacional</span>
+                    <span className="text-[10px] text-muted-foreground">Visa, Mastercard...</span>
+                  </Button>
                 </div>
-                <p className="text-sm font-medium text-foreground">{t("account.noSubscription")}</p>
-                <p className="text-xs text-muted-foreground">{t("account.aiFeaturesDisabled")}</p>
-                <Button onClick={handleActivateSubscription} className="w-full" disabled={isRedirecting}>
-                  {isRedirecting ? t("billing.redirecting") : t("account.activateSubscription")}
-                </Button>
+
+                {checkoutLoading && (
+                  <p className="text-xs text-center text-muted-foreground animate-pulse">
+                    {checkoutLoading === "pix" ? "Gerando QR Code..." :
+                     checkoutLoading === "boleto" ? "Gerando boleto..." :
+                     "Redirecionando para o checkout..."}
+                  </p>
+                )}
+
+                {/* PIX QR Code */}
+                {pixData && (
+                  <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-4 space-y-3">
+                    <p className="text-xs font-medium text-green-400">PIX gerado — escaneie o QR code ou copie o código</p>
+                    {pixData.qrCodeBase64 && (
+                      <img src={`data:image/png;base64,${pixData.qrCodeBase64}`} alt="QR Code PIX" className="mx-auto w-40 h-40" />
+                    )}
+                    <div className="rounded bg-muted/60 px-3 py-2 text-[11px] font-mono break-all text-muted-foreground select-all">
+                      {pixData.qrCode}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full text-xs"
+                      onClick={() => navigator.clipboard.writeText(pixData.qrCode)}
+                    >
+                      Copiar código PIX
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground text-center">
+                      Expira em: {new Date(pixData.expiresAt).toLocaleString("pt-BR")}
+                    </p>
+                  </div>
+                )}
+
+                {/* Boleto */}
+                {boletoData && (
+                  <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-4 space-y-3">
+                    <p className="text-xs font-medium text-yellow-400">Boleto gerado</p>
+                    <div className="rounded bg-muted/60 px-3 py-2 text-[11px] font-mono break-all text-muted-foreground select-all">
+                      {boletoData.barcode}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={() => navigator.clipboard.writeText(boletoData.barcode)}>
+                        Copiar código
+                      </Button>
+                      <Button size="sm" className="flex-1 text-xs" onClick={() => window.open(boletoData.url, "_blank")}>
+                        Ver boleto
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground text-center">
+                      Vencimento: {new Date(boletoData.expiresAt).toLocaleString("pt-BR")}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

@@ -2,24 +2,14 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '@boilerplate/database'
 import { requireAuth } from '../../lib/auth.js'
+import { getGateway, getGatewayByName } from '@boilerplate/billing'
 
-// Preços canônicos do Shaikron
-const PRICE_BASE_MENSAL = process.env.STRIPE_PRICE_SHAIKRON_BASE ?? ''
+// Preços canônicos do Shaikron (Stripe, usado para update-subscription)
 const PRICE_USUARIO_EXTRA = process.env.STRIPE_PRICE_SHAIKRON_USUARIO_EXTRA ?? ''
 
 function getStripe() {
   const Stripe = require('stripe')
   return new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
-}
-
-async function garantirCustomer(stripe: any, userId: string, userEmail: string): Promise<string> {
-  const existing = await stripe.customers.list({ email: userEmail, limit: 1 })
-  if (existing.data.length > 0) return existing.data[0].id
-  const customer = await stripe.customers.create({
-    email: userEmail,
-    metadata: { userId },
-  })
-  return customer.id
 }
 
 export async function billingRoutes(app: FastifyInstance) {
@@ -73,34 +63,50 @@ export async function billingRoutes(app: FastifyInstance) {
   })
 
   // POST /app/billing/checkout — inicia checkout do plano base R$ 97/mês
+  // paymentMethod: 'pix' | 'boleto' | 'card_br' | 'card_intl'
   app.post('/checkout', { preHandler }, async (request: any, reply) => {
     const body = z.object({
       successUrl: z.string().url(),
       cancelUrl: z.string().url(),
+      paymentMethod: z.enum(['pix', 'boleto', 'card_br', 'card_intl']).default('card_br'),
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
-    if (!PRICE_BASE_MENSAL) {
-      return reply.code(500).send({ error: 'STRIPE_PRICE_SHAIKRON_BASE não configurada' })
+    const gateway = getGateway(body.data.paymentMethod)
+
+    try {
+      const result = await gateway.createCheckout({
+        empresaId: request.empresaId,
+        userId: request.userId,
+        userEmail: request.userEmail,
+        paymentMethod: body.data.paymentMethod,
+        successUrl: body.data.successUrl,
+        cancelUrl: body.data.cancelUrl,
+      })
+
+      // Persiste qual gateway foi escolhido (para o webhook saber onde atualizar)
+      await prisma.subscription.upsert({
+        where: { empresaId: request.empresaId },
+        create: {
+          empresaId: request.empresaId,
+          paymentGateway: result.gateway,
+          ...(result.gateway === 'stripe'
+            ? { stripeCustomerId: result.customerId }
+            : { appMaxCustomerId: result.customerId, appMaxSubscriptionId: result.subscriptionId }),
+        },
+        update: {
+          paymentGateway: result.gateway,
+          ...(result.gateway === 'stripe'
+            ? { stripeCustomerId: result.customerId }
+            : { appMaxCustomerId: result.customerId, ...(result.subscriptionId ? { appMaxSubscriptionId: result.subscriptionId } : {}) }),
+        },
+      })
+
+      return result
+    } catch (err: any) {
+      request.log.error({ err: err?.message }, 'billing.checkout failed')
+      return reply.code(500).send({ error: err?.message ?? 'Erro ao iniciar checkout' })
     }
-
-    const stripe = getStripe()
-    const customerId = await garantirCustomer(stripe, request.userId, request.userEmail)
-
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [{ price: PRICE_BASE_MENSAL, quantity: 1 }],
-      success_url: body.data.successUrl,
-      cancel_url: body.data.cancelUrl,
-      subscription_data: {
-        metadata: { empresaId: request.empresaId },
-      },
-      metadata: { empresaId: request.empresaId },
-    })
-
-    return { url: session.url }
   })
 
   // POST /app/billing/update-subscription — adiciona ou remove usuários extras (R$ 29,90)
@@ -167,22 +173,25 @@ export async function billingRoutes(app: FastifyInstance) {
     return gerente
   })
 
-  // POST /app/billing/portal — link do portal Stripe
+  // POST /app/billing/portal — link do portal (Stripe ou AppMax conforme gateway ativo)
   app.post('/portal', { preHandler }, async (request: any, reply) => {
     const body = z.object({ returnUrl: z.string().url() }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const sub = await prisma.subscription.findUnique({ where: { empresaId: request.empresaId } })
-    if (!sub?.stripeCustomerId) {
-      return reply.code(404).send({ error: 'Sem customer Stripe vinculado' })
-    }
+    if (!sub) return reply.code(404).send({ error: 'Sem assinatura vinculada' })
 
-    const stripe = getStripe()
-    const session = await stripe.billingPortal.sessions.create({
-      customer: sub.stripeCustomerId,
-      return_url: body.data.returnUrl,
+    const gateway = getGatewayByName(sub.paymentGateway ?? 'stripe')
+    const customerId = sub.paymentGateway === 'appmax' ? (sub.appMaxCustomerId ?? '') : (sub.stripeCustomerId ?? '')
+
+    if (!customerId) return reply.code(404).send({ error: 'Sem customer vinculado ao gateway' })
+
+    const { url } = await gateway.createPortalSession({
+      empresaId: request.empresaId,
+      customerId,
+      returnUrl: body.data.returnUrl,
     })
 
-    return { url: session.url }
+    return { url }
   })
 }

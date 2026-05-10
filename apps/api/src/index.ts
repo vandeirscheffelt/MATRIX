@@ -25,6 +25,7 @@ import { keywordsRoutes } from './routes/app/keywords.js'
 import { copilotoRoutes } from './routes/app/copiloto.js'
 import { billingRoutes } from './routes/app/billing.js'
 import { stripeShaikronWebhookRoutes } from './routes/webhook/stripe-shaikron.js'
+import { appmaxShaikronWebhookRoutes } from './routes/webhook/appmax-shaikron.js'
 import { pricingRoutes } from './routes/admin/pricing.js'
 import { productsRoutes, productsPublicRoutes } from './routes/admin/products.js'
 import { modulesRoutes, modulesPublicRoutes } from './routes/admin/modules.js'
@@ -74,6 +75,7 @@ await app.register(keywordsRoutes, { prefix: '/app/config/keywords' })
 await app.register(copilotoRoutes, { prefix: '/app/copiloto' })
 await app.register(billingRoutes, { prefix: '/app/billing' })
 await app.register(stripeShaikronWebhookRoutes, { prefix: '/webhook/stripe/shaikron' })
+await app.register(appmaxShaikronWebhookRoutes, { prefix: '/webhook/appmax/shaikron' })
 
 // Admin — requer ADMIN_GLOBAL (verificado dentro de cada rota)
 await app.register(pricingRoutes, { prefix: '/admin/pricing-versions' })

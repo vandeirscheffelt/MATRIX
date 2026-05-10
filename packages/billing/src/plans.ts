@@ -1,6 +1,6 @@
-import type { Plan } from './types'
+import type { Plan, PlanId } from './types'
 
-export const PLANS: Record<string, Plan> = {
+export const PLANS: Record<PlanId, Plan> = {
   free: {
     id: 'free',
     name: 'Free',
@@ -48,6 +48,7 @@ export const PLANS: Record<string, Plan> = {
 }
 
 export function getPlanByPriceId(priceId: string): Plan | null {
+  if (!priceId.trim()) return null
   return Object.values(PLANS).find(
     (p) => p.stripePriceIdMonthly === priceId || p.stripePriceIdYearly === priceId
   ) ?? null
