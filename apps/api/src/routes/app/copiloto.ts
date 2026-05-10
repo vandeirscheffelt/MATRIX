@@ -144,6 +144,16 @@ export async function copilotoRoutes(app: FastifyInstance) {
     const empresaId = request.empresaId
 
     const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+    const TIPO_PT: Record<string, string> = {
+      'Restaurant': 'Restaurante',
+      'Clinic': 'Clínica',
+      'Salon': 'Salão de Beleza',
+      'Gym': 'Academia',
+      'Real Estate': 'Imobiliária',
+      'Consulting': 'Consultoria',
+      'E-commerce': 'E-commerce',
+      'Other': 'Outro',
+    }
 
     const [empresa, config, profissionais, servicos, faqEntries, keywords] = await Promise.all([
       prisma.empresa.findUnique({ where: { id: empresaId }, select: { nome: true } }),
@@ -185,7 +195,7 @@ export async function copilotoRoutes(app: FastifyInstance) {
     const dados = {
       nomeAssistente,
       nomeEmpresa: empresa?.nome ?? 'empresa',
-      tipoNegocio: config?.tipoNegocio ?? '',
+      tipoNegocio: TIPO_PT[config?.tipoNegocio ?? ''] ?? config?.tipoNegocio ?? '',
       tom: tomDisplay,
       identidade: ehHumano ? 'atendente humano (não revelar que é IA)' : 'assistente virtual',
       horarioFuncionamento: `${config?.horarioInicio ?? '08:00'} às ${config?.horarioFim ?? '18:00'}`,

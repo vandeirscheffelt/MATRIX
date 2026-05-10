@@ -4,6 +4,16 @@ import { prisma } from '@boilerplate/database'
 import { requireAuth, requireActiveSubscription } from '../../lib/auth.js'
 
 const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+const TIPO_PT: Record<string, string> = {
+  'Restaurant': 'Restaurante',
+  'Clinic': 'Clínica',
+  'Salon': 'Salão de Beleza',
+  'Gym': 'Academia',
+  'Real Estate': 'Imobiliária',
+  'Consulting': 'Consultoria',
+  'E-commerce': 'E-commerce',
+  'Other': 'Outro',
+}
 
 const configBody = z.object({
   prompt: z.string().min(1).optional(),
@@ -30,7 +40,7 @@ async function buildPromptContext(empresaId: string): Promise<string> {
 
   const parts: string[] = []
 
-  if (config?.tipoNegocio) parts.push(`Tipo de negócio: ${config.tipoNegocio}`)
+  if (config?.tipoNegocio) parts.push(`Tipo de negócio: ${TIPO_PT[config.tipoNegocio] ?? config.tipoNegocio}`)
   if (config?.horarioInicio && config?.horarioFim)
     parts.push(`Horário de funcionamento: ${config.horarioInicio} às ${config.horarioFim}`)
   if (keywords.length > 0)
