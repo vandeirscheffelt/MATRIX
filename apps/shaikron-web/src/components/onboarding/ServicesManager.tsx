@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120];
+const CUSTOM_SENTINEL = 0;
 
 const PALETTE = [
   "#38bdf8", // sky
@@ -24,18 +25,24 @@ export default function ServicesManager() {
   const { t } = useLanguage();
   const [newName, setNewName] = useState("");
   const [newDuration, setNewDuration] = useState(60);
+  const [customDuration, setCustomDuration] = useState("");
   const [adding, setAdding] = useState(false);
+
+  const isCustom = newDuration === CUSTOM_SENTINEL;
+  const effectiveDuration = isCustom ? parseInt(customDuration, 10) : newDuration;
+  const canAdd = !adding && newName.trim() && (isCustom ? parseInt(customDuration, 10) > 0 : true);
 
   useEffect(() => { fetchServices().catch(() => null); }, [fetchServices]);
 
   const handleAdd = async () => {
-    if (!newName.trim()) return;
+    if (!canAdd) return;
     setAdding(true);
     try {
       const color = PALETTE[services.length % PALETTE.length];
-      await addService({ name: newName.trim(), duration: newDuration, color });
+      await addService({ name: newName.trim(), duration: effectiveDuration, color });
       setNewName("");
       setNewDuration(60);
+      setCustomDuration("");
       toast.success(t("svc.added"));
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao salvar serviço");
@@ -104,25 +111,40 @@ export default function ServicesManager() {
             className="bg-secondary border-border text-sm"
           />
         </div>
-        <div className="w-28">
+        <div className={isCustom ? "w-52" : "w-28"}>
           <label className="text-xs text-muted-foreground mb-1 block">{t("svc.duration")}</label>
-          <select
-            value={newDuration}
-            onChange={(e) => setNewDuration(Number(e.target.value))}
-            className="flex h-9 w-full rounded-md border border-border bg-secondary px-3 py-1 text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            {DURATION_OPTIONS.map((d) => (
-              <option key={d} value={d}>
-                {d} min
-              </option>
-            ))}
-          </select>
+          <div className="flex gap-1.5">
+            <select
+              value={newDuration}
+              onChange={(e) => { setNewDuration(Number(e.target.value)); setCustomDuration(""); }}
+              className="flex h-9 rounded-md border border-border bg-secondary px-2 py-1 text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring flex-1 min-w-0"
+            >
+              {DURATION_OPTIONS.map((d) => (
+                <option key={d} value={d}>{d} min</option>
+              ))}
+              <option value={CUSTOM_SENTINEL}>Personalizado</option>
+            </select>
+            {isCustom && (
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  min={1}
+                  max={480}
+                  placeholder="min"
+                  value={customDuration}
+                  onChange={(e) => setCustomDuration(e.target.value)}
+                  className="bg-secondary border-border text-sm h-9 w-16 text-center"
+                  autoFocus
+                />
+              </div>
+            )}
+          </div>
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={handleAdd}
-          disabled={!newName.trim() || adding}
+          disabled={!canAdd}
           className="h-9"
         >
           <Plus className="h-4 w-4" />
