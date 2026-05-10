@@ -139,6 +139,71 @@ export async function copilotoRoutes(app: FastifyInstance) {
     return { total: semResposta.length, perguntas: semResposta }
   })
 
+  // POST /app/copiloto/gerar-contexto — gera Contexto Operacional a partir dos campos preenchidos
+  app.post('/gerar-contexto', { preHandler }, async (request: any) => {
+    const empresaId = request.empresaId
+
+    const [empresa, config, profissionais, servicos, faqEntries, keywords] = await Promise.all([
+      prisma.empresa.findUnique({ where: { id: empresaId }, select: { nome: true } }),
+      prisma.configBot.findUnique({ where: { empresaId } }),
+      prisma.profissional.findMany({ where: { empresaId, ativo: true }, select: { nome: true } }),
+      prisma.servico.findMany({ where: { empresaId, ativo: true }, select: { nome: true, duracaoMin: true } }),
+      prisma.faqEntry.findMany({ where: { empresaId }, select: { pergunta: true }, take: 10 }),
+      prisma.keyword.findMany({ where: { empresaId }, select: { palavra: true } }),
+    ])
+
+    const { default: OpenAI } = await import('openai')
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+    const dados = {
+      nomeEmpresa: empresa?.nome ?? 'empresa',
+      tipoNegocio: config?.tipoNegocio ?? '',
+      tom: config?.tom ?? 'INFORMAL',
+      identidade: config?.identidade ?? 'assistente_virtual',
+      disponibilidade: config?.disponibilidade ?? 'horario_comercial',
+      horarioInicio: config?.horarioInicio ?? '08:00',
+      horarioFim: config?.horarioFim ?? '18:00',
+      profissionais: profissionais.map(p => p.nome),
+      servicos: servicos.map(s => `${s.nome}${s.duracaoMin ? ` (${s.duracaoMin}min)` : ''}`),
+      palavrasChave: keywords.map(k => k.palavra),
+      totalFaq: faqEntries.length,
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-5-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `Você é especialista em criar prompts de sistema para assistentes virtuais de WhatsApp de pequenas empresas brasileiras.
+
+Gere um CONTEXTO OPERACIONAL enxuto e eficaz para o assistente desta empresa.
+
+REGRAS OBRIGATÓRIAS:
+1. Máximo 120 palavras — seja direto
+2. Defina: quem é o assistente, para qual empresa, qual o tom de atendimento
+3. Liste apenas regras de comportamento (o que fazer / não fazer)
+4. NUNCA inclua preços, horários exatos ou detalhes de serviços — esses ficam no FAQ
+5. Finalize sempre com: "Para preços, serviços e horários, consulte o FAQ."
+6. Português brasileiro. Sem markdown, sem asteriscos.
+
+Exemplo de resultado:
+"Você é Sofia, recepcionista virtual da Clínica Bem Viver. Atenda com simpatia via WhatsApp. Ajude com agendamentos e dúvidas gerais. Não marque horários indisponíveis no sistema. Se não souber responder, encaminhe para atendimento humano. Nunca invente informações. Para preços, serviços e horários, consulte o FAQ."`,
+        },
+        { role: 'user', content: JSON.stringify(dados, null, 2) },
+      ],
+    })
+
+    const contexto = completion.choices[0]?.message?.content?.trim() ?? ''
+
+    await prisma.configBot.upsert({
+      where: { empresaId },
+      create: { empresaId, contextoOperacional: contexto },
+      update: { contextoOperacional: contexto },
+    })
+
+    return { contexto }
+  })
+
   // POST /app/copiloto/faq/gerar — gera sugestões de FAQ das conversas reais
   app.post('/faq/gerar', { preHandler }, async (request: any, reply) => {
     const mensagens = await prisma.mensagemConversa.findMany({

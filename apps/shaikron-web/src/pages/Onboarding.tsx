@@ -343,24 +343,21 @@ export default function Onboarding() {
     }
   };
 
-  const handleImproveDescription = useCallback(async () => {
-    const formSnapshot = buildFormSnapshot();
-    if (improvingField || pendingSuggestion) return;
+  const handleGerarContexto = useCallback(async () => {
+    if (improvingField) return;
     setImprovingField("description");
     setImproveError(null);
     try {
-      // Salva o contexto atual antes de pedir melhoria
-      await api.patch("/app/config/contexto-operacional", { contexto: formSnapshot.description || " " }).catch(() => null);
-      const result = await api.post<{ contexto: string }>("/app/config/melhorar-contexto", {});
-      if (!result?.contexto) throw new Error("Sem retorno da IA");
-      queueSuggestion({ field: "description", label: "Contexto Operacional", original: formSnapshot.description, suggested: result.contexto }, t("suggest.descLooksGood"));
+      const result = await api.post<{ contexto: string }>("/app/copiloto/gerar-contexto", {});
+      if (!result?.contexto) throw new Error("Sem retorno");
+      update("description", result.contexto);
+      toast.success("Perfil do assistente gerado com sucesso!");
     } catch {
-      setImproveError({ field: "description", message: t("error.improveText") });
-      toast.error(t("error.improveText"));
+      setImproveError({ field: "description", message: "Não foi possível gerar. Preencha tipo de negócio e nome antes de tentar." });
     } finally {
       setImprovingField(null);
     }
-  }, [buildFormSnapshot, improvingField, pendingSuggestion, queueSuggestion, t]);
+  }, [improvingField, update]);
 
   const handleImproveFaq = useCallback((index: number) => {
     const formSnapshot = buildFormSnapshot();
@@ -588,31 +585,28 @@ export default function Onboarding() {
               </div>
             </div>
 
-            {/* Description */}
+            {/* Description — gerado pela IA03, não editável pelo usuário */}
             <div id="field-description">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
                 {t("label.operationalContext")}
               </label>
               <p className="text-xs text-muted-foreground mb-1.5">
-                {t("label.operationalContextDesc")}
+                Perfil gerado automaticamente pelo Copiloto com base nas suas configurações.
               </p>
-              <Textarea
-                value={form.description}
-                onChange={(e) => update("description", e.target.value)}
-                placeholder={t("placeholder.description")}
-                className="bg-secondary border-border min-h-[100px] resize-none"
-              />
+              <div className={`min-h-[100px] rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground leading-relaxed ${!form.description ? "text-muted-foreground italic" : ""}`}>
+                {form.description || "Clique em \"Gerar com IA\" para criar o perfil do seu assistente automaticamente."}
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
                 className="mt-1.5 text-xs text-primary hover:text-primary hover:bg-primary/10 h-7 px-2"
-                onClick={handleImproveDescription}
-                disabled={isSuggestionLocked}
+                onClick={handleGerarContexto}
+                disabled={!!improvingField}
               >
                 {improvingField === "description" ? (
-                  <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> {t("btn.improving")}</>
+                  <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Gerando...</>
                 ) : (
-                  <><Wand2 className="h-3 w-3 mr-1" /> {t("btn.improveWithAi")}</>
+                  <><Sparkles className="h-3 w-3 mr-1" /> {form.description ? "Regenerar com IA" : "Gerar com IA"}</>
                 )}
               </Button>
               {improveError?.field === "description" && !improvingField && (
@@ -621,7 +615,7 @@ export default function Onboarding() {
                   {improveError.message}
                 </div>
               )}
-              {pendingSuggestion?.field === "description" && (
+              {false && pendingSuggestion?.field === "description" && (
                 <div className="mt-2">
                   <AISuggestionCard
                     key={`${pendingSuggestion.field}-${pendingSuggestion.suggested}`}

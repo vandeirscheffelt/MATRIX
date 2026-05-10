@@ -59,16 +59,16 @@ export function useConfigGaps(form: OnboardingFormState, t: (key: string, params
       result.push({
         id: "no-desc",
         severity: "critical",
-        title: t("gaps.noDesc"),
-        description: t("gaps.noDescDesc"),
+        title: "Perfil do assistente não gerado",
+        description: `Clique em "Gerar com IA" para o Copiloto criar automaticamente o perfil do seu assistente com base nas suas configurações.`,
         fieldId: "field-description",
       });
     } else if (descLen <= 40) {
       result.push({
         id: "weak-desc",
         severity: "important",
-        title: t("gaps.weakDesc"),
-        description: t("gaps.weakDescDesc"),
+        title: "Perfil do assistente muito curto",
+        description: `Clique em "Regenerar com IA" para o Copiloto recriar um perfil mais completo para o seu assistente.`,
         fieldId: "field-description",
       });
     }
