@@ -174,6 +174,9 @@ export async function copilotoRoutes(app: FastifyInstance) {
       totalFaq: faqEntries.length,
     }
 
+    const temProfissionais = dados.profissionais.length > 0
+    const limitepalavras = temProfissionais ? 180 : 120
+
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -181,17 +184,21 @@ export async function copilotoRoutes(app: FastifyInstance) {
           role: 'system',
           content: `Você é especialista em criar contextos operacionais para assistentes de WhatsApp de pequenas empresas brasileiras.
 
-Gere um CONTEXTO OPERACIONAL enxuto e eficaz com base nos dados fornecidos.
+Gere um CONTEXTO OPERACIONAL com base nos dados fornecidos.
 
-REGRAS OBRIGATÓRIAS:
-1. Máximo 120 palavras — seja direto
-2. Use o nome do assistente e a identidade exatamente como informado (se for atendente humano, NÃO mencione IA)
-3. Use o tom de comunicação informado — não use "formal" se o tom for diferente
-4. Liste apenas regras de comportamento claras
-5. NÃO inclua: "confirme identidade/documentos do cliente", "verifique disponibilidade no sistema", "encaminhe para equipe humana" — essas funcionalidades não existem
-6. Para o que não souber responder: instrua a dizer que vai verificar e retornar em breve
-7. Para preços, serviços e horários exatos: instrua a consultar o FAQ
-8. Português brasileiro. Sem markdown, sem asteriscos.`,
+ESTRUTURA OBRIGATÓRIA (nesta ordem):
+1. Apresentação: quem é o assistente, para qual empresa e qual o tipo de negócio
+2. Se houver profissionais na lista: mencione os nomes e os serviços que cada um oferece
+3. Comportamento: regras de atendimento usando o tom informado
+4. Encerre com: "Para preços, serviços e horários exatos, consulte o FAQ."
+
+REGRAS:
+- Máximo ${limitepalavras} palavras
+- Se a identidade for "atendente humano (não revelar que é IA)": NUNCA mencione IA ou assistente virtual
+- Use o tom exatamente como informado no campo "tom"
+- NÃO inclua: confirmar identidade/documentos, verificar disponibilidade no sistema, encaminhar para equipe humana
+- Se não souber responder: informe que vai verificar e retorna em breve
+- Português brasileiro. Sem markdown, sem asteriscos, sem numeração.`,
         },
         { role: 'user', content: JSON.stringify(dados, null, 2) },
       ],
