@@ -5,6 +5,7 @@ export { PLANS, getPlanByPriceId } from './plans'
 export { getGateway, getGatewayByName } from './gateway-factory'
 export { AppMaxProvider } from './providers/appmax-provider'
 export { StripeProvider } from './providers/stripe-provider'
+
 export type {
   Plan,
   PlanId,
@@ -20,3 +21,4 @@ export type {
   GatewayCheckoutResult,
   IPaymentGateway,
 } from './gateway-interface'
+

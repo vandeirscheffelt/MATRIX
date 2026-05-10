@@ -1,4 +1,4 @@
-import type { IPaymentGateway, GatewayCheckoutParams, GatewayPortalParams, GatewayCheckoutResult } from '../gateway-interface.js'
+import type { IPaymentGateway, GatewayCheckoutParams, GatewayPortalParams, GatewayCheckoutResult } from '../gateway-interface'
 
 const APPMAX_BASE = 'https://api.appmax.com.br/api/v3'
 
