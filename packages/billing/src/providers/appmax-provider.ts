@@ -1,6 +1,6 @@
 import type { IPaymentGateway, GatewayCheckoutParams, GatewayPortalParams, GatewayCheckoutResult } from '../gateway-interface'
 
-const APPMAX_BASE = 'https://api.appmax.com.br/api/v3'
+const APPMAX_BASE = 'https://admin.appmax.com.br/api/v3'
 
 function getKey(): string {
   const key = process.env.APPMAX_API_KEY
@@ -59,11 +59,11 @@ export class AppMaxProvider implements IPaymentGateway {
     const customerId = await garantirCliente(params)
 
     if (params.paymentMethod === 'pix') {
-      // Cria cobrança PIX avulsa para o primeiro mês, assinatura fica ativa após aprovação
       const charge = await appmaxPost('/charge/pix', {
         customer_id: customerId,
         amount: 9700, // R$ 97,00 em centavos
         description: 'Shaikron — Plano Base',
+        digital_product: 1,
         metadata: { empresaId: params.empresaId, planId },
       })
 
@@ -84,6 +84,7 @@ export class AppMaxProvider implements IPaymentGateway {
         customer_id: customerId,
         amount: 9700,
         description: 'Shaikron — Plano Base',
+        digital_product: 1,
         metadata: { empresaId: params.empresaId, planId },
       })
 
@@ -103,6 +104,7 @@ export class AppMaxProvider implements IPaymentGateway {
       customer_id: customerId,
       plan_id: planId,
       payment_method: 'credit_card',
+      digital_product: 1,
       redirect_url: params.successUrl,
       cancel_url: params.cancelUrl,
       metadata: { empresaId: params.empresaId },
