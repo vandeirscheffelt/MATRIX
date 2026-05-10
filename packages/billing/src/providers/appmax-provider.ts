@@ -11,120 +11,128 @@ function getKey(): string {
 async function appmaxPost(path: string, body: object): Promise<any> {
   const res = await fetch(`${APPMAX_BASE}${path}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${getKey()}`,
-    },
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 'access-token': getKey(), ...body }),
   })
   const json = await res.json() as any
-  if (!res.ok) {
-    throw new Error(`AppMax ${path} → ${res.status}: ${json?.message ?? JSON.stringify(json)}`)
+  if (json.success === false) {
+    throw new Error(`AppMax ${path}: ${json.text ?? JSON.stringify(json.data)}`)
   }
   return json
 }
 
-async function appmaxGet(path: string): Promise<any> {
-  const res = await fetch(`${APPMAX_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${getKey()}` },
-  })
-  const json = await res.json() as any
-  if (!res.ok) {
-    throw new Error(`AppMax ${path} → ${res.status}: ${json?.message ?? JSON.stringify(json)}`)
-  }
-  return json
-}
+async function garantirCliente(params: GatewayCheckoutParams): Promise<number> {
+  // Tenta encontrar cliente existente por email
+  const listRes = await fetch(
+    `${APPMAX_BASE}/customer?access-token=${getKey()}&email=${encodeURIComponent(params.userEmail)}&limit=1`
+  )
+  const listJson = await listRes.json() as any
+  const existing = listJson?.data?.data?.[0]
+  if (existing?.id) return Number(existing.id)
 
-async function garantirCliente(params: GatewayCheckoutParams): Promise<string> {
-  // Tenta buscar cliente existente por email
-  try {
-    const res = await appmaxGet(`/customer?email=${encodeURIComponent(params.userEmail)}`)
-    if (res?.data?.id) return String(res.data.id)
-  } catch { /* não encontrado, cria */ }
-
-  const customer = await appmaxPost('/customer', {
-    name: params.userName ?? params.userEmail.split('@')[0],
+  // Cria novo cliente
+  const nameParts = (params.userName ?? params.userEmail.split('@')[0]).split(' ')
+  const res = await appmaxPost('/customer', {
+    firstname: nameParts[0] ?? 'Cliente',
+    lastname: nameParts.slice(1).join(' ') || 'Shaikron',
     email: params.userEmail,
-    document: params.userCpf ?? '',
-    phone: params.userPhone ?? '',
+    telephone: params.userPhone?.replace(/\D/g, '') ?? '11000000000',
+    ip: '127.0.0.1',
+    document: params.userCpf?.replace(/\D/g, '') ?? '',
   })
-  return String(customer.data.id)
+  return Number(res.data?.id ?? res.id)
+}
+
+async function criarOrder(customerId: number): Promise<number> {
+  const res = await appmaxPost('/order', {
+    customer_id: customerId,
+    digital_product: 1,
+    products: [{
+      sku: 'SHAIKRON-BASE-97',
+      name: 'Shaikron - Plano Base',
+      qty: 1,
+      price: 97.00,
+    }],
+  })
+  return Number(res.data?.id ?? res.id)
 }
 
 export class AppMaxProvider implements IPaymentGateway {
   async createCheckout(params: GatewayCheckoutParams): Promise<GatewayCheckoutResult> {
-    const planId = process.env.APPMAX_PLAN_ID_SHAIKRON_BASE
-    if (!planId) throw new Error('APPMAX_PLAN_ID_SHAIKRON_BASE não configurada')
-
     const customerId = await garantirCliente(params)
+    const orderId = await criarOrder(customerId)
 
     if (params.paymentMethod === 'pix') {
-      const charge = await appmaxPost('/charge/pix', {
-        customer_id: customerId,
-        amount: 9700, // R$ 97,00 em centavos
-        description: 'Shaikron — Plano Base',
-        digital_product: 1,
-        metadata: { empresaId: params.empresaId, planId },
+      const expiration = new Date(Date.now() + 30 * 60 * 1000) // 30 min
+      const expirationStr = expiration.toISOString().replace('T', ' ').slice(0, 19)
+
+      const res = await appmaxPost('/payment/pix', {
+        cart: { order_id: orderId },
+        customer: { customer_id: customerId },
+        payment: {
+          pix: {
+            document_number: params.userCpf?.replace(/\D/g, '') ?? '00000000000',
+            expiration_date: expirationStr,
+          },
+        },
       })
 
       return {
         gateway: 'appmax',
-        customerId,
+        customerId: String(customerId),
+        subscriptionId: String(orderId),
         pix: {
-          qrCode: charge.data.pix_qr_code,
-          qrCodeBase64: charge.data.pix_qr_code_base64 ?? '',
-          expiresAt: charge.data.expires_at,
+          qrCode: res.data?.pix_qr_code ?? res.data?.qr_code ?? '',
+          qrCodeBase64: res.data?.pix_qr_code_base64 ?? res.data?.qr_code_base64 ?? '',
+          expiresAt: expiration.toISOString(),
           valor: 97.0,
         },
       }
     }
 
     if (params.paymentMethod === 'boleto') {
-      const charge = await appmaxPost('/charge/boleto', {
-        customer_id: customerId,
-        amount: 9700,
-        description: 'Shaikron — Plano Base',
-        digital_product: 1,
-        metadata: { empresaId: params.empresaId, planId },
+      const res = await appmaxPost('/payment/boleto', {
+        cart: { order_id: orderId },
+        customer: { customer_id: customerId },
+        payment: {
+          boleto: {
+            document_number: params.userCpf?.replace(/\D/g, '') ?? '00000000000',
+          },
+        },
       })
 
       return {
         gateway: 'appmax',
-        customerId,
+        customerId: String(customerId),
+        subscriptionId: String(orderId),
         boleto: {
-          url: charge.data.boleto_url,
-          barcode: charge.data.boleto_barcode,
-          expiresAt: charge.data.expires_at,
+          url: res.data?.boleto_url ?? res.data?.url ?? '',
+          barcode: res.data?.boleto_barcode ?? res.data?.barcode ?? '',
+          expiresAt: res.data?.expires_at ?? new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString(),
         },
       }
     }
 
-    // card_br — checkout hospedado no AppMax
-    const sub = await appmaxPost('/subscription', {
-      customer_id: customerId,
-      plan_id: planId,
-      payment_method: 'credit_card',
-      digital_product: 1,
-      redirect_url: params.successUrl,
-      cancel_url: params.cancelUrl,
-      metadata: { empresaId: params.empresaId },
-    })
+    // card_br — checkout hospedado AppMax (redireciona para URL gerada pela AppMax)
+    // Como a AppMax não tem checkout hospedado via API para card, usamos o link de pagamento do order
+    const checkoutUrl = `https://pay.appmax.com.br/${orderId}`
 
     return {
-      url: sub.data.checkout_url,
+      url: checkoutUrl,
       gateway: 'appmax',
-      customerId,
-      subscriptionId: String(sub.data.id),
+      customerId: String(customerId),
+      subscriptionId: String(orderId),
     }
   }
 
   async createPortalSession(_params: GatewayPortalParams): Promise<{ url: string }> {
-    // AppMax não tem portal de auto-serviço — redireciona para suporte interno
     const dashUrl = process.env.SHAIKRON_APP_URL ?? 'https://app.shaikron.scheffelt.xyz'
     return { url: `${dashUrl}/conta` }
   }
 
-  async cancelSubscription(subscriptionId: string): Promise<void> {
-    await appmaxPost(`/subscription/${subscriptionId}/cancel`, {})
+  async cancelSubscription(orderId: string): Promise<void> {
+    // AppMax não tem cancelamento de assinatura recorrente via API — registramos internamente
+    // O controle de renovação é feito pelo nosso sistema (n8n + webhook)
+    await appmaxPost('/order/cancel', { order_id: Number(orderId) }).catch(() => {})
   }
 }

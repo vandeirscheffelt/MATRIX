@@ -27,29 +27,27 @@ export async function appmaxShaikronWebhookRoutes(app: FastifyInstance) {
     const data = event?.data ?? {}
 
     // empresaId vem no metadata que enviamos ao criar a cobrança/assinatura
-    const empresaId: string | undefined = data?.metadata?.empresaId ?? data?.order?.metadata?.empresaId
+    // AppMax não tem metadata customizado — buscamos por order_id no nosso banco
+    const orderId: string | undefined = String(data?.order_id ?? data?.id ?? '')
 
-    app.log.info({ eventType, empresaId }, 'appmax webhook recebido')
+    app.log.info({ eventType, orderId }, 'appmax webhook recebido')
+
+    // Busca a assinatura pelo order_id que armazenamos como appMaxSubscriptionId
+    const findSub = async () => {
+      if (!orderId) return null
+      return prisma.subscription.findFirst({ where: { appMaxSubscriptionId: orderId } })
+    }
+
+    const periodEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 
     switch (eventType) {
-      // Pagamento aprovado — ativa assinatura
-      case 'payment.approved':
-      case 'charge.approved': {
-        if (!empresaId) break
+      case 'payment.approved': {
+        const sub = await findSub()
+        if (!sub) break
 
-        const expiresAt = data.expires_at ? new Date(data.expires_at) : null
-        const periodEndsAt = expiresAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-
-        await prisma.subscription.upsert({
-          where: { empresaId },
-          create: {
-            empresaId,
-            paymentGateway: 'appmax',
-            appMaxCustomerId: String(data.customer_id ?? ''),
-            status: 'ACTIVE',
-            periodEndsAt,
-          },
-          update: {
+        await prisma.subscription.update({
+          where: { id: sub.id },
+          data: {
             status: 'ACTIVE',
             periodEndsAt,
             ...(data.customer_id ? { appMaxCustomerId: String(data.customer_id) } : {}),
@@ -58,66 +56,27 @@ export async function appmaxShaikronWebhookRoutes(app: FastifyInstance) {
         break
       }
 
-      // Assinatura ativada (recorrência)
-      case 'subscription.active':
-      case 'subscription.renewed': {
-        if (!empresaId) break
-
-        const nextBilling = data.next_billing_at ? new Date(data.next_billing_at) : null
-
-        await prisma.subscription.upsert({
-          where: { empresaId },
-          create: {
-            empresaId,
-            paymentGateway: 'appmax',
-            appMaxCustomerId: String(data.customer_id ?? ''),
-            appMaxSubscriptionId: String(data.id ?? ''),
-            status: 'ACTIVE',
-            ...(nextBilling ? { periodEndsAt: nextBilling } : {}),
-          },
-          update: {
-            status: 'ACTIVE',
-            ...(nextBilling ? { periodEndsAt: nextBilling } : {}),
-            ...(data.id ? { appMaxSubscriptionId: String(data.id) } : {}),
-          },
-        })
-        break
-      }
-
-      // Pagamento recusado / em atraso
-      case 'payment.refused':
-      case 'charge.refused':
-      case 'subscription.overdue': {
-        if (!empresaId) break
-
-        await prisma.subscription.updateMany({
-          where: { empresaId },
+      case 'payment.failed':
+      case 'payment.cancelled': {
+        const sub = await findSub()
+        if (!sub) break
+        await prisma.subscription.update({
+          where: { id: sub.id },
           data: { status: 'PAST_DUE' },
         })
         break
       }
 
-      // Assinatura cancelada
-      case 'subscription.canceled':
-      case 'subscription.expired': {
-        if (!empresaId) break
-
-        await prisma.subscription.updateMany({
-          where: { empresaId },
-          data: { status: 'CANCELED' },
-        })
-        break
-      }
-
-      // Reembolso
-      case 'payment.refunded':
-      case 'charge.refunded': {
-        if (!empresaId) break
-
-        await prisma.subscription.updateMany({
-          where: { empresaId },
-          data: { status: 'CANCELED' },
-        })
+      case 'order.updated': {
+        // Verifica se o status do pedido indica pagamento aprovado
+        if (data?.status === 'approved' || data?.payment_status === 'approved') {
+          const sub = await findSub()
+          if (!sub) break
+          await prisma.subscription.update({
+            where: { id: sub.id },
+            data: { status: 'ACTIVE', periodEndsAt },
+          })
+        }
         break
       }
     }
