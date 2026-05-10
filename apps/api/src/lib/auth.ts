@@ -29,6 +29,7 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
   ;(request as any).userId = usuario.id
   ;(request as any).empresaId = usuario.empresaId
   ;(request as any).role = usuario.role
+  ;(request as any).userEmail = user.email ?? ''
 }
 
 // Bloqueia se não for ADMIN_GLOBAL
