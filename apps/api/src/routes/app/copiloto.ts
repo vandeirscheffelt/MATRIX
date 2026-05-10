@@ -220,7 +220,8 @@ ESTRUTURA OBRIGATÓRIA (nesta ordem):
 1. Apresentação: quem é o assistente, para qual empresa e qual o tipo de negócio
 2. Se houver equipe no campo "equipe": para cada profissional, mencione o nome, os serviços (com duração) e os dias/horários de atendimento
 3. Comportamento: regras de atendimento usando o tom informado
-4. Encerre com: "Para preços e informações adicionais, consulte o FAQ."
+4. Se houver "palavrasChave": inclua uma instrução do tipo "Use preferencialmente termos como: [palavras-chave]" — isso guia o vocabulário do assistente nas conversas
+5. Encerre com esta instrução exata para a IA: "Para responder sobre preços e informações específicas, baseie-se no FAQ disponível."
 
 REGRAS:
 - Máximo ${limitepalavras} palavras
@@ -228,6 +229,7 @@ REGRAS:
 - Use o tom exatamente como informado no campo "tom"
 - NÃO inclua: confirmar identidade/documentos, verificar disponibilidade no sistema, encaminhar para equipe humana
 - Se não souber responder: informe que vai verificar e retorna em breve
+- A instrução do FAQ é para a IA — não é para dizer ao cliente "consulte o FAQ"
 - Português brasileiro. Sem markdown, sem asteriscos, sem numeração.`,
         },
         { role: 'user', content: JSON.stringify(dados, null, 2) },
