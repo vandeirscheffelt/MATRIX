@@ -29,9 +29,6 @@ export interface OnboardingFormState {
   autoResumeMinutes: number;
   confirmacaoAntecedenciaHoras: number;
   coletarCadastroCompleto: boolean;
-  coletarEndereco: boolean;
-  lgpdAtivo: boolean;
-  lgpdTexto: string;
 }
 
 export type OnboardingField = keyof OnboardingFormState;
@@ -57,9 +54,6 @@ const INITIAL_STATE: OnboardingFormState = {
   autoResumeMinutes: 10,
   confirmacaoAntecedenciaHoras: 2,
   coletarCadastroCompleto: false,
-  coletarEndereco: false,
-  lgpdAtivo: true,
-  lgpdTexto: "",
 };
 
 const FIELD_WEIGHTS: Record<string, number> = {

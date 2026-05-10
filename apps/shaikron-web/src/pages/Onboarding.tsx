@@ -220,8 +220,6 @@ export default function Onboarding() {
       if (config?.tempoRetornoMin) partial.autoResumeMinutes = config.tempoRetornoMin;
       if (config?.confirmacaoAntecedenciaHoras) partial.confirmacaoAntecedenciaHoras = config.confirmacaoAntecedenciaHoras;
       if (config?.coletarCadastroCompleto !== undefined) partial.coletarCadastroCompleto = config.coletarCadastroCompleto;
-      if (config?.coletarEndereco !== undefined) partial.coletarEndereco = config.coletarEndereco;
-      if (config?.lgpdAtivo !== undefined) partial.lgpdAtivo = config.lgpdAtivo;
       if (config?.lgpdTexto) partial.lgpdTexto = config.lgpdTexto;
       if (Array.isArray(keywords) && keywords.length > 0) partial.keywords = keywords.map((k: any) => k.palavra ?? k);
       if (Array.isArray(faqs) && faqs.length > 0) partial.faqs = faqs.map((f: any) => ({ question: f.pergunta, answer: f.resposta }));
@@ -840,57 +838,20 @@ export default function Onboarding() {
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
                 Coleta de Dados do Cliente
               </label>
-              <div className="rounded-lg border border-border bg-secondary p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium">Cadastro completo</p>
-                    <p className="text-xs text-muted-foreground">
-                      {form.coletarCadastroCompleto
-                        ? "A IA coleta todos os campos do cadastro (CRM)"
-                        : "A IA coleta apenas Nome + Telefone"}
-                    </p>
-                  </div>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { value: false, label: "Só agenda", sub: "Nome + Telefone" },
+                  { value: true,  label: "Cadastro CRM", sub: "Campos do perfil do cliente" },
+                ] as const).map((opt) => (
                   <button
-                    onClick={() => { const v = !form.coletarCadastroCompleto; update("coletarCadastroCompleto", v); api.patch("/app/config/coleta-dados", { coletarCadastroCompleto: v }).catch(() => null); }}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${form.coletarCadastroCompleto ? "bg-primary" : "bg-muted-foreground/30"}`}
+                    key={String(opt.value)}
+                    onClick={() => { update("coletarCadastroCompleto", opt.value); api.patch("/app/config/coleta-dados", { coletarCadastroCompleto: opt.value }).catch(() => null); }}
+                    className={`rounded-lg border px-4 py-3 text-left transition-all ${form.coletarCadastroCompleto === opt.value ? "border-primary bg-primary/10 text-primary" : "border-border bg-secondary text-foreground hover:border-primary/40"}`}
                   >
-                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${form.coletarCadastroCompleto ? "translate-x-4" : "translate-x-1"}`} />
+                    <p className="text-xs font-semibold">{opt.label}</p>
+                    <p className="text-xs opacity-60 mt-0.5">{opt.sub}</p>
                   </button>
-                </div>
-                <div className="flex items-center justify-between border-t border-border pt-3">
-                  <div>
-                    <p className="text-xs font-medium">Coletar endereço</p>
-                    <p className="text-xs text-muted-foreground">Solicitar endereço completo do cliente</p>
-                  </div>
-                  <button
-                    onClick={() => { const v = !form.coletarEndereco; update("coletarEndereco", v); api.patch("/app/config/coleta-dados", { coletarEndereco: v }).catch(() => null); }}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${form.coletarEndereco ? "bg-primary" : "bg-muted-foreground/30"}`}
-                  >
-                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${form.coletarEndereco ? "translate-x-4" : "translate-x-1"}`} />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between border-t border-border pt-3">
-                  <div>
-                    <p className="text-xs font-medium">Consentimento LGPD</p>
-                    <p className="text-xs text-muted-foreground">Solicitar aceite antes de coletar dados</p>
-                  </div>
-                  <button
-                    onClick={() => { const v = !form.lgpdAtivo; update("lgpdAtivo", v); api.patch("/app/config/coleta-dados", { lgpdAtivo: v }).catch(() => null); }}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${form.lgpdAtivo ? "bg-primary" : "bg-muted-foreground/30"}`}
-                  >
-                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${form.lgpdAtivo ? "translate-x-4" : "translate-x-1"}`} />
-                  </button>
-                </div>
-                {form.lgpdAtivo && (
-                  <textarea
-                    value={form.lgpdTexto}
-                    onChange={(e) => update("lgpdTexto", e.target.value)}
-                    onBlur={(e) => { if (e.target.value.trim()) api.patch("/app/config/coleta-dados", { lgpdTexto: e.target.value.trim() }).catch(() => null); }}
-                    placeholder="Texto do consentimento (opcional — será usado um texto padrão se vazio)"
-                    rows={2}
-                    className="w-full rounded-md border border-border bg-muted px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                )}
+                ))}
               </div>
             </div>
 

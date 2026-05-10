@@ -343,9 +343,6 @@ model ConfigBot {
   tomDisplay                    String?  @map("tom_display")
   confirmacaoAntecedenciaHoras  Int?     @default(2) @map("confirmacao_antecedencia_horas")
   coletarCadastroCompleto Boolean @default(false) @map("coletar_cadastro_completo")
-  coletarEndereco      Boolean  @default(false) @map("coletar_endereco")
-  lgpdAtivo            Boolean  @default(true) @map("lgpd_ativo")
-  lgpdTexto            String?  @map("lgpd_texto") @db.Text
   criadoEm             DateTime @default(now()) @map("criado_em")
   atualizadoEm         DateTime @updatedAt @map("atualizado_em")
 

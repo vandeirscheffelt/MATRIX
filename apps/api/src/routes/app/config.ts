@@ -238,16 +238,13 @@ export async function configRoutes(app: FastifyInstance) {
   app.patch('/coleta-dados', { preHandler }, async (request: any, reply) => {
     const body = z.object({
       coletarCadastroCompleto: z.boolean().optional(),
-      coletarEndereco: z.boolean().optional(),
-      lgpdAtivo: z.boolean().optional(),
-      lgpdTexto: z.string().max(500).optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
     return prisma.configBot.upsert({
       where: { empresaId: request.empresaId },
       create: { empresaId: request.empresaId, prompt: '', ...body.data },
       update: body.data,
-      select: { coletarCadastroCompleto: true, coletarEndereco: true, lgpdAtivo: true, lgpdTexto: true },
+      select: { coletarCadastroCompleto: true },
     })
   })
 
