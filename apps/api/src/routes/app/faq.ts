@@ -143,22 +143,21 @@ ${contextoParts}
 
 REGRAS OBRIGATÓRIAS:
 - O cliente já está numa conversa de WhatsApp — NUNCA sugira "entre em contato" ou "nos chame"
-- NUNCA invente informações ausentes no contexto acima, na pergunta/resposta ou no contexto adicional
 - A resposta deve ser direta e concisa: máximo 2 frases curtas ou 40 palavras
 - Use o tom informado (${tom}) na resposta
 - Se houver termos preferenciais, use-os naturalmente
-- Verifique primeiro se o contexto da empresa já responde a pergunta antes de pedir esclarecimento
 
-ORDEM DE DECISÃO:
-1. O contexto da empresa responde? → gere a sugestão com essa informação
-2. O usuário forneceu contexto adicional? → use-o para gerar a sugestão
-3. Ainda falta informação essencial? → peça esclarecimento com UMA pergunta objetiva
-
-QUANDO PEDIR ESCLARECIMENTO retorne APENAS este JSON:
-{"needs_clarification": true, "question": "sua pergunta aqui"}
+REGRA PRINCIPAL — SEMPRE GERE A SUGESTÃO:
+- Se a resposta contiver um número, assuma que é o valor correto (preço, duração, quantidade) e gere a sugestão usando esse valor
+- Se o contexto adicional foi fornecido, use-o imediatamente para gerar a sugestão
+- Em caso de dúvida sobre detalhes secundários, faça a escolha mais razoável e gere a sugestão assim mesmo
+- Só peça esclarecimento se for COMPLETAMENTE impossível gerar qualquer resposta útil — situação rara
 
 QUANDO GERAR SUGESTÃO retorne APENAS este JSON:
-{"needs_clarification": false, "pergunta": "...", "resposta": "..."}`,
+{"needs_clarification": false, "pergunta": "...", "resposta": "..."}
+
+QUANDO PEDIR ESCLARECIMENTO (raramente) retorne APENAS este JSON:
+{"needs_clarification": true, "question": "sua pergunta aqui"}`,
         },
         { role: 'user', content: userContent },
       ],
