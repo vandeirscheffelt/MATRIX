@@ -78,46 +78,87 @@ export async function faqRoutes(app: FastifyInstance) {
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
-    const config = await prisma.configBot.findUnique({
-      where: { empresaId: request.empresaId },
-      select: { tipoNegocio: true, contextoOperacional: true, idioma: true },
-    })
+    const [config, empresa, servicos, keywords] = await Promise.all([
+      prisma.configBot.findUnique({
+        where: { empresaId: request.empresaId },
+        select: {
+          tipoNegocio: true,
+          contextoOperacional: true,
+          prompt: true,
+          nomeAssistente: true,
+          tom: true,
+          tomDisplay: true,
+          idioma: true,
+        },
+      }),
+      prisma.empresa.findUnique({ where: { id: request.empresaId }, select: { nome: true } }),
+      prisma.servico.findMany({ where: { empresaId: request.empresaId, ativo: true }, select: { nome: true, duracaoMin: true } }),
+      prisma.keyword.findMany({ where: { empresaId: request.empresaId }, select: { palavra: true } }),
+    ])
+
     const idioma = config?.idioma ?? 'pt-BR'
+    const tom = config?.tomDisplay ?? (config?.tom === 'FORMAL' ? 'profissional e cordial' : 'amigável e próximo')
+
+    // Usa o prompt completo se já gerado — é a fonte mais rica. Caso contrário, usa o contexto operacional.
+    const contextoEmpresa = config?.prompt
+      ? `[PROMPT DO ASSISTENTE]\n${config.prompt}`
+      : config?.contextoOperacional
+        ? `[CONTEXTO OPERACIONAL]\n${config.contextoOperacional}`
+        : null
+
+    const servicosStr = servicos.length > 0
+      ? servicos.map(s => `${s.nome}${s.duracaoMin ? ` (${s.duracaoMin}min)` : ''}`).join(', ')
+      : null
+    const keywordsStr = keywords.length > 0 ? keywords.map(k => k.palavra).join(', ') : null
+
+    const contextoParts = [
+      `Empresa: ${empresa?.nome ?? 'não informado'}`,
+      `Tipo de negócio: ${config?.tipoNegocio ?? 'não informado'}`,
+      `Assistente: ${config?.nomeAssistente ?? 'não informado'}`,
+      `Tom de resposta: ${tom}`,
+      contextoEmpresa ?? 'Contexto operacional: ainda não gerado',
+      servicosStr ? `Serviços: ${servicosStr}` : null,
+      keywordsStr ? `Termos preferenciais: ${keywordsStr}` : null,
+    ].filter(Boolean).join('\n')
 
     const { default: OpenAI } = await import('openai')
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-    const userContent = body.data.contexto_adicional
-      ? `Pergunta: ${body.data.pergunta}\nResposta: ${body.data.resposta}\nContexto adicional fornecido pelo usuário: ${body.data.contexto_adicional}`
-      : `Pergunta: ${body.data.pergunta}\nResposta: ${body.data.resposta}`
+    const userContent = [
+      `Pergunta: ${body.data.pergunta}`,
+      `Resposta atual: ${body.data.resposta}`,
+      body.data.contexto_adicional ? `Contexto adicional do usuário: ${body.data.contexto_adicional}` : null,
+    ].filter(Boolean).join('\n')
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-5-mini',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: `You improve FAQ questions and answers for a WhatsApp AI assistant.
-IMPORTANT: respond entirely in the language "${idioma}".
+          content: `Você melhora perguntas e respostas do FAQ de um assistente de WhatsApp.
+Responda SEMPRE no idioma: ${idioma}.
 
-COMPANY CONTEXT (read carefully before any decision):
-- Business type: ${config?.tipoNegocio ?? 'not informed'}
-- Operational context: ${config?.contextoOperacional ?? 'not informed'}
+CONTEXTO DA EMPRESA:
+${contextoParts}
 
-MANDATORY RULES:
-- The customer IS ALREADY in a WhatsApp conversation — NEVER suggest "contact us" or "get in touch"
-- NEVER invent information not present in the company context, question/answer or additional context
-- Before asking for clarification, check if the answer is already in the operational context above
+REGRAS OBRIGATÓRIAS:
+- O cliente já está numa conversa de WhatsApp — NUNCA sugira "entre em contato" ou "nos chame"
+- NUNCA invente informações ausentes no contexto acima, na pergunta/resposta ou no contexto adicional
+- A resposta deve ser direta e concisa: máximo 2 frases curtas ou 40 palavras
+- Use o tom informado (${tom}) na resposta
+- Se houver termos preferenciais, use-os naturalmente
+- Verifique primeiro se o contexto da empresa já responde a pergunta antes de pedir esclarecimento
 
-DECISION ORDER:
-1. If the operational context already answers the question → generate the suggestion using that information
-2. If additional context was provided by the user → use it to generate the suggestion
-3. Only if there is insufficient information in any source → ask for clarification with ONE specific question
+ORDEM DE DECISÃO:
+1. O contexto da empresa responde? → gere a sugestão com essa informação
+2. O usuário forneceu contexto adicional? → use-o para gerar a sugestão
+3. Ainda falta informação essencial? → peça esclarecimento com UMA pergunta objetiva
 
-WHEN ASKING FOR CLARIFICATION:
-- Return: {"needs_clarification": true, "question": "your question here"}
+QUANDO PEDIR ESCLARECIMENTO:
+{"needs_clarification": true, "question": "sua pergunta aqui"}
 
-WHEN GENERATING SUGGESTION:
-- Return: {"needs_clarification": false, "pergunta": "...", "resposta": "..."}`,
+QUANDO GERAR SUGESTÃO:
+{"needs_clarification": false, "pergunta": "...", "resposta": "..."}`,
         },
         { role: 'user', content: userContent },
       ],
