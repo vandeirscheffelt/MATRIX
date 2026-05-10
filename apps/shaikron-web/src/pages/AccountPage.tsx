@@ -50,15 +50,37 @@ export default function AccountPage() {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [pixData, setPixData] = useState<{ qrCode: string; qrCodeBase64: string; expiresAt: string; valor: number } | null>(null);
   const [boletoData, setBoletoData] = useState<{ url: string; barcode: string; expiresAt: string } | null>(null);
+  const [cpfPendingMethod, setCpfPendingMethod] = useState<"pix" | "boleto" | null>(null);
+  const [cpf, setCpf] = useState("");
+  const [cpfError, setCpfError] = useState("");
 
-  const handleActivateSubscription = useCallback(async (paymentMethod: "pix" | "boleto" | "card_br" | "card_intl") => {
+  const formatCpf = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 11);
+    return digits
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  };
+
+  const handleCpfChange = (value: string) => {
+    const formatted = formatCpf(value);
+    setCpf(formatted);
+    const digits = formatted.replace(/\D/g, "");
+    if (digits.length > 0 && digits.length < 11) {
+      setCpfError("CPF incompleto");
+    } else {
+      setCpfError("");
+    }
+  };
+
+  const handleActivateSubscription = useCallback(async (paymentMethod: "pix" | "boleto" | "card_br" | "card_intl", userCpf?: string) => {
     setCheckoutLoading(paymentMethod);
     setPixData(null);
     setBoletoData(null);
     try {
       const successUrl = `${window.location.origin}/billing/success`;
       const cancelUrl = `${window.location.origin}/account`;
-      const data = await api.post<any>("/app/billing/checkout", { successUrl, cancelUrl, paymentMethod });
+      const data = await api.post<any>("/app/billing/checkout", { successUrl, cancelUrl, paymentMethod, userCpf });
       if (data.url) {
         window.location.href = data.url;
       } else if (data.pix) {
@@ -72,8 +94,27 @@ export default function AccountPage() {
       alert(err instanceof Error ? err.message : t("billing.errorRedirect"));
     } finally {
       setCheckoutLoading(null);
+      setCpfPendingMethod(null);
+      setCpf("");
     }
   }, [t]);
+
+  const handlePixOrBoleto = (method: "pix" | "boleto") => {
+    setPixData(null);
+    setBoletoData(null);
+    setCpf("");
+    setCpfError("");
+    setCpfPendingMethod(method);
+  };
+
+  const handleConfirmCpf = () => {
+    const digits = cpf.replace(/\D/g, "");
+    if (digits.length !== 11) {
+      setCpfError("Digite um CPF válido com 11 dígitos");
+      return;
+    }
+    handleActivateSubscription(cpfPendingMethod!, digits);
+  };
 
   const statusConfig: Record<AccountStatus, { label: string; detail: string; variant: "default" | "secondary" | "destructive" }> = {
     trial: { label: t("account.trialActive"), detail: t("account.daysRemaining"), variant: "default" },
@@ -138,9 +179,9 @@ export default function AccountPage() {
 
                 <div className="grid grid-cols-3 gap-2">
                   <Button
-                    variant="outline"
+                    variant={cpfPendingMethod === "pix" ? "default" : "outline"}
                     className="flex flex-col h-auto py-3 gap-1 border-primary/40 hover:border-primary hover:bg-primary/5"
-                    onClick={() => handleActivateSubscription("pix")}
+                    onClick={() => handlePixOrBoleto("pix")}
                     disabled={!!checkoutLoading}
                   >
                     <QrCode className="h-4 w-4 text-primary" />
@@ -149,9 +190,9 @@ export default function AccountPage() {
                   </Button>
 
                   <Button
-                    variant="outline"
+                    variant={cpfPendingMethod === "boleto" ? "default" : "outline"}
                     className="flex flex-col h-auto py-3 gap-1 border-primary/40 hover:border-primary hover:bg-primary/5"
-                    onClick={() => handleActivateSubscription("boleto")}
+                    onClick={() => handlePixOrBoleto("boleto")}
                     disabled={!!checkoutLoading}
                   >
                     <FileText className="h-4 w-4 text-primary" />
@@ -170,6 +211,34 @@ export default function AccountPage() {
                     <span className="text-[10px] text-muted-foreground">Renovação automática</span>
                   </Button>
                 </div>
+
+                {/* CPF input — aparece ao selecionar PIX ou Boleto */}
+                {cpfPendingMethod && !checkoutLoading && (
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                    <p className="text-xs font-medium text-foreground">
+                      Informe seu CPF para gerar o {cpfPendingMethod === "pix" ? "QR Code PIX" : "Boleto"}
+                    </p>
+                    <div className="space-y-1">
+                      <Input
+                        placeholder="000.000.000-00"
+                        value={cpf}
+                        onChange={(e) => handleCpfChange(e.target.value)}
+                        className={`text-sm ${cpfError ? "border-destructive" : ""}`}
+                        onKeyDown={(e) => e.key === "Enter" && handleConfirmCpf()}
+                        autoFocus
+                      />
+                      {cpfError && <p className="text-xs text-destructive">{cpfError}</p>}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={() => setCpfPendingMethod(null)}>
+                        Cancelar
+                      </Button>
+                      <Button size="sm" className="flex-1 text-xs" onClick={handleConfirmCpf} disabled={cpf.replace(/\D/g, "").length !== 11}>
+                        Gerar {cpfPendingMethod === "pix" ? "PIX" : "Boleto"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {checkoutLoading && (
                   <p className="text-xs text-center text-muted-foreground animate-pulse">

@@ -69,8 +69,13 @@ export async function billingRoutes(app: FastifyInstance) {
       successUrl: z.string().url(),
       cancelUrl: z.string().url(),
       paymentMethod: z.enum(['pix', 'boleto', 'card_br', 'card_intl']).default('card_br'),
+      userCpf: z.string().optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    if ((body.data.paymentMethod === 'pix' || body.data.paymentMethod === 'boleto') && !body.data.userCpf) {
+      return reply.code(400).send({ error: 'CPF obrigatório para PIX e Boleto' })
+    }
 
     const gateway = getGateway(body.data.paymentMethod)
 
@@ -79,6 +84,7 @@ export async function billingRoutes(app: FastifyInstance) {
         empresaId: request.empresaId,
         userId: request.userId,
         userEmail: request.userEmail,
+        userCpf: body.data.userCpf,
         paymentMethod: body.data.paymentMethod,
         successUrl: body.data.successUrl,
         cancelUrl: body.data.cancelUrl,
