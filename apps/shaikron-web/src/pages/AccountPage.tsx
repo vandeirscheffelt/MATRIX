@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Phone, CreditCard, Users, Calculator, ShieldCheck, Plus, Bot, Zap, AlertTriangle, Info, QrCode, FileText, Globe } from "lucide-react";
+import { Phone, CreditCard, Users, Calculator, ShieldCheck, Plus, Bot, Zap, AlertTriangle, Info, QrCode, FileText } from "lucide-react";
 import { useProfessionalsContext } from "@/contexts/ProfessionalsContext";
 import { usePricingContext } from "@/contexts/PricingContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -141,7 +141,7 @@ export default function AccountPage() {
                   Escolha como deseja pagar — R$ 97/mês
                 </p>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <Button
                     variant="outline"
                     className="flex flex-col h-auto py-3 gap-1 border-primary/40 hover:border-primary hover:bg-primary/5"
@@ -171,19 +171,8 @@ export default function AccountPage() {
                     disabled={!!checkoutLoading}
                   >
                     <CreditCard className="h-4 w-4 text-primary" />
-                    <span className="text-xs font-medium">Cartão BR</span>
-                    <span className="text-[10px] text-muted-foreground">Débito ou crédito</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className="flex flex-col h-auto py-3 gap-1 border-muted-foreground/30 hover:border-muted-foreground hover:bg-muted/10"
-                    onClick={() => handleActivateSubscription("card_intl")}
-                    disabled={!!checkoutLoading}
-                  >
-                    <Globe className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xs font-medium text-muted-foreground">Cartão Internacional</span>
-                    <span className="text-[10px] text-muted-foreground">Visa, Mastercard...</span>
+                    <span className="text-xs font-medium">Cartão</span>
+                    <span className="text-[10px] text-muted-foreground">Renovação automática</span>
                   </Button>
                 </div>
 
