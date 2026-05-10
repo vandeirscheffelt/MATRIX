@@ -137,27 +137,41 @@ export async function pacientesRoutes(app: FastifyInstance) {
   })
 
   // POST /app/pacientes/upsert-por-whatsapp — usado pela IA01 via n8n
+  // Aceita todos os campos que o prompt instrui a coletar (clínica, salão, genérico)
   app.post('/upsert-por-whatsapp', { preHandler }, async (request: any, reply) => {
     const body = z.object({
       whatsapp: z.string().min(1),
       nome: z.string().min(1),
       telefone: z.string().optional(),
       email: z.string().email().optional().nullable(),
+      dataNascimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+      // campos clínica
+      convenio: z.string().optional().nullable(),
+      carteirinha: z.string().optional().nullable(),
+      alergias: z.string().optional().nullable(),
+      medicacoes: z.string().optional().nullable(),
+      // campos salão / genérico
+      observacoes: z.string().optional().nullable(),
       lgpdAceitoEm: z.string().datetime().optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
+    const { whatsapp, nome, lgpdAceitoEm, dataNascimento, ...rest } = body.data
+
     const data: any = {
-      nome: body.data.nome,
-      telefone: body.data.telefone,
-      email: body.data.email,
+      nome,
       origem: 'whatsapp',
-      ...(body.data.lgpdAceitoEm ? { lgpdAceitoEm: new Date(body.data.lgpdAceitoEm) } : {}),
+      ...rest,
+      ...(dataNascimento ? { dataNascimento: new Date(dataNascimento) } : {}),
+      ...(lgpdAceitoEm ? { lgpdAceitoEm: new Date(lgpdAceitoEm) } : {}),
     }
 
+    // Remove campos undefined para não sobrescrever dados existentes com null
+    Object.keys(data).forEach(k => data[k] === undefined && delete data[k])
+
     const paciente = await prisma.paciente.upsert({
-      where: { empresaId_whatsapp: { empresaId: request.empresaId, whatsapp: body.data.whatsapp } },
-      create: { empresaId: request.empresaId, whatsapp: body.data.whatsapp, ...data },
+      where: { empresaId_whatsapp: { empresaId: request.empresaId, whatsapp } },
+      create: { empresaId: request.empresaId, whatsapp, ...data },
       update: data,
     })
     return paciente
