@@ -13,6 +13,7 @@ import { Phone, CreditCard, Users, Calculator, ShieldCheck, Plus, Bot, Zap, Aler
 import { useProfessionalsContext } from "@/contexts/ProfessionalsContext";
 import { usePricingContext } from "@/contexts/PricingContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { api } from "@/lib/apiClient";
 
 type AccountStatus = "trial" | "active" | "inactive";
 
@@ -55,15 +56,9 @@ export default function AccountPage() {
     setPixData(null);
     setBoletoData(null);
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
       const successUrl = `${window.location.origin}/billing/sucesso`;
       const cancelUrl = `${window.location.origin}/conta`;
-      const res = await fetch(`${API_BASE}/app/billing/checkout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
-        body: JSON.stringify({ successUrl, cancelUrl, paymentMethod }),
-      });
-      const data = await res.json();
+      const data = await api.post<any>("/app/billing/checkout", { successUrl, cancelUrl, paymentMethod });
       if (data.url) {
         window.location.href = data.url;
       } else if (data.pix) {
@@ -73,8 +68,8 @@ export default function AccountPage() {
       } else {
         throw new Error(data.error ?? "Erro ao iniciar checkout");
       }
-    } catch (err: any) {
-      alert(err?.message ?? t("billing.errorRedirect"));
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : t("billing.errorRedirect"));
     } finally {
       setCheckoutLoading(null);
     }
