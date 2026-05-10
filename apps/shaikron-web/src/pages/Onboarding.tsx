@@ -1237,6 +1237,8 @@ export default function Onboarding() {
               onApplyTone={(tone) => update("tone", tone)}
               onApplyKeywords={(kws) => update("keywords", kws)}
               onApplyField={update}
+              promptDesatualizado={promptDesatualizado}
+              contextoDesatualizado={contextoDesatualizado}
             />
           </CopilotErrorBoundary>
         </div>

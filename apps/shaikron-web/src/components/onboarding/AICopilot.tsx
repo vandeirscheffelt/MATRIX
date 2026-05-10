@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Sparkles, Wand2, CheckCircle2, MessageCircle } from "lucide-react";
+import { Sparkles, Wand2, CheckCircle2, MessageCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -16,7 +16,7 @@ interface ExtendedAICopilotProps extends AICopilotProps {
   onApplyField?: (field: any, value: any) => void;
 }
 
-export default function AICopilot({ form, progress, missingFields, onApplyDescription, onApplyFaqs, onApplyTone, onApplyKeywords, onApplyField }: ExtendedAICopilotProps) {
+export default function AICopilot({ form, progress, missingFields, onApplyDescription, onApplyFaqs, onApplyTone, onApplyKeywords, onApplyField, promptDesatualizado, contextoDesatualizado }: ExtendedAICopilotProps) {
   const { language, t } = useLanguage();
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [guidedMode, setGuidedMode] = useState(false);
@@ -124,6 +124,27 @@ export default function AICopilot({ form, progress, missingFields, onApplyDescri
           {progressMessage}
         </p>
       </div>
+
+      {(promptDesatualizado || contextoDesatualizado) && (
+        <div className="mb-4 space-y-2">
+          {contextoDesatualizado && (
+            <div className="flex items-start gap-2 rounded-lg border border-orange-500/30 bg-orange-500/8 px-3 py-2.5">
+              <AlertTriangle className="h-3.5 w-3.5 text-orange-400 mt-0.5 shrink-0" />
+              <p className="text-[11px] text-orange-300 leading-snug">
+                <span className="font-medium">Contexto desatualizado</span> — suas configurações mudaram. Use "Regenerar com IA" no campo Contexto Operacional.
+              </p>
+            </div>
+          )}
+          {promptDesatualizado && (
+            <div className="flex items-start gap-2 rounded-lg border border-orange-500/30 bg-orange-500/8 px-3 py-2.5">
+              <AlertTriangle className="h-3.5 w-3.5 text-orange-400 mt-0.5 shrink-0" />
+              <p className="text-[11px] text-orange-300 leading-snug">
+                <span className="font-medium">Prompt desatualizado</span> — clique em "Regenerar Prompt" no aviso acima para aplicar as mudanças.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {!guidedMode && progress < 60 && (
         <Button

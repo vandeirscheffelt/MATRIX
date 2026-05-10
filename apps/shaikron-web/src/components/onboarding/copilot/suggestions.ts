@@ -1,7 +1,7 @@
 import { Sparkles, Lightbulb, MessageSquare, FileText, Wand2, ArrowRight, TrendingUp } from "lucide-react";
 import type { OnboardingFormState } from "@/hooks/useOnboardingForm";
 import type { Suggestion } from "./types";
-import { generateDescription, expandDescription, generateFAQs, getToneRecommendation, generateKeywords } from "./generators";
+import { generateFAQs, getToneRecommendation, generateKeywords } from "./generators";
 
 export function generateSuggestions(form: OnboardingFormState, missingFields: string[], t: (key: string, params?: Record<string, string | number>) => string, appLang?: string): Suggestion[] {
   const suggestions: Suggestion[] = [];
@@ -9,22 +9,22 @@ export function generateSuggestions(form: OnboardingFormState, missingFields: st
   if (missingFields.includes("description")) {
     if (!form.description.trim()) {
       suggestions.push({
-        id: "desc-empty", type: "description", icon: FileText, label: t("copilot.contextBuilder"),
-        message: t("copilot.noContext"),
-        payload: generateDescription(form), priority: 1,
+        id: "desc-empty", type: "general", icon: FileText, label: "Contexto Operacional",
+        message: 'Seu assistente ainda não tem contexto operacional. Preencha o tipo de negócio e o nome do assistente, depois clique em "Gerar com IA" na seção Contexto Operacional.',
+        priority: 1,
       });
     } else if (form.description.trim().length <= 20) {
       suggestions.push({
-        id: "desc-short", type: "description", icon: FileText, label: t("copilot.contextBuilder"),
-        message: t("copilot.descTooShort"),
-        payload: expandDescription(form), priority: 2,
+        id: "desc-short", type: "general", icon: FileText, label: "Contexto Operacional",
+        message: 'O contexto operacional está muito curto. Clique em "Regenerar com IA" para que o Copiloto recrie um perfil completo com base nas suas configurações.',
+        priority: 2,
       });
     }
   } else if (form.description.trim().length > 20 && form.description.trim().length < 80) {
     suggestions.push({
-      id: "desc-improve", type: "description", icon: Wand2, label: t("copilot.contextBuilder"),
-      message: t("copilot.descImprove"),
-      payload: expandDescription(form), priority: 5,
+      id: "desc-improve", type: "general", icon: Wand2, label: "Contexto Operacional",
+      message: 'O contexto operacional pode ser mais detalhado. Se adicionou profissionais ou serviços, clique em "Regenerar com IA" para atualizar.',
+      priority: 5,
     });
   }
 

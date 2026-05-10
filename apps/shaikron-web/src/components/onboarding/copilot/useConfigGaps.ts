@@ -59,16 +59,16 @@ export function useConfigGaps(form: OnboardingFormState, t: (key: string, params
       result.push({
         id: "no-desc",
         severity: "critical",
-        title: "Perfil do assistente não gerado",
-        description: `Clique em "Gerar com IA" para o Copiloto criar automaticamente o perfil do seu assistente com base nas suas configurações.`,
+        title: "Contexto Operacional não gerado",
+        description: `Use o botão "Gerar com IA" na seção Contexto Operacional para criar automaticamente o perfil do seu assistente.`,
         fieldId: "field-description",
       });
     } else if (descLen <= 40) {
       result.push({
         id: "weak-desc",
         severity: "important",
-        title: "Perfil do assistente muito curto",
-        description: `Clique em "Regenerar com IA" para o Copiloto recriar um perfil mais completo para o seu assistente.`,
+        title: "Contexto Operacional muito curto",
+        description: `Use "Regenerar com IA" para que o Copiloto expanda o perfil com base em todas as suas configurações atuais.`,
         fieldId: "field-description",
       });
     }
