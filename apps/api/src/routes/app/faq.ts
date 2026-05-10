@@ -131,7 +131,7 @@ export async function faqRoutes(app: FastifyInstance) {
     ].filter(Boolean).join('\n')
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5-mini',
       messages: [
         {
           role: 'system',
@@ -154,18 +154,19 @@ ORDEM DE DECISÃO:
 2. O usuário forneceu contexto adicional? → use-o para gerar a sugestão
 3. Ainda falta informação essencial? → peça esclarecimento com UMA pergunta objetiva
 
-QUANDO PEDIR ESCLARECIMENTO:
+QUANDO PEDIR ESCLARECIMENTO retorne APENAS este JSON:
 {"needs_clarification": true, "question": "sua pergunta aqui"}
 
-QUANDO GERAR SUGESTÃO:
+QUANDO GERAR SUGESTÃO retorne APENAS este JSON:
 {"needs_clarification": false, "pergunta": "...", "resposta": "..."}`,
         },
         { role: 'user', content: userContent },
       ],
-      response_format: { type: 'json_object' },
     })
 
-    const result = JSON.parse(completion.choices[0]?.message?.content ?? '{}')
+    const raw = completion.choices[0]?.message?.content ?? '{}'
+    const jsonMatch = raw.match(/\{[\s\S]*\}/)
+    const result = jsonMatch ? JSON.parse(jsonMatch[0]) : {}
 
     if (result.needs_clarification) {
       return { needs_clarification: true, question: result.question ?? 'Pode fornecer mais detalhes sobre esta resposta?' }
