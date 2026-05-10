@@ -143,10 +143,18 @@ export async function copilotoRoutes(app: FastifyInstance) {
   app.post('/gerar-contexto', { preHandler }, async (request: any) => {
     const empresaId = request.empresaId
 
+    const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+
     const [empresa, config, profissionais, servicos, faqEntries, keywords] = await Promise.all([
       prisma.empresa.findUnique({ where: { id: empresaId }, select: { nome: true } }),
       prisma.configBot.findUnique({ where: { empresaId } }),
-      prisma.profissional.findMany({ where: { empresaId, ativo: true }, select: { nome: true } }),
+      prisma.profissional.findMany({
+        where: { empresaId, ativo: true },
+        include: {
+          gradeHorarios: { orderBy: { diaSemana: 'asc' } },
+          profissionalServicos: { include: { servico: true } },
+        },
+      }),
       prisma.servico.findMany({ where: { empresaId, ativo: true }, select: { nome: true, duracaoMin: true } }),
       prisma.faqEntry.findMany({ where: { empresaId }, select: { pergunta: true }, take: 10 }),
       prisma.keyword.findMany({ where: { empresaId }, select: { palavra: true } }),
@@ -160,22 +168,34 @@ export async function copilotoRoutes(app: FastifyInstance) {
     const identidade = config?.identidade ?? 'assistente_virtual'
     const ehHumano = identidade === 'atendente_humano'
 
+    const equipe = profissionais.map((p: any) => {
+      const servicosProp = p.profissionalServicos.map((ps: any) =>
+        `${ps.servico.nome}${ps.servico.duracaoMin ? ` (${ps.servico.duracaoMin}min)` : ''}`
+      )
+      const diasGrade = p.gradeHorarios.map((g: any) =>
+        `${DIAS[g.diaSemana]} ${g.horaInicio}-${g.horaFim}`
+      )
+      return {
+        nome: p.nome,
+        servicos: servicosProp,
+        diasHorarios: diasGrade,
+      }
+    })
+
     const dados = {
       nomeAssistente,
       nomeEmpresa: empresa?.nome ?? 'empresa',
       tipoNegocio: config?.tipoNegocio ?? '',
       tom: tomDisplay,
       identidade: ehHumano ? 'atendente humano (não revelar que é IA)' : 'assistente virtual',
-      horarioInicio: config?.horarioInicio ?? '08:00',
-      horarioFim: config?.horarioFim ?? '18:00',
-      profissionais: profissionais.map((p: any) => p.nome),
-      servicos: servicos.map((s: any) => `${s.nome}${s.duracaoMin ? ` (${s.duracaoMin}min)` : ''}`),
+      horarioFuncionamento: `${config?.horarioInicio ?? '08:00'} às ${config?.horarioFim ?? '18:00'}`,
+      equipe,
+      servicosDisponiveis: servicos.map((s: any) => `${s.nome}${s.duracaoMin ? ` (${s.duracaoMin}min)` : ''}`),
       palavrasChave: keywords.map((k: any) => k.palavra),
-      totalFaq: faqEntries.length,
     }
 
-    const temProfissionais = dados.profissionais.length > 0
-    const limitepalavras = temProfissionais ? 180 : 120
+    const temProfissionais = equipe.length > 0
+    const limitepalavras = temProfissionais ? 220 : 120
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -188,9 +208,9 @@ Gere um CONTEXTO OPERACIONAL com base nos dados fornecidos.
 
 ESTRUTURA OBRIGATÓRIA (nesta ordem):
 1. Apresentação: quem é o assistente, para qual empresa e qual o tipo de negócio
-2. Se houver profissionais na lista: mencione os nomes e os serviços que cada um oferece
+2. Se houver equipe no campo "equipe": para cada profissional, mencione o nome, os serviços (com duração) e os dias/horários de atendimento
 3. Comportamento: regras de atendimento usando o tom informado
-4. Encerre com: "Para preços, serviços e horários exatos, consulte o FAQ."
+4. Encerre com: "Para preços e informações adicionais, consulte o FAQ."
 
 REGRAS:
 - Máximo ${limitepalavras} palavras
