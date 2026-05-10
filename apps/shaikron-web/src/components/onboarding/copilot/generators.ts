@@ -340,12 +340,12 @@ export function generateKeywords(form: OnboardingFormState, appLang?: string): s
   const type = form.businessType || "General";
   const desc = form.description.toLowerCase();
   
-  // Use app language as hint, falling back to form detection
+  // App language is the source of truth — don't override with form detection
   let language: SupportedLanguage;
-  if (appLang === "pt-BR" || appLang === "es") {
+  if (appLang === "en") {
+    language = "en";
+  } else if (appLang === "pt-BR" || appLang === "pt" || appLang === "es") {
     language = "pt";
-  } else if (appLang === "en") {
-    language = detectFormLanguage(form);
   } else {
     language = detectFormLanguage(form);
   }

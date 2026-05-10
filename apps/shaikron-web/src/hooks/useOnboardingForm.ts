@@ -40,7 +40,7 @@ const INITIAL_STATE: OnboardingFormState = {
   businessType: "",
   description: "",
   tone: "Professional",
-  keywords: ["wellness", "health"],
+  keywords: [],
   faqs: [{ question: "", answer: "" }],
   workingHoursStart: "08:00",
   workingHoursEnd: "18:00",

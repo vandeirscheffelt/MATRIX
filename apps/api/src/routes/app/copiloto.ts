@@ -192,12 +192,15 @@ export async function copilotoRoutes(app: FastifyInstance) {
       }
     })
 
+    const idioma = config?.idioma ?? 'pt-BR'
+
     const dados = {
       nomeAssistente,
       nomeEmpresa: empresa?.nome ?? 'empresa',
       tipoNegocio: TIPO_PT[config?.tipoNegocio ?? ''] ?? config?.tipoNegocio ?? '',
       tom: tomDisplay,
       identidade: ehHumano ? 'atendente humano (não revelar que é IA)' : 'assistente virtual',
+      idioma,
       horarioFuncionamento: `${config?.horarioInicio ?? '08:00'} às ${config?.horarioFim ?? '18:00'}`,
       equipe,
       servicosDisponiveis: servicos.map((s: any) => `${s.nome}${s.duracaoMin ? ` (${s.duracaoMin}min)` : ''}`),
@@ -230,7 +233,9 @@ REGRAS:
 - NÃO inclua: confirmar identidade/documentos, verificar disponibilidade no sistema, encaminhar para equipe humana
 - Se não souber responder: informe que vai verificar e retorna em breve
 - A instrução do FAQ é para a IA — não é para dizer ao cliente "consulte o FAQ"
-- Português brasileiro. Sem markdown, sem asteriscos, sem numeração.`,
+- Gere todo o contexto no idioma configurado em "idioma" (ex: pt-BR = português, en = inglês)
+- Se as palavrasChave estiverem em idioma diferente do configurado, traduza-as para o idioma correto antes de incluir
+- Sem markdown, sem asteriscos, sem numeração.`,
         },
         { role: 'user', content: JSON.stringify(dados, null, 2) },
       ],
