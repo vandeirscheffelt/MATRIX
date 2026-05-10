@@ -508,12 +508,13 @@ export default function Onboarding() {
         return { ...faq, answer: suggestionText, question: appliedQuestion };
       });
       update("faqs", updated);
+      saveFaqs(updated);
     }
 
     setImproveError(null);
     setPendingSuggestion(null);
     toast.success(t("suggest.applied"));
-  }, [pendingSuggestion, update]);
+  }, [pendingSuggestion, update, saveFaqs]);
 
   const handleDismissSuggestion = useCallback(() => {
     setPendingSuggestion(null);
