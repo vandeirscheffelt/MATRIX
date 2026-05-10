@@ -54,20 +54,27 @@ export default function AccountPage() {
   const [cpf, setCpf] = useState("");
   const [cpfError, setCpfError] = useState("");
 
-  const formatCpf = (value: string) => {
-    const digits = value.replace(/\D/g, "").slice(0, 11);
+  const formatDocument = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 14);
+    if (digits.length <= 11) {
+      return digits
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    }
     return digits
+      .replace(/(\d{2})(\d)/, "$1.$2")
       .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+      .replace(/(\d{3})(\d)/, "$1/$2")
+      .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
   };
 
   const handleCpfChange = (value: string) => {
-    const formatted = formatCpf(value);
+    const formatted = formatDocument(value);
     setCpf(formatted);
     const digits = formatted.replace(/\D/g, "");
-    if (digits.length > 0 && digits.length < 11) {
-      setCpfError("CPF incompleto");
+    if (digits.length > 0 && digits.length !== 11 && digits.length !== 14) {
+      setCpfError("Digite um CPF (11 dígitos) ou CNPJ (14 dígitos) válido");
     } else {
       setCpfError("");
     }
@@ -109,8 +116,8 @@ export default function AccountPage() {
 
   const handleConfirmCpf = () => {
     const digits = cpf.replace(/\D/g, "");
-    if (digits.length !== 11) {
-      setCpfError("Digite um CPF válido com 11 dígitos");
+    if (digits.length !== 11 && digits.length !== 14) {
+      setCpfError("Digite um CPF (11 dígitos) ou CNPJ (14 dígitos) válido");
       return;
     }
     handleActivateSubscription(cpfPendingMethod!, digits);
@@ -220,7 +227,7 @@ export default function AccountPage() {
                     </p>
                     <div className="space-y-1">
                       <Input
-                        placeholder="000.000.000-00"
+                        placeholder="CPF (000.000.000-00) ou CNPJ (00.000.000/0000-00)"
                         value={cpf}
                         onChange={(e) => handleCpfChange(e.target.value)}
                         className={`text-sm ${cpfError ? "border-destructive" : ""}`}
@@ -233,7 +240,7 @@ export default function AccountPage() {
                       <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={() => setCpfPendingMethod(null)}>
                         Cancelar
                       </Button>
-                      <Button size="sm" className="flex-1 text-xs" onClick={handleConfirmCpf} disabled={cpf.replace(/\D/g, "").length !== 11}>
+                      <Button size="sm" className="flex-1 text-xs" onClick={handleConfirmCpf} disabled={cpf.replace(/\D/g, "").length !== 11 && cpf.replace(/\D/g, "").length !== 14}>
                         Gerar {cpfPendingMethod === "pix" ? "PIX" : "Boleto"}
                       </Button>
                     </div>

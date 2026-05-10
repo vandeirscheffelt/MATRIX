@@ -73,8 +73,11 @@ export async function billingRoutes(app: FastifyInstance) {
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
-    if ((body.data.paymentMethod === 'pix' || body.data.paymentMethod === 'boleto') && !body.data.userCpf) {
-      return reply.code(400).send({ error: 'CPF obrigatório para PIX e Boleto' })
+    if (body.data.paymentMethod === 'pix' || body.data.paymentMethod === 'boleto') {
+      const doc = body.data.userCpf?.replace(/\D/g, '') ?? ''
+      if (doc.length !== 11 && doc.length !== 14) {
+        return reply.code(400).send({ error: 'CPF (11 dígitos) ou CNPJ (14 dígitos) obrigatório para PIX e Boleto' })
+      }
     }
 
     const gateway = getGateway(body.data.paymentMethod)
