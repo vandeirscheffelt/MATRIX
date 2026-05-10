@@ -195,10 +195,9 @@ Exemplo de resultado:
 
     const contexto = completion.choices[0]?.message?.content?.trim() ?? ''
 
-    await prisma.configBot.upsert({
+    await prisma.configBot.update({
       where: { empresaId },
-      create: { empresaId, contextoOperacional: contexto },
-      update: { contextoOperacional: contexto },
+      data: { contextoOperacional: contexto },
     })
 
     return { contexto }
