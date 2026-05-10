@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Plus, X, Clock, User, Pencil, Trash2, Check } from "lucide-react";
+import { Search, Plus, X, Clock, User, Pencil, Trash2, Check, Download } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/apiClient";
 
@@ -185,6 +185,7 @@ export default function PacientesPage() {
   const [newOpen, setNewOpen] = useState(false);
   const [newForm, setNewForm] = useState({ nome: "", contato: "", email: "", dataNascimento: "", convenio: "", carteirinha: "", alergias: "", observacoes: "" });
   const [creating, setCreating] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const limit = 20;
 
@@ -319,6 +320,56 @@ export default function PacientesPage() {
     }
   };
 
+  const handleExportCSV = async () => {
+    setExporting(true);
+    try {
+      const data = await api.get<any>("/app/pacientes?limit=9999&page=1");
+      const rows: PacienteListItem[] = data.data ?? [];
+
+      const esc = (v?: string | null) => {
+        if (!v) return "";
+        const s = String(v);
+        return s.includes(",") || s.includes('"') || s.includes("\n")
+          ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+
+      const headers = [
+        "Nome", "WhatsApp", "Telefone", "Email", "Nascimento",
+        "Convênio", "Carteirinha", "Alergias", "Origem", "Cadastro", "Último Agendamento",
+      ];
+
+      const csvRows = rows.map(p => {
+        const ultimo = p.agendamentos?.[0];
+        return [
+          esc(p.nome),
+          esc(p.whatsapp),
+          esc(p.telefone),
+          esc(p.email),
+          p.dataNascimento ? formatDate(p.dataNascimento) : "",
+          esc(p.convenio),
+          esc(p.carteirinha),
+          esc(p.alergias),
+          esc(p.origem),
+          formatDate(p.criadoEm),
+          ultimo ? formatDateTime(ultimo.inicio) : "",
+        ].join(",");
+      });
+
+      const csv = "﻿" + [headers.join(","), ...csvRows].join("\r\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${labels.plural.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Erro ao exportar");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const totalPages = Math.ceil(total / limit);
   const ef = editForm;
   const setEf = (field: keyof EditForm, val: string) =>
@@ -348,10 +399,22 @@ export default function PacientesPage() {
               {total} {total === 1 ? "cadastrado" : "cadastrados"}
             </p>
           </div>
-          <Button onClick={() => setNewOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Novo {labels.singular}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              disabled={exporting || total === 0}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <Download className="h-4 w-4" />
+              {exporting ? "Exportando..." : "Exportar CSV"}
+            </Button>
+            <Button onClick={() => setNewOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Novo {labels.singular}
+            </Button>
+          </div>
         </div>
 
         {/* Search */}
