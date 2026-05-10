@@ -147,6 +147,8 @@ export default function Onboarding() {
   const [faqClarification, setFaqClarification] = useState<{ field: string; index: number; question: string; faq: { question: string; answer: string } } | null>(null);
   const [faqClarificationInput, setFaqClarificationInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [promptDesatualizado, setPromptDesatualizado] = useState(false);
+  const [regenerandoPrompt, setRegenerandoPrompt] = useState(false);
   const latestFormRef = useRef(form);
   const requestIdRef = useRef(0);
   const requestLockRef = useRef(false);
@@ -220,7 +222,8 @@ export default function Onboarding() {
       if (config?.tempoRetornoMin) partial.autoResumeMinutes = config.tempoRetornoMin;
       if (config?.confirmacaoAntecedenciaHoras) partial.confirmacaoAntecedenciaHoras = config.confirmacaoAntecedenciaHoras;
       if (config?.coletarCadastroCompleto !== undefined) partial.coletarCadastroCompleto = config.coletarCadastroCompleto;
-      if (config?.lgpdTexto) partial.lgpdTexto = config.lgpdTexto;
+      if (config?.generoAssistente) partial.assistantGender = config.generoAssistente;
+      if (config?.promptAtualizado === false) setPromptDesatualizado(true);
       if (Array.isArray(keywords) && keywords.length > 0) partial.keywords = keywords.map((k: any) => k.palavra ?? k);
       if (Array.isArray(faqs) && faqs.length > 0) partial.faqs = faqs.map((f: any) => ({ question: f.pergunta, answer: f.resposta }));
       reset(partial);
@@ -525,6 +528,45 @@ export default function Onboarding() {
         <p className="text-sm text-muted-foreground mt-1">{t("settings.subtitle")}</p>
       </div>
 
+      {promptDesatualizado && (
+        <div className="mb-4 flex items-center justify-between gap-4 rounded-lg border border-orange-500/40 bg-orange-500/10 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-orange-400 shrink-0" />
+            <p className="text-sm text-orange-300">
+              Configurações alteradas — regenere o prompt do assistente para aplicar as mudanças.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 border-orange-500/50 text-orange-300 hover:bg-orange-500/20 hover:text-orange-200 h-8 text-xs"
+            disabled={regenerandoPrompt}
+            onClick={async () => {
+              setRegenerandoPrompt(true);
+              try {
+                const result = await api.post<{ prompt: string }>("/app/config/gerar-prompt", {});
+                if (result?.prompt) {
+                  await api.put("/app/config", { prompt: result.prompt });
+                  await api.patch("/app/config/prompt-confirmado", {});
+                  setPromptDesatualizado(false);
+                  toast.success("Prompt do assistente atualizado com sucesso!");
+                }
+              } catch {
+                toast.error("Erro ao regenerar o prompt. Tente novamente.");
+              } finally {
+                setRegenerandoPrompt(false);
+              }
+            }}
+          >
+            {regenerandoPrompt ? (
+              <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> Gerando...</>
+            ) : (
+              <><Sparkles className="h-3 w-3 mr-1.5" /> Regenerar Prompt</>
+            )}
+          </Button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* LEFT: Form — 3 cols (order-2 on mobile so Copilot appears first) */}
         <div className="lg:col-span-3 space-y-5 order-2 lg:order-1">
@@ -570,7 +612,7 @@ export default function Onboarding() {
                 {businessTypes.map((type) => (
                   <button
                     key={type}
-                    onClick={() => { update("businessType", type); api.patch("/app/config/tipo-negocio", { tipoNegocio: type }).catch(() => null); }}
+                    onClick={() => { update("businessType", type); api.patch("/app/config/tipo-negocio", { tipoNegocio: type }).catch(() => null); setPromptDesatualizado(true); }}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
                       form.businessType === type
                         ? "border-primary bg-primary/15 text-primary glow-blue"
@@ -636,7 +678,7 @@ export default function Onboarding() {
                 {toneOptions.map((tone) => (
                   <button
                     key={tone}
-                    onClick={() => { update("tone", tone); api.patch("/app/config/tom", { tom: tone === "Formal" || tone === "Professional" ? "FORMAL" : "INFORMAL", tomDisplay: tone }).catch(() => null); }}
+                    onClick={() => { update("tone", tone); api.patch("/app/config/tom", { tom: tone === "Formal" || tone === "Professional" ? "FORMAL" : "INFORMAL", tomDisplay: tone }).catch(() => null); setPromptDesatualizado(true); }}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
                       form.tone === tone
                         ? "border-primary bg-primary/15 text-primary glow-blue"
@@ -845,7 +887,7 @@ export default function Onboarding() {
                 ] as const).map((opt) => (
                   <button
                     key={String(opt.value)}
-                    onClick={() => { update("coletarCadastroCompleto", opt.value); api.patch("/app/config/coleta-dados", { coletarCadastroCompleto: opt.value }).catch(() => null); }}
+                    onClick={() => { update("coletarCadastroCompleto", opt.value); api.patch("/app/config/coleta-dados", { coletarCadastroCompleto: opt.value }).catch(() => null); setPromptDesatualizado(true); }}
                     className={`rounded-lg border px-4 py-3 text-left transition-all ${form.coletarCadastroCompleto === opt.value ? "border-primary bg-primary/10 text-primary" : "border-border bg-secondary text-foreground hover:border-primary/40"}`}
                   >
                     <p className="text-xs font-semibold">{opt.label}</p>
@@ -1006,6 +1048,7 @@ export default function Onboarding() {
                     onClick={() => {
                       update("assistantIdentity", opt.value);
                       api.patch("/app/config/identidade", { identidade: opt.value === "virtual" ? "assistente_virtual" : "atendente_humano" }).catch(() => null);
+                      setPromptDesatualizado(true);
                     }}
                     className={`text-left rounded-lg border p-3 transition-all ${
                       form.assistantIdentity === opt.value
@@ -1039,10 +1082,30 @@ export default function Onboarding() {
                 placeholder={t("assistantName.placeholder")}
                 value={form.assistantName}
                 onChange={(e) => update("assistantName", e.target.value)}
-                onBlur={(e) => { if (e.target.value.trim()) api.patch("/app/config/nome-assistente", { nomeAssistente: e.target.value.trim() }).catch(() => null); }}
+                onBlur={(e) => { if (e.target.value.trim()) { api.patch("/app/config/nome-assistente", { nomeAssistente: e.target.value.trim() }).catch(() => null); setPromptDesatualizado(true); } }}
                 maxLength={50}
                 className="bg-secondary border-border"
               />
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Gênero</span>
+                {(["feminino", "masculino", "neutro"] as const).map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => {
+                      update("assistantGender", g);
+                      api.patch("/app/config/genero-assistente", { generoAssistente: g }).catch(() => null);
+                      setPromptDesatualizado(true);
+                    }}
+                    className={`rounded-full border px-3 py-0.5 text-[11px] font-medium transition-all capitalize ${
+                      form.assistantGender === g
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-border bg-secondary text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Working Hours */}

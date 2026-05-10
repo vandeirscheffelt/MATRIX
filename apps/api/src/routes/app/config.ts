@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { prisma } from '@boilerplate/database'
 import { requireAuth, requireActiveSubscription } from '../../lib/auth.js'
 
+const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+
 const configBody = z.object({
   prompt: z.string().min(1).optional(),
   tom: z.enum(['FORMAL', 'INFORMAL']).optional(),
@@ -13,11 +15,46 @@ const configBody = z.object({
   botAtivo: z.boolean().optional(),
 })
 
-const gerarPromptBody = z.object({
-  tipoNegocio: z.string().min(1),
-  nomeEmpresa: z.string().min(1),
-  descricao: z.string().optional(),
-})
+async function buildPromptContext(empresaId: string): Promise<string> {
+  const [config, profissionais, keywords] = await Promise.all([
+    prisma.configBot.findUnique({ where: { empresaId } }),
+    prisma.profissional.findMany({
+      where: { empresaId, ativo: true },
+      include: {
+        gradeHorarios: { orderBy: { diaSemana: 'asc' } },
+        profissionalServicos: { include: { servico: true } },
+      },
+    }),
+    prisma.keyword.findMany({ where: { empresaId } }),
+  ])
+
+  const parts: string[] = []
+
+  if (config?.tipoNegocio) parts.push(`Tipo de negócio: ${config.tipoNegocio}`)
+  if (config?.horarioInicio && config?.horarioFim)
+    parts.push(`Horário de funcionamento: ${config.horarioInicio} às ${config.horarioFim}`)
+  if (keywords.length > 0)
+    parts.push(`Palavras-chave do negócio: ${keywords.map((k: any) => k.palavra).join(', ')}`)
+
+  if (profissionais.length > 0) {
+    const profs = profissionais.map((p: any) => {
+      const servicos = p.profissionalServicos.map((ps: any) => ps.servico.nome).join(', ')
+      const grade = p.gradeHorarios
+        .map((g: any) => `${DIAS_SEMANA[g.diaSemana]} ${g.horaInicio}-${g.horaFim}`)
+        .join(', ')
+      const intervalo = p.intervaloInicio && p.intervaloFim
+        ? ` (intervalo ${p.intervaloInicio}-${p.intervaloFim})`
+        : ''
+      return `- ${p.nome}${servicos ? `: ${servicos}` : ''}${grade ? ` | atende: ${grade}${intervalo}` : ''}`
+    })
+    parts.push(`Equipe:\n${profs.join('\n')}`)
+  }
+
+  if (config?.contextoOperacional)
+    parts.push(`Contexto operacional adicional:\n${config.contextoOperacional}`)
+
+  return parts.join('\n\n')
+}
 
 export async function configRoutes(app: FastifyInstance) {
   const preHandler = [requireAuth, requireActiveSubscription]
@@ -48,7 +85,7 @@ export async function configRoutes(app: FastifyInstance) {
     return config
   })
 
-  // PATCH /app/config/bot-ativo — toggle rápido do cabeçalho
+  // PATCH /app/config/bot-ativo
   app.patch('/bot-ativo', { preHandler }, async (request: any, reply) => {
     const body = z.object({ botAtivo: z.boolean() }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
@@ -68,9 +105,9 @@ export async function configRoutes(app: FastifyInstance) {
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
     return prisma.configBot.upsert({
       where: { empresaId: request.empresaId },
-      create: { empresaId: request.empresaId, prompt: '', idioma: body.data.idioma },
-      update: { idioma: body.data.idioma },
-      select: { idioma: true },
+      create: { empresaId: request.empresaId, prompt: '', idioma: body.data.idioma, promptAtualizado: false },
+      update: { idioma: body.data.idioma, promptAtualizado: false },
+      select: { idioma: true, promptAtualizado: true },
     })
   })
 
@@ -80,9 +117,9 @@ export async function configRoutes(app: FastifyInstance) {
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
     return prisma.configBot.upsert({
       where: { empresaId: request.empresaId },
-      create: { empresaId: request.empresaId, prompt: '', tipoNegocio: body.data.tipoNegocio },
-      update: { tipoNegocio: body.data.tipoNegocio },
-      select: { tipoNegocio: true },
+      create: { empresaId: request.empresaId, prompt: '', tipoNegocio: body.data.tipoNegocio, promptAtualizado: false },
+      update: { tipoNegocio: body.data.tipoNegocio, promptAtualizado: false },
+      select: { tipoNegocio: true, promptAtualizado: true },
     })
   })
 
@@ -92,13 +129,13 @@ export async function configRoutes(app: FastifyInstance) {
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
     return prisma.configBot.upsert({
       where: { empresaId: request.empresaId },
-      create: { empresaId: request.empresaId, prompt: '', contextoOperacional: body.data.contexto },
-      update: { contextoOperacional: body.data.contexto },
-      select: { contextoOperacional: true },
+      create: { empresaId: request.empresaId, prompt: '', contextoOperacional: body.data.contexto, promptAtualizado: false },
+      update: { contextoOperacional: body.data.contexto, promptAtualizado: false },
+      select: { contextoOperacional: true, promptAtualizado: true },
     })
   })
 
-  // POST /app/config/melhorar-contexto — IA reescreve o contexto
+  // POST /app/config/melhorar-contexto
   app.post('/melhorar-contexto', { preHandler }, async (request: any, reply) => {
     const config = await prisma.configBot.findUnique({
       where: { empresaId: request.empresaId },
@@ -111,7 +148,7 @@ export async function configRoutes(app: FastifyInstance) {
     const { default: OpenAI } = await import('openai')
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
     const completion = await openai.chat.completions.create({
-      model: 'gpt-5-mini',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: `You are an expert in configuring AI assistants for businesses. Rewrite the operational context in a clear, professional and detailed way, to be used as an instruction for an AI assistant via WhatsApp. Business type: ${config.tipoNegocio ?? 'not informed'}. IMPORTANT: respond ONLY in the language "${idioma}". Return ONLY the rewritten text, without titles, labels, prefixes or explanations. Do NOT mention communication tone, style or way of speaking — that is configured separately.` },
         { role: 'user', content: config.contextoOperacional },
@@ -127,14 +164,14 @@ export async function configRoutes(app: FastifyInstance) {
       tomDisplay: z.string().min(1).optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
-    const data: any = {}
+    const data: any = { promptAtualizado: false }
     if (body.data.tom) data.tom = body.data.tom
     if (body.data.tomDisplay !== undefined) data.tomDisplay = body.data.tomDisplay
     return prisma.configBot.upsert({
       where: { empresaId: request.empresaId },
       create: { empresaId: request.empresaId, prompt: '', ...data },
       update: data,
-      select: { tom: true, tomDisplay: true },
+      select: { tom: true, tomDisplay: true, promptAtualizado: true },
     })
   })
 
@@ -144,9 +181,21 @@ export async function configRoutes(app: FastifyInstance) {
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
     return prisma.configBot.upsert({
       where: { empresaId: request.empresaId },
-      create: { empresaId: request.empresaId, prompt: '', nomeAssistente: body.data.nomeAssistente },
-      update: { nomeAssistente: body.data.nomeAssistente },
-      select: { nomeAssistente: true },
+      create: { empresaId: request.empresaId, prompt: '', nomeAssistente: body.data.nomeAssistente, promptAtualizado: false },
+      update: { nomeAssistente: body.data.nomeAssistente, promptAtualizado: false },
+      select: { nomeAssistente: true, promptAtualizado: true },
+    })
+  })
+
+  // PATCH /app/config/genero-assistente
+  app.patch('/genero-assistente', { preHandler }, async (request: any, reply) => {
+    const body = z.object({ generoAssistente: z.enum(['masculino', 'feminino', 'neutro']) }).safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+    return prisma.configBot.upsert({
+      where: { empresaId: request.empresaId },
+      create: { empresaId: request.empresaId, prompt: '', generoAssistente: body.data.generoAssistente, promptAtualizado: false },
+      update: { generoAssistente: body.data.generoAssistente, promptAtualizado: false },
+      select: { generoAssistente: true, promptAtualizado: true },
     })
   })
 
@@ -156,9 +205,9 @@ export async function configRoutes(app: FastifyInstance) {
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
     return prisma.configBot.upsert({
       where: { empresaId: request.empresaId },
-      create: { empresaId: request.empresaId, prompt: '', identidade: body.data.identidade },
-      update: { identidade: body.data.identidade },
-      select: { identidade: true },
+      create: { empresaId: request.empresaId, prompt: '', identidade: body.data.identidade, promptAtualizado: false },
+      update: { identidade: body.data.identidade, promptAtualizado: false },
+      select: { identidade: true, promptAtualizado: true },
     })
   })
 
@@ -185,9 +234,9 @@ export async function configRoutes(app: FastifyInstance) {
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
     return prisma.configBot.upsert({
       where: { empresaId: request.empresaId },
-      create: { empresaId: request.empresaId, prompt: '', horarioInicio: body.data.horarioInicio, horarioFim: body.data.horarioFim },
-      update: { horarioInicio: body.data.horarioInicio, horarioFim: body.data.horarioFim },
-      select: { horarioInicio: true, horarioFim: true },
+      create: { empresaId: request.empresaId, prompt: '', horarioInicio: body.data.horarioInicio, horarioFim: body.data.horarioFim, promptAtualizado: false },
+      update: { horarioInicio: body.data.horarioInicio, horarioFim: body.data.horarioFim, promptAtualizado: false },
+      select: { horarioInicio: true, horarioFim: true, promptAtualizado: true },
     })
   })
 
@@ -242,43 +291,81 @@ export async function configRoutes(app: FastifyInstance) {
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
     return prisma.configBot.upsert({
       where: { empresaId: request.empresaId },
-      create: { empresaId: request.empresaId, prompt: '', ...body.data },
-      update: body.data,
-      select: { coletarCadastroCompleto: true },
+      create: { empresaId: request.empresaId, prompt: '', ...body.data, promptAtualizado: false },
+      update: { ...body.data, promptAtualizado: false },
+      select: { coletarCadastroCompleto: true, promptAtualizado: true },
     })
   })
 
-  // POST /app/config/gerar-prompt — IA gera prompt com base no tipo de negócio
-  app.post('/gerar-prompt', { preHandler }, async (request: any, reply) => {
-    const body = gerarPromptBody.safeParse(request.body)
-    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
-
-    const { tipoNegocio, nomeEmpresa, descricao } = body.data
-
-    const configDb = await prisma.configBot.findUnique({
+  // PATCH /app/config/prompt-confirmado — marca prompt como atualizado após regeneração
+  app.patch('/prompt-confirmado', { preHandler }, async (request: any, _reply) => {
+    return prisma.configBot.upsert({
       where: { empresaId: request.empresaId },
-      select: { idioma: true },
+      create: { empresaId: request.empresaId, prompt: '', promptAtualizado: true },
+      update: { promptAtualizado: true },
+      select: { promptAtualizado: true },
     })
-    const idioma = configDb?.idioma ?? 'pt-BR'
+  })
+
+  // POST /app/config/gerar-prompt
+  app.post('/gerar-prompt', { preHandler }, async (request: any, reply) => {
+    const config = await prisma.configBot.findUnique({
+      where: { empresaId: request.empresaId },
+    })
+    if (!config) return reply.code(404).send({ error: 'Config não encontrada' })
+
+    const contexto = await buildPromptContext(request.empresaId)
+    const idioma = config.idioma ?? 'pt-BR'
+
+    const genero = config.generoAssistente ?? 'neutro'
+    const pronomeArtigo = genero === 'feminino' ? 'a' : genero === 'masculino' ? 'o' : ''
+    const pronomeRef = genero === 'feminino' ? 'ela' : genero === 'masculino' ? 'ele' : 'você'
+    const pronomeAdj = genero === 'feminino' ? 'bem-disposta, educada e atenciosa' : genero === 'masculino' ? 'bem-disposto, educado e atencioso' : 'bem-disposto(a), educado(a) e atencioso(a)'
+
+    const identidadeInstrucao = config.identidade === 'atendente_humano'
+      ? `Você se apresenta como ${pronomeArtigo ? pronomeArtigo + ' ' : ''}atendente ${config.nomeAssistente}. Nunca mencione que é uma IA ou assistente virtual. Comporte-se como ${pronomeRef} seria: ${pronomeAdj}.`
+      : `Você é ${pronomeArtigo ? pronomeArtigo + ' ' : ''}assistente virtual chamado(a) ${config.nomeAssistente}.`
+
+    const tomInstrucao = config.tomDisplay
+      ? `Tom de comunicação: ${config.tomDisplay}.`
+      : config.tom === 'INFORMAL'
+      ? 'Tom de comunicação: informal e próximo.'
+      : 'Tom de comunicação: profissional e cordial.'
+
+    const coletaInstrucao = config.coletarCadastroCompleto
+      ? 'Ao agendar pela primeira vez, colete: nome completo, telefone, e-mail e data de nascimento do cliente.'
+      : 'Ao agendar, colete apenas nome e telefone do cliente.'
 
     const { default: OpenAI } = await import('openai')
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-5-mini',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: `You are an expert in creating prompts for WhatsApp AI assistants focused on scheduling.
-Create a complete, professional system prompt for a virtual assistant.
-The prompt must include: persona, objective, scheduling rules, service flows and escalation instructions to humans.
-Do NOT include communication tone, language style or way of speaking — that is configured separately and will be injected automatically.
-IMPORTANT: write the entire prompt in the language "${idioma}".
-Return ONLY the prompt, without any additional explanations.`,
+          content: `Você é especialista em criar prompts para assistentes de IA no WhatsApp focados em agendamento.
+Crie um prompt de sistema completo e profissional usando EXATAMENTE as informações fornecidas pelo usuário.
+
+Regras obrigatórias:
+- Use as informações de identidade, tom e dados da equipe exatamente como fornecidas
+- NÃO inclua instruções para "confirmar identidade" (CPF/RG) — o sistema de CRM não coleta isso
+- NÃO inclua "verificar disponibilidade no sistema" diretamente — o assistente aciona uma agente de agenda separada
+- NÃO inclua "encaminhe para equipe humana" — o mecanismo ainda não existe; substitua por "informe que vai verificar e retorna em breve"
+- Para preços, horários específicos e serviços detalhados, instrua a consultar o FAQ
+- Responda APENAS em ${idioma}
+- Retorne APENAS o prompt, sem explicações adicionais`,
         },
         {
           role: 'user',
-          content: `Business type: ${tipoNegocio}\nBusiness name: ${nomeEmpresa}${descricao ? `\nAdditional description: ${descricao}` : ''}`,
+          content: `Gere o prompt do assistente com base nestas configurações:
+
+IDENTIDADE: ${identidadeInstrucao}
+TOM: ${tomInstrucao}
+COLETA DE DADOS: ${coletaInstrucao}
+
+DADOS DO NEGÓCIO:
+${contexto}`,
         },
       ],
     })

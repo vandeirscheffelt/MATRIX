@@ -7,6 +7,7 @@ export interface FAQ {
 
 export type AiAvailabilityMode = "same" | "24/7" | "custom";
 export type AssistantIdentity = "virtual" | "human";
+export type AssistantGender = "masculino" | "feminino" | "neutro";
 
 export interface OnboardingFormState {
   businessName: string;
@@ -22,6 +23,7 @@ export interface OnboardingFormState {
   aiCustomEnd: string;
   assistantIdentity: AssistantIdentity;
   assistantName: string;
+  assistantGender: AssistantGender;
   cmdTakeover: string;
   cmdPause: string;
   cmdResume: string;
@@ -47,6 +49,7 @@ const INITIAL_STATE: OnboardingFormState = {
   aiCustomEnd: "23:59",
   assistantIdentity: "virtual",
   assistantName: "",
+  assistantGender: "neutro",
   cmdTakeover: "atendente",
   cmdPause: "pausar",
   cmdResume: "voltar",
