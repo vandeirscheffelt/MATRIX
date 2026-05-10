@@ -155,39 +155,43 @@ export async function copilotoRoutes(app: FastifyInstance) {
     const { default: OpenAI } = await import('openai')
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
+    const nomeAssistente = config?.nomeAssistente ?? 'Assistente'
+    const tomDisplay = config?.tomDisplay ?? (config?.tom === 'INFORMAL' ? 'amigável e próximo' : 'profissional e cordial')
+    const identidade = config?.identidade ?? 'assistente_virtual'
+    const ehHumano = identidade === 'atendente_humano'
+
     const dados = {
+      nomeAssistente,
       nomeEmpresa: empresa?.nome ?? 'empresa',
       tipoNegocio: config?.tipoNegocio ?? '',
-      tom: config?.tom ?? 'INFORMAL',
-      identidade: config?.identidade ?? 'assistente_virtual',
-      disponibilidade: config?.disponibilidade ?? 'horario_comercial',
+      tom: tomDisplay,
+      identidade: ehHumano ? 'atendente humano (não revelar que é IA)' : 'assistente virtual',
       horarioInicio: config?.horarioInicio ?? '08:00',
       horarioFim: config?.horarioFim ?? '18:00',
-      profissionais: profissionais.map(p => p.nome),
-      servicos: servicos.map(s => `${s.nome}${s.duracaoMin ? ` (${s.duracaoMin}min)` : ''}`),
-      palavrasChave: keywords.map(k => k.palavra),
+      profissionais: profissionais.map((p: any) => p.nome),
+      servicos: servicos.map((s: any) => `${s.nome}${s.duracaoMin ? ` (${s.duracaoMin}min)` : ''}`),
+      palavrasChave: keywords.map((k: any) => k.palavra),
       totalFaq: faqEntries.length,
     }
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-5-mini',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: `Você é especialista em criar prompts de sistema para assistentes virtuais de WhatsApp de pequenas empresas brasileiras.
+          content: `Você é especialista em criar contextos operacionais para assistentes de WhatsApp de pequenas empresas brasileiras.
 
-Gere um CONTEXTO OPERACIONAL enxuto e eficaz para o assistente desta empresa.
+Gere um CONTEXTO OPERACIONAL enxuto e eficaz com base nos dados fornecidos.
 
 REGRAS OBRIGATÓRIAS:
 1. Máximo 120 palavras — seja direto
-2. Defina: quem é o assistente, para qual empresa, qual o tom de atendimento
-3. Liste apenas regras de comportamento (o que fazer / não fazer)
-4. NUNCA inclua preços, horários exatos ou detalhes de serviços — esses ficam no FAQ
-5. Finalize sempre com: "Para preços, serviços e horários, consulte o FAQ."
-6. Português brasileiro. Sem markdown, sem asteriscos.
-
-Exemplo de resultado:
-"Você é Sofia, recepcionista virtual da Clínica Bem Viver. Atenda com simpatia via WhatsApp. Ajude com agendamentos e dúvidas gerais. Não marque horários indisponíveis no sistema. Se não souber responder, encaminhe para atendimento humano. Nunca invente informações. Para preços, serviços e horários, consulte o FAQ."`,
+2. Use o nome do assistente e a identidade exatamente como informado (se for atendente humano, NÃO mencione IA)
+3. Use o tom de comunicação informado — não use "formal" se o tom for diferente
+4. Liste apenas regras de comportamento claras
+5. NÃO inclua: "confirme identidade/documentos do cliente", "verifique disponibilidade no sistema", "encaminhe para equipe humana" — essas funcionalidades não existem
+6. Para o que não souber responder: instrua a dizer que vai verificar e retornar em breve
+7. Para preços, serviços e horários exatos: instrua a consultar o FAQ
+8. Português brasileiro. Sem markdown, sem asteriscos.`,
         },
         { role: 'user', content: JSON.stringify(dados, null, 2) },
       ],
