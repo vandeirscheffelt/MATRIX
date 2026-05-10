@@ -237,7 +237,7 @@ export async function configRoutes(app: FastifyInstance) {
   // PATCH /app/config/coleta-dados
   app.patch('/coleta-dados', { preHandler }, async (request: any, reply) => {
     const body = z.object({
-      perfilColeta: z.enum(['BASICO', 'PADRAO', 'COMPLETO', 'CLINICO']).optional(),
+      coletarCadastroCompleto: z.boolean().optional(),
       coletarEndereco: z.boolean().optional(),
       lgpdAtivo: z.boolean().optional(),
       lgpdTexto: z.string().max(500).optional(),
@@ -247,7 +247,7 @@ export async function configRoutes(app: FastifyInstance) {
       where: { empresaId: request.empresaId },
       create: { empresaId: request.empresaId, prompt: '', ...body.data },
       update: body.data,
-      select: { perfilColeta: true, coletarEndereco: true, lgpdAtivo: true, lgpdTexto: true },
+      select: { coletarCadastroCompleto: true, coletarEndereco: true, lgpdAtivo: true, lgpdTexto: true },
     })
   })
 

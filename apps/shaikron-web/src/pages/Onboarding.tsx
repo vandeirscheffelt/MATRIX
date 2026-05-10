@@ -219,7 +219,7 @@ export default function Onboarding() {
       if (config?.palavraRetorno) partial.cmdResume = config.palavraRetorno;
       if (config?.tempoRetornoMin) partial.autoResumeMinutes = config.tempoRetornoMin;
       if (config?.confirmacaoAntecedenciaHoras) partial.confirmacaoAntecedenciaHoras = config.confirmacaoAntecedenciaHoras;
-      if (config?.perfilColeta) partial.perfilColeta = config.perfilColeta;
+      if (config?.coletarCadastroCompleto !== undefined) partial.coletarCadastroCompleto = config.coletarCadastroCompleto;
       if (config?.coletarEndereco !== undefined) partial.coletarEndereco = config.coletarEndereco;
       if (config?.lgpdAtivo !== undefined) partial.lgpdAtivo = config.lgpdAtivo;
       if (config?.lgpdTexto) partial.lgpdTexto = config.lgpdTexto;
@@ -840,34 +840,24 @@ export default function Onboarding() {
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
                 Coleta de Dados do Cliente
               </label>
-              {(() => {
-                const perfis = [
-                  { value: "BASICO",   label: "Básico",    add: "Nome + Telefone",             campos: ["Nome", "Telefone"] },
-                  { value: "PADRAO",   label: "Padrão",    add: "+ E-mail + Nascimento",        campos: ["Nome", "Telefone", "E-mail", "Data de nascimento"] },
-                  { value: "COMPLETO", label: "Completo",  add: "+ CPF + Convênio + Alergias",  campos: ["Nome", "Telefone", "E-mail", "Data de nascimento", "CPF", "Convênio", "Alergias"] },
-                  { value: "CLINICO",  label: "Clínico",   add: "+ Medicações + Histórico",     campos: ["Nome", "Telefone", "E-mail", "Data de nascimento", "CPF", "Convênio", "Alergias", "Medicações em uso", "Histórico médico"] },
-                ];
-                const selected = perfis.find(p => p.value === form.perfilColeta) ?? perfis[1];
-                const allCampos = selected.campos.concat(form.coletarEndereco ? ["Endereço"] : []);
-                return (
               <div className="rounded-lg border border-border bg-secondary p-3 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  {perfis.map((perfil) => (
-                    <button
-                      key={perfil.value}
-                      onClick={() => { update("perfilColeta", perfil.value); api.patch("/app/config/coleta-dados", { perfilColeta: perfil.value }).catch(() => null); }}
-                      className={`rounded-lg border px-3 py-2 text-left transition-all ${form.perfilColeta === perfil.value ? "border-primary bg-primary/15 text-primary" : "border-border bg-muted text-secondary-foreground hover:border-primary/50"}`}
-                    >
-                      <div className="text-xs font-medium">{perfil.label}</div>
-                      <div className="text-xs opacity-60 mt-0.5">{perfil.add}</div>
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium">Cadastro completo</p>
+                    <p className="text-xs text-muted-foreground">
+                      {form.coletarCadastroCompleto
+                        ? "A IA coleta todos os campos do cadastro (CRM)"
+                        : "A IA coleta apenas Nome + Telefone"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { const v = !form.coletarCadastroCompleto; update("coletarCadastroCompleto", v); api.patch("/app/config/coleta-dados", { coletarCadastroCompleto: v }).catch(() => null); }}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${form.coletarCadastroCompleto ? "bg-primary" : "bg-muted-foreground/30"}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${form.coletarCadastroCompleto ? "translate-x-4" : "translate-x-1"}`} />
+                  </button>
                 </div>
-                <div className="rounded-md bg-muted/50 border border-border px-3 py-2">
-                  <p className="text-xs text-muted-foreground mb-1">Campos coletados:</p>
-                  <p className="text-xs text-foreground">{allCampos.join(", ")}</p>
-                </div>
-                <div className="flex items-center justify-between pt-1 border-t border-border">
+                <div className="flex items-center justify-between border-t border-border pt-3">
                   <div>
                     <p className="text-xs font-medium">Coletar endereço</p>
                     <p className="text-xs text-muted-foreground">Solicitar endereço completo do cliente</p>
@@ -879,7 +869,7 @@ export default function Onboarding() {
                     <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${form.coletarEndereco ? "translate-x-4" : "translate-x-1"}`} />
                   </button>
                 </div>
-                <div className="flex items-center justify-between border-t border-border pt-1">
+                <div className="flex items-center justify-between border-t border-border pt-3">
                   <div>
                     <p className="text-xs font-medium">Consentimento LGPD</p>
                     <p className="text-xs text-muted-foreground">Solicitar aceite antes de coletar dados</p>
@@ -902,8 +892,6 @@ export default function Onboarding() {
                   />
                 )}
               </div>
-                );
-              })()}
             </div>
 
             {/* FAQ */}

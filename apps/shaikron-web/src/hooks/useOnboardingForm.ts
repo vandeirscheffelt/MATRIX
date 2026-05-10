@@ -28,7 +28,7 @@ export interface OnboardingFormState {
   cmdCustom: string[];
   autoResumeMinutes: number;
   confirmacaoAntecedenciaHoras: number;
-  perfilColeta: string;
+  coletarCadastroCompleto: boolean;
   coletarEndereco: boolean;
   lgpdAtivo: boolean;
   lgpdTexto: string;
@@ -56,7 +56,7 @@ const INITIAL_STATE: OnboardingFormState = {
   cmdCustom: [],
   autoResumeMinutes: 10,
   confirmacaoAntecedenciaHoras: 2,
-  perfilColeta: "PADRAO",
+  coletarCadastroCompleto: false,
   coletarEndereco: false,
   lgpdAtivo: true,
   lgpdTexto: "",
