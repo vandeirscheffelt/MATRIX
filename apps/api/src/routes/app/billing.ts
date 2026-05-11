@@ -123,6 +123,7 @@ export async function billingRoutes(app: FastifyInstance) {
     
     let discountType: 'percent' | 'fixed' | undefined = undefined
     let discountValue: number | undefined = undefined
+    let couponIdToLog: string | undefined = undefined
 
     // Validação de cupom se presente
     if (body.data.couponCode) {
@@ -140,6 +141,7 @@ export async function billingRoutes(app: FastifyInstance) {
         if (!expired && !exhausted && !alreadyUsed) {
           discountType = coupon.discountType as 'percent' | 'fixed'
           discountValue = coupon.discountValue
+          couponIdToLog = coupon.id
         }
       }
     }
@@ -174,16 +176,15 @@ export async function billingRoutes(app: FastifyInstance) {
     }
 
     if (isFreeBypass) {
-      if (body.data.couponCode) {
+      if (couponIdToLog) {
         await prisma.couponUsage.create({
           data: {
-            couponCode: body.data.couponCode.toUpperCase(),
+            couponId: couponIdToLog,
             empresaId: request.empresaId,
-            userId: request.userId,
           }
         })
         await prisma.coupon.update({
-          where: { code: body.data.couponCode.toUpperCase() },
+          where: { id: couponIdToLog },
           data: { usedCount: { increment: 1 } }
         })
       }
