@@ -1,10 +1,10 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '@boilerplate/database'
+import Stripe from 'stripe'
 
 function getStripe() {
-  const Stripe = require('stripe')
-  return new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' as any })
 }
 
 export async function adminCouponsRoutes(app: FastifyInstance) {
