@@ -196,12 +196,12 @@ export async function billingRoutes(app: FastifyInstance) {
           empresaId: request.empresaId,
           paymentGateway: 'appmax',
           status: 'ACTIVE',
-          currentPeriodEnd: thirtyDays,
+          periodEndsAt: thirtyDays,
         },
         update: {
           paymentGateway: 'appmax',
           status: 'ACTIVE',
-          currentPeriodEnd: thirtyDays,
+          periodEndsAt: thirtyDays,
         },
       })
       
