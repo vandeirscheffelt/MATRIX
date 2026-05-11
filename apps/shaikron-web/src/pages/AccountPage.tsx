@@ -228,7 +228,7 @@ export default function AccountPage() {
     trial: { label: t("account.trialActive"), detail: diasRestantes != null ? `${diasRestantes} dia${diasRestantes !== 1 ? "s" : ""} restante${diasRestantes !== 1 ? "s" : ""}` : t("account.daysRemaining"), variant: "default" },
     active: { 
       label: "Assinatura Ativa", 
-      detail: periodEndsAt ? `Próxima renovação/vencimento: ${formatDate(periodEndsAt)}` : t("account.nextBillingDays"), 
+      detail: periodEndsAt ? `Vencimento: ${formatDate(periodEndsAt)} • Valor: ${formatCurrency(total)}/mês` : `Valor: ${formatCurrency(total)}/mês`, 
       variant: "secondary" 
     },
     inactive: { label: t("account.subscriptionInactive"), detail: t("account.renewPlan"), variant: "destructive" },
@@ -544,8 +544,9 @@ export default function AccountPage() {
               <div className="rounded-lg border border-secondary/30 bg-secondary/5 p-4 space-y-3">
                 <Badge variant="secondary" className="text-xs">{t("account.active")}</Badge>
                 <p className="text-sm font-medium text-foreground">{t("account.subscriptionActive")}</p>
-                <p className="text-xs text-muted-foreground">{t("account.nextBilling")}</p>
-                <Button variant="outline" className="w-full">{t("account.manageSubscription")}</Button>
+                <p className="text-xs text-muted-foreground">
+                  Sua conta está em dia. A próxima cobrança ou renovação ocorrerá em {periodEndsAt ? formatDate(periodEndsAt) : "breve"}.
+                </p>
               </div>
             )}
           </CardContent>
