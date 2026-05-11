@@ -77,42 +77,64 @@ export class AppMaxProvider implements IPaymentGateway {
         },
       })
 
-      // Log temporário para mapear campos reais da resposta AppMax
-      console.log('[AppMax PIX response]', JSON.stringify(res, null, 2))
-
       const pixData = res.data ?? res
       return {
         gateway: 'appmax',
         customerId: String(customerId),
         subscriptionId: String(orderId),
         pix: {
-          qrCode: pixData?.pix_qr_code ?? pixData?.qr_code ?? pixData?.emv ?? pixData?.copy_paste ?? pixData?.qrcode ?? '',
-          qrCodeBase64: pixData?.pix_qr_code_base64 ?? pixData?.qr_code_base64 ?? pixData?.qrcode_base64 ?? pixData?.image ?? '',
-          expiresAt: expiration.toISOString(),
+          qrCode: pixData?.pix_emv ?? '',
+          qrCodeBase64: pixData?.pix_qrcode ?? '',
+          expiresAt: pixData?.pix_expiration_date
+            ? new Date(pixData.pix_expiration_date).toISOString()
+            : expiration.toISOString(),
           valor: 97.0,
         },
       }
     }
 
     if (params.paymentMethod === 'boleto') {
-      const res = await appmaxPost('/payment/boleto', {
-        cart: { order_id: orderId },
-        customer: { customer_id: customerId },
-        payment: {
-          boleto: {
-            document_number: params.userCpf?.replace(/\D/g, '') ?? '00000000000',
-          },
-        },
-      })
+      const dueDate = new Date(Date.now() + 3 * 24 * 3600 * 1000)
+      const dueDateStr = dueDate.toISOString().slice(0, 10) // YYYY-MM-DD
 
+      let boletoRes: any
+      try {
+        boletoRes = await appmaxPost('/payment/boleto', {
+          cart: { order_id: orderId },
+          customer: { customer_id: customerId },
+          payment: {
+            boleto: {
+              document_number: params.userCpf?.replace(/\D/g, '') ?? '',
+              due_date: dueDateStr,
+            },
+          },
+        })
+      } catch (err: any) {
+        console.log('[AppMax Boleto error]', err.message)
+        // Tenta formato alternativo sem due_date explícito
+        boletoRes = await appmaxPost('/payment/billet', {
+          cart: { order_id: orderId },
+          customer: { customer_id: customerId },
+          payment: {
+            billet: {
+              document_number: params.userCpf?.replace(/\D/g, '') ?? '',
+              due_date: dueDateStr,
+            },
+          },
+        })
+      }
+
+      console.log('[AppMax Boleto response]', JSON.stringify(boletoRes?.data ?? boletoRes, null, 2).slice(0, 500))
+
+      const boletoData = boletoRes.data ?? boletoRes
       return {
         gateway: 'appmax',
         customerId: String(customerId),
         subscriptionId: String(orderId),
         boleto: {
-          url: res.data?.boleto_url ?? res.data?.url ?? '',
-          barcode: res.data?.boleto_barcode ?? res.data?.barcode ?? '',
-          expiresAt: res.data?.expires_at ?? new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString(),
+          url: boletoData?.boleto_url ?? boletoData?.url ?? boletoData?.link ?? '',
+          barcode: boletoData?.boleto_barcode ?? boletoData?.barcode ?? boletoData?.digitable_line ?? boletoData?.linha_digitavel ?? '',
+          expiresAt: boletoData?.due_date ?? dueDate.toISOString(),
         },
       }
     }
