@@ -28,7 +28,17 @@ export default function AccountPage() {
 
   const aiUserCount = professionals.filter(p => p.aiAccess).length;
   const additionalCost = aiUserCount * pricing.pricePerUser;
-  const total = pricing.basePrice + additionalCost;
+  
+  let discountAmount = 0;
+  if (validatedCoupon) {
+    if (validatedCoupon.discountType === "percent") {
+      discountAmount = pricing.basePrice * (validatedCoupon.discountValue / 100);
+    } else {
+      discountAmount = validatedCoupon.discountValue;
+    }
+  }
+  
+  const total = pricing.basePrice + additionalCost - discountAmount;
 
   const handlePhoneChange = (value: string) => {
     setManagerPhone(value);
@@ -58,6 +68,37 @@ export default function AccountPage() {
     }).catch(() => {});
   }, []);
 
+  // Validação de cupom
+  useEffect(() => {
+    const code = couponCode.trim().toUpperCase();
+    if (code.length < 3) {
+      setValidatedCoupon(null);
+      setCouponError("");
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setCouponValidating(true);
+      setCouponError("");
+      try {
+        const data = await api.get<any>(`/app/billing/validate-coupon?code=${code}`);
+        if (data.valid) {
+          setValidatedCoupon(data);
+        } else {
+          setValidatedCoupon(null);
+          setCouponError("Cupom inválido");
+        }
+      } catch (err: any) {
+        setValidatedCoupon(null);
+        setCouponError(err?.response?.data?.error || "Cupom inválido");
+      } finally {
+        setCouponValidating(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [couponCode]);
+
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [pixData, setPixData] = useState<{ qrCode: string; qrCodeBase64: string; expiresAt: string; valor: number } | null>(null);
   const [boletoData, setBoletoData] = useState<{ url: string; barcode: string; expiresAt: string } | null>(null);
@@ -67,6 +108,9 @@ export default function AccountPage() {
   const [cpfError, setCpfError] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [showCoupon, setShowCoupon] = useState(false);
+  const [validatedCoupon, setValidatedCoupon] = useState<{ code: string; discountType: "percent" | "fixed"; discountValue: number; description?: string } | null>(null);
+  const [couponValidating, setCouponValidating] = useState(false);
+  const [couponError, setCouponError] = useState("");
 
   const formatDocument = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 14);
@@ -283,6 +327,14 @@ export default function AccountPage() {
                 <span className="text-sm text-foreground">{formatCurrency(additionalCost)}</span>
               </div>
             )}
+            {validatedCoupon && (
+              <div className="flex items-center justify-between text-green-500">
+                <span className="text-sm">
+                  Desconto Cupom ({validatedCoupon.code})
+                </span>
+                <span className="text-sm font-medium">- {formatCurrency(discountAmount)}</span>
+              </div>
+            )}
             <Separator />
             <div className="flex items-center justify-between">
               <span className="font-semibold text-foreground">{t("account.totalMonthly")}</span>
@@ -315,25 +367,36 @@ export default function AccountPage() {
                   <button
                     type="button"
                     className="text-xs text-primary underline-offset-2 hover:underline"
-                    onClick={() => { setShowCoupon(v => !v); setCouponCode(""); }}
+                    onClick={() => { 
+                      setShowCoupon(v => !v); 
+                      setCouponCode(""); 
+                      setValidatedCoupon(null);
+                      setCouponError("");
+                    }}
                   >
                     {showCoupon ? "Cancelar cupom" : "Tenho um cupom de desconto"}
                   </button>
                   {showCoupon && (
                     <div className="flex gap-2 items-center">
-                      <Input
-                        id="coupon-code"
-                        placeholder="Código do cupom"
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                        className="h-8 text-sm font-mono tracking-widest"
-                        maxLength={32}
-                      />
-                      {couponCode && (
-                        <span className="text-xs text-green-500 whitespace-nowrap">✓ será aplicado</span>
+                      <div className="relative flex-1">
+                        <Input
+                          id="coupon-code"
+                          placeholder="Código do cupom"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                          className={`h-8 text-sm font-mono tracking-widest ${couponError ? "border-destructive" : ""}`}
+                          maxLength={32}
+                        />
+                        {couponValidating && (
+                          <div className="absolute right-2 top-2 h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        )}
+                      </div>
+                      {validatedCoupon && (
+                        <span className="text-xs text-green-500 whitespace-nowrap">✓ {validatedCoupon.discountType === "percent" ? `${validatedCoupon.discountValue}%` : formatCurrency(validatedCoupon.discountValue)} de desconto</span>
                       )}
                     </div>
                   )}
+                  {couponError && <p className="text-[10px] text-destructive font-medium">{couponError}</p>}
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">

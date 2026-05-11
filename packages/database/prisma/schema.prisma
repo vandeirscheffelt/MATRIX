@@ -2,7 +2,7 @@ generator client {
   provider        = "prisma-client-js"
   output          = "../generated/client"
   previewFeatures = ["multiSchema"]
-  binaryTargets   = ["linux-musl-openssl-3.0.x"]
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -45,6 +45,7 @@ model Empresa {
   keywords         Keyword[]
   produtosAfiliados ProdutoAfiliado[]
   pacientes        Paciente[]
+  couponUsages     CouponUsage[]
 
   @@map("empresas")
   @@schema("atendente_ia")
@@ -107,6 +108,43 @@ enum StatusSubscription {
   PAST_DUE
 
   @@map("status_subscription_enum")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
+// Cupons de desconto
+// -----------------------------------------------------------------------------
+
+model Coupon {
+  id            String    @id @default(uuid())
+  code          String    @unique  // ex: "PROMO30", "BEMVINDO"
+  description   String?            // texto visível ao usuário
+  discountType  String   @map("discount_type")  // "percent" | "fixed"
+  discountValue Float    @map("discount_value")  // 20 = 20% ou R$20,00
+  duration      String   @default("once") // "once" | "forever"
+  maxUses       Int?     @map("max_uses")  // null = sem limite
+  usedCount     Int      @default(0) @map("used_count")
+  active        Boolean  @default(true)
+  expiresAt     DateTime? @map("expires_at")
+  criadoEm      DateTime @default(now()) @map("criado_em")
+
+  usages CouponUsage[]
+
+  @@map("coupons")
+  @@schema("atendente_ia")
+}
+
+model CouponUsage {
+  id         String   @id @default(uuid())
+  couponId   String   @map("coupon_id")
+  empresaId  String   @map("empresa_id")
+  usedAt     DateTime @default(now()) @map("used_at")
+
+  coupon  Coupon  @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, empresaId])   // uma empresa usa cada cupom "once" apenas 1x
+  @@map("coupon_usages")
   @@schema("atendente_ia")
 }
 

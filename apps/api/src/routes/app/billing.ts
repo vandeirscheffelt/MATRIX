@@ -62,6 +62,41 @@ export async function billingRoutes(app: FastifyInstance) {
     }
   })
 
+  // GET /app/billing/validate-coupon?code=XXX
+  app.get('/validate-coupon', { preHandler }, async (request: any, reply) => {
+    const { code } = request.query as { code?: string }
+    if (!code) return reply.code(400).send({ error: 'Código do cupom obrigatório' })
+
+    const coupon = await prisma.coupon.findUnique({
+      where: { code: code.toUpperCase() },
+      include: { usages: { where: { empresaId: request.empresaId } } }
+    })
+
+    if (!coupon || !coupon.active) {
+      return reply.code(404).send({ error: 'Cupom inválido ou inativo' })
+    }
+
+    if (coupon.expiresAt && coupon.expiresAt < new Date()) {
+      return reply.code(400).send({ error: 'Cupom expirado' })
+    }
+
+    if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) {
+      return reply.code(400).send({ error: 'Cupom esgotado' })
+    }
+
+    if (coupon.duration === 'once' && coupon.usages.length > 0) {
+      return reply.code(400).send({ error: 'Você já utilizou este cupom' })
+    }
+
+    return {
+      valid: true,
+      code: coupon.code,
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue,
+      description: coupon.description,
+    }
+  })
+
   // POST /app/billing/checkout — inicia checkout do plano base R$ 97/mês
   // paymentMethod: 'pix' | 'boleto' | 'card_br' | 'card_intl'
   app.post('/checkout', { preHandler }, async (request: any, reply) => {
@@ -85,6 +120,29 @@ export async function billingRoutes(app: FastifyInstance) {
     }
 
     const gateway = getGateway(body.data.paymentMethod)
+    
+    let discountType: 'percent' | 'fixed' | undefined = undefined
+    let discountValue: number | undefined = undefined
+
+    // Validação de cupom se presente
+    if (body.data.couponCode) {
+      const coupon = await prisma.coupon.findUnique({
+        where: { code: body.data.couponCode.toUpperCase() },
+        include: { usages: { where: { empresaId: request.empresaId } } }
+      })
+
+      if (coupon && coupon.active) {
+        const now = new Date()
+        const expired = coupon.expiresAt && coupon.expiresAt < now
+        const exhausted = coupon.maxUses && coupon.usedCount >= coupon.maxUses
+        const alreadyUsed = coupon.duration === 'once' && coupon.usages.length > 0
+
+        if (!expired && !exhausted && !alreadyUsed) {
+          discountType = coupon.discountType as 'percent' | 'fixed'
+          discountValue = coupon.discountValue
+        }
+      }
+    }
 
     try {
       const result = await gateway.createCheckout({
@@ -97,6 +155,8 @@ export async function billingRoutes(app: FastifyInstance) {
         cancelUrl: body.data.cancelUrl,
         usuariosExtras: body.data.usuariosExtras,
         couponCode: body.data.couponCode,
+        discountType,
+        discountValue,
       })
 
       // Persiste qual gateway foi escolhido (para o webhook saber onde atualizar)

@@ -13,6 +13,8 @@ export interface GatewayCheckoutParams {
   cancelUrl: string
   trialDays?: number
   couponCode?: string   // código de cupom/promoção (Stripe: promotion_code; AppMax: coupon_code)
+  discountType?: 'percent' | 'fixed'
+  discountValue?: number
 }
 
 export interface GatewayPortalParams {

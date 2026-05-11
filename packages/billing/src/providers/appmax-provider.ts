@@ -45,12 +45,20 @@ async function garantirCliente(params: GatewayCheckoutParams): Promise<number> {
   return Number(res.data?.id ?? res.id)
 }
 
-async function criarOrder(customerId: number, usuariosExtras: number = 0, couponCode?: string): Promise<number> {
+async function criarOrder(customerId: number, usuariosExtras: number = 0, couponCode?: string, discountType?: 'percent' | 'fixed', discountValue?: number): Promise<number> {
+  let basePrice = 97.00
+  
+  if (discountType === 'percent' && discountValue) {
+    basePrice = Math.max(0, basePrice * (1 - discountValue / 100))
+  } else if (discountType === 'fixed' && discountValue) {
+    basePrice = Math.max(0, basePrice - discountValue)
+  }
+
   const products: object[] = [{
     sku: 'SHAIKRON-BASE-97',
     name: 'Shaikron - Plano Base',
     qty: 1,
-    price: 97.00,
+    price: Number(basePrice.toFixed(2)),
   }]
   if (usuariosExtras > 0) {
     products.push({
@@ -72,7 +80,13 @@ async function criarOrder(customerId: number, usuariosExtras: number = 0, coupon
 export class AppMaxProvider implements IPaymentGateway {
   async createCheckout(params: GatewayCheckoutParams): Promise<GatewayCheckoutResult> {
     const customerId = await garantirCliente(params)
-    const orderId = await criarOrder(customerId, params.usuariosExtras ?? 0, params.couponCode)
+    const orderId = await criarOrder(
+      customerId, 
+      params.usuariosExtras ?? 0, 
+      params.couponCode,
+      params.discountType,
+      params.discountValue
+    )
 
     if (params.paymentMethod === 'pix') {
       const expiration = new Date(Date.now() + 30 * 60 * 1000) // 30 min
