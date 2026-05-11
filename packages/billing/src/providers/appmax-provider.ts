@@ -119,8 +119,8 @@ export class AppMaxProvider implements IPaymentGateway {
         customerId: String(customerId),
         subscriptionId: String(orderId),
         boleto: {
-          url: boletoData?.boleto_url ?? boletoData?.url ?? boletoData?.link ?? '',
-          barcode: boletoData?.boleto_barcode ?? boletoData?.barcode ?? boletoData?.digitable_line ?? boletoData?.linha_digitavel ?? '',
+          url: boletoData?.pdf ?? boletoData?.boleto_url ?? boletoData?.url ?? '',
+          barcode: boletoData?.digitable_line ?? boletoData?.boleto_payment_code ?? boletoData?.barcode ?? '',
           expiresAt: boletoData?.due_date ?? dueDate.toISOString(),
         },
       }
