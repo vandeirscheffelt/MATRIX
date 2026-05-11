@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,7 @@ export default function AccountPage() {
   const [phoneError, setPhoneError] = useState("");
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("trial");
+  const [diasRestantes, setDiasRestantes] = useState<number | null>(null);
 
   const aiUserCount = professionals.filter(p => p.aiAccess).length;
   const additionalCost = aiUserCount * pricing.pricePerUser;
@@ -47,6 +48,17 @@ export default function AccountPage() {
   };
 
   const navigate = useNavigate();
+
+  // Carrega status real da assinatura da API
+  useEffect(() => {
+    api.get<any>("/app/billing/status").then(data => {
+      if (data?.status === "ACTIVE") setAccountStatus("active");
+      else if (data?.status === "TRIAL") setAccountStatus("trial");
+      else if (["CANCELED", "PAST_DUE"].includes(data?.status)) setAccountStatus("inactive");
+      if (data?.dias_restantes != null) setDiasRestantes(data.dias_restantes);
+    }).catch(() => {});
+  }, []);
+
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [pixData, setPixData] = useState<{ qrCode: string; qrCodeBase64: string; expiresAt: string; valor: number } | null>(null);
   const [boletoData, setBoletoData] = useState<{ url: string; barcode: string; expiresAt: string } | null>(null);
@@ -125,7 +137,7 @@ export default function AccountPage() {
   };
 
   const statusConfig: Record<AccountStatus, { label: string; detail: string; variant: "default" | "secondary" | "destructive" }> = {
-    trial: { label: t("account.trialActive"), detail: t("account.daysRemaining"), variant: "default" },
+    trial: { label: t("account.trialActive"), detail: diasRestantes != null ? `${diasRestantes} dia${diasRestantes !== 1 ? "s" : ""} restante${diasRestantes !== 1 ? "s" : ""}` : t("account.daysRemaining"), variant: "default" },
     active: { label: t("account.subscriptionActive"), detail: t("account.nextBillingDays"), variant: "secondary" },
     inactive: { label: t("account.subscriptionInactive"), detail: t("account.renewPlan"), variant: "destructive" },
   };
