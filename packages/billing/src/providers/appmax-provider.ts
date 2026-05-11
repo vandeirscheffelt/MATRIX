@@ -45,7 +45,7 @@ async function garantirCliente(params: GatewayCheckoutParams): Promise<number> {
   return Number(res.data?.id ?? res.id)
 }
 
-async function criarOrder(customerId: number, usuariosExtras: number = 0): Promise<number> {
+async function criarOrder(customerId: number, usuariosExtras: number = 0, couponCode?: string): Promise<number> {
   const products: object[] = [{
     sku: 'SHAIKRON-BASE-97',
     name: 'Shaikron - Plano Base',
@@ -64,6 +64,7 @@ async function criarOrder(customerId: number, usuariosExtras: number = 0): Promi
     customer_id: customerId,
     digital_product: 1,
     products,
+    ...(couponCode ? { coupon_code: couponCode } : {}),
   })
   return Number(res.data?.id ?? res.id)
 }
@@ -71,7 +72,7 @@ async function criarOrder(customerId: number, usuariosExtras: number = 0): Promi
 export class AppMaxProvider implements IPaymentGateway {
   async createCheckout(params: GatewayCheckoutParams): Promise<GatewayCheckoutResult> {
     const customerId = await garantirCliente(params)
-    const orderId = await criarOrder(customerId, params.usuariosExtras ?? 0)
+    const orderId = await criarOrder(customerId, params.usuariosExtras ?? 0, params.couponCode)
 
     if (params.paymentMethod === 'pix') {
       const expiration = new Date(Date.now() + 30 * 60 * 1000) // 30 min

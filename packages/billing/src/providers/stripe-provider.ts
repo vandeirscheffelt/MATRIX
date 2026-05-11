@@ -39,6 +39,10 @@ export class StripeProvider implements IPaymentGateway {
       line_items: lineItems,
       success_url: params.successUrl,
       cancel_url: params.cancelUrl,
+      // Cupom: se code passado, aplica diretamente; senão deixa campo livre no checkout
+      ...(params.couponCode
+        ? { discounts: [{ promotion_code: params.couponCode }] }
+        : { allow_promotion_codes: true }),
       subscription_data: {
         trial_period_days: params.trialDays,
         metadata: { empresaId: params.empresaId },

@@ -65,6 +65,8 @@ export default function AccountPage() {
   const [cpfPendingMethod, setCpfPendingMethod] = useState<"pix" | "boleto" | null>(null);
   const [cpf, setCpf] = useState("");
   const [cpfError, setCpfError] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [showCoupon, setShowCoupon] = useState(false);
 
   const formatDocument = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 14);
@@ -99,7 +101,11 @@ export default function AccountPage() {
     try {
       const successUrl = `${window.location.origin}/billing/success`;
       const cancelUrl = `${window.location.origin}/account`;
-      const data = await api.post<any>("/app/billing/checkout", { successUrl, cancelUrl, paymentMethod, userCpf, usuariosExtras: aiUserCount });
+      const data = await api.post<any>("/app/billing/checkout", {
+        successUrl, cancelUrl, paymentMethod, userCpf,
+        usuariosExtras: aiUserCount,
+        ...(couponCode.trim() ? { couponCode: couponCode.trim() } : {}),
+      });
       if (data.url) {
         window.location.href = data.url;
       } else if (data.pix) {
@@ -116,7 +122,7 @@ export default function AccountPage() {
       setCpfPendingMethod(null);
       setCpf("");
     }
-  }, [t, aiUserCount]);
+  }, [t, aiUserCount, couponCode]);
 
   const handlePixOrBoleto = (method: "pix" | "boleto") => {
     setPixData(null);
@@ -303,6 +309,32 @@ export default function AccountPage() {
                   Total a pagar: <strong className="text-foreground">{formatCurrency(total)}/mês</strong>
                   {aiUserCount > 0 && <span className="ml-1 text-muted-foreground">(plano base + {aiUserCount} usuário{aiUserCount > 1 ? "s" : ""} com IA)</span>}
                 </p>
+
+                {/* Campo de cupom de desconto */}
+                <div className="space-y-1">
+                  <button
+                    type="button"
+                    className="text-xs text-primary underline-offset-2 hover:underline"
+                    onClick={() => { setShowCoupon(v => !v); setCouponCode(""); }}
+                  >
+                    {showCoupon ? "Cancelar cupom" : "Tenho um cupom de desconto"}
+                  </button>
+                  {showCoupon && (
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        id="coupon-code"
+                        placeholder="Código do cupom"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                        className="h-8 text-sm font-mono tracking-widest"
+                        maxLength={32}
+                      />
+                      {couponCode && (
+                        <span className="text-xs text-green-500 whitespace-nowrap">✓ será aplicado</span>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <div className="grid grid-cols-3 gap-2">
                   <Button variant={cpfPendingMethod === "pix" ? "default" : "outline"} className="flex flex-col h-auto py-3 gap-1 border-primary/40 hover:border-primary hover:bg-primary/5" onClick={() => handlePixOrBoleto("pix")} disabled={!!checkoutLoading}>

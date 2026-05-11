@@ -12,6 +12,7 @@ export interface GatewayCheckoutParams {
   successUrl: string
   cancelUrl: string
   trialDays?: number
+  couponCode?: string   // código de cupom/promoção (Stripe: promotion_code; AppMax: coupon_code)
 }
 
 export interface GatewayPortalParams {

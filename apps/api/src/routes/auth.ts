@@ -39,7 +39,7 @@ export async function authRoutes(app: FastifyInstance) {
     }
 
     // Cria empresa + usuário + trial de 24h em transação
-    const trialEndsAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    const trialEndsAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 dias
 
     await prisma.$transaction(async (tx) => {
       const empresa = await tx.empresa.create({
