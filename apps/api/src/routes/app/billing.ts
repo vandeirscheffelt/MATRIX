@@ -74,6 +74,8 @@ export async function billingRoutes(app: FastifyInstance) {
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
+    request.log.info({ paymentMethod: body.data.paymentMethod, usuariosExtras: body.data.usuariosExtras, rawBody: request.body }, 'checkout body recebido')
+
     if (body.data.paymentMethod === 'pix' || body.data.paymentMethod === 'boleto') {
       const doc = body.data.userCpf?.replace(/\D/g, '') ?? ''
       if (doc.length !== 11 && doc.length !== 14) {
