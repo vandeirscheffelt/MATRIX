@@ -296,14 +296,21 @@ export default function AccountPage() {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-foreground">{pricing.planName}</p>
-                <p className="text-sm text-muted-foreground">{t("account.monthlySubscription")}</p>
+                <p className="text-lg font-bold text-foreground">Plano Atual</p>
+                <p className="text-sm text-muted-foreground">Valor total base + membros adicionais</p>
               </div>
-              <Badge variant="secondary" className="text-base px-3 py-1">
-                {formatCurrency(pricing.basePrice)} {t("account.perMonth")}
+              <Badge variant="default" className="text-lg px-3 py-1 bg-primary text-primary-foreground">
+                {formatCurrency(subtotal)} /mês
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">{t("account.planDesc")}</p>
+            
+            <div className="bg-muted/30 p-3 rounded-md mt-2 flex items-center justify-between border border-border/50">
+              <div>
+                <p className="text-sm font-medium text-foreground">{pricing.planName} (Base)</p>
+                <p className="text-xs text-muted-foreground">{t("account.planDesc")}</p>
+              </div>
+              <span className="text-sm font-medium text-muted-foreground">{formatCurrency(pricing.basePrice)}</span>
+            </div>
             
             {activeProfessionals.length > 0 && (
               <>
