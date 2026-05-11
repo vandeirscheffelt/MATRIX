@@ -16,6 +16,8 @@ async function appmaxPost(path: string, body: object): Promise<any> {
   })
   const json = await res.json() as any
   if (json.success === false) {
+    // Loga detalhes de validação para debug
+    if (json.data) console.log(`[AppMax ${path} validation]`, JSON.stringify(json.data))
     throw new Error(`AppMax ${path}: ${json.text ?? JSON.stringify(json.data)}`)
   }
   return json

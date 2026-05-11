@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Phone, CreditCard, Users, Calculator, ShieldCheck, Plus, Bot, Zap, AlertTriangle, Info, QrCode, FileText } from "lucide-react";
+import { Phone, CreditCard, Users, Calculator, ShieldCheck, Plus, Bot, Zap, AlertTriangle, QrCode, FileText } from "lucide-react";
 import { useProfessionalsContext } from "@/contexts/ProfessionalsContext";
 import { usePricingContext } from "@/contexts/PricingContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -50,6 +50,7 @@ export default function AccountPage() {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [pixData, setPixData] = useState<{ qrCode: string; qrCodeBase64: string; expiresAt: string; valor: number } | null>(null);
   const [boletoData, setBoletoData] = useState<{ url: string; barcode: string; expiresAt: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [cpfPendingMethod, setCpfPendingMethod] = useState<"pix" | "boleto" | null>(null);
   const [cpf, setCpf] = useState("");
   const [cpfError, setCpfError] = useState("");
@@ -267,11 +268,15 @@ export default function AccountPage() {
                     </div>
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant={copied ? "default" : "outline"}
                       className="w-full text-xs"
-                      onClick={() => navigator.clipboard.writeText(pixData.qrCode)}
+                      onClick={() => {
+                        navigator.clipboard.writeText(pixData.qrCode);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2500);
+                      }}
                     >
-                      Copiar código PIX
+                      {copied ? "Código copiado!" : "Copiar código PIX"}
                     </Button>
                     <p className="text-[10px] text-muted-foreground text-center">
                       Expira em: {new Date(pixData.expiresAt).toLocaleString("pt-BR")}
@@ -315,12 +320,6 @@ export default function AccountPage() {
               </div>
             )}
 
-            <div className="flex items-start gap-2 rounded-md bg-muted/50 p-3">
-              <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-              <p className="text-xs text-muted-foreground">
-                {t("account.billingSimulation")}
-              </p>
-            </div>
           </CardContent>
         </Card>
 
