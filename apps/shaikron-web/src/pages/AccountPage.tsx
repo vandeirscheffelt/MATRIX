@@ -246,7 +246,12 @@ export default function AccountPage() {
               <p className="font-medium text-foreground">{status.label}</p>
               <p className="text-sm text-muted-foreground">{status.detail}</p>
             </div>
-            <Badge variant={status.variant} className="text-sm px-3 py-1">{status.label}</Badge>
+            <Badge 
+              variant={status.variant as any} 
+              className={`text-sm px-3 py-1 ${accountStatus === 'active' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
+            >
+              {status.label}
+            </Badge>
           </CardContent>
         </Card>
 
