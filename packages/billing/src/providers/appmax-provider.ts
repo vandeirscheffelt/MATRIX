@@ -77,13 +77,17 @@ export class AppMaxProvider implements IPaymentGateway {
         },
       })
 
+      // Log temporário para mapear campos reais da resposta AppMax
+      console.log('[AppMax PIX response]', JSON.stringify(res, null, 2))
+
+      const pixData = res.data ?? res
       return {
         gateway: 'appmax',
         customerId: String(customerId),
         subscriptionId: String(orderId),
         pix: {
-          qrCode: res.data?.pix_qr_code ?? res.data?.qr_code ?? '',
-          qrCodeBase64: res.data?.pix_qr_code_base64 ?? res.data?.qr_code_base64 ?? '',
+          qrCode: pixData?.pix_qr_code ?? pixData?.qr_code ?? pixData?.emv ?? pixData?.copy_paste ?? pixData?.qrcode ?? '',
+          qrCodeBase64: pixData?.pix_qr_code_base64 ?? pixData?.qr_code_base64 ?? pixData?.qrcode_base64 ?? pixData?.image ?? '',
           expiresAt: expiration.toISOString(),
           valor: 97.0,
         },
