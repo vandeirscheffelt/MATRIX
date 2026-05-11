@@ -26,6 +26,19 @@ export default function AccountPage() {
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("trial");
   const [diasRestantes, setDiasRestantes] = useState<number | null>(null);
 
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [pixData, setPixData] = useState<{ qrCode: string; qrCodeBase64: string; expiresAt: string; valor: number } | null>(null);
+  const [boletoData, setBoletoData] = useState<{ url: string; barcode: string; expiresAt: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [cpfPendingMethod, setCpfPendingMethod] = useState<"pix" | "boleto" | null>(null);
+  const [cpf, setCpf] = useState("");
+  const [cpfError, setCpfError] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [showCoupon, setShowCoupon] = useState(false);
+  const [validatedCoupon, setValidatedCoupon] = useState<{ code: string; discountType: "percent" | "fixed"; discountValue: number; description?: string } | null>(null);
+  const [couponValidating, setCouponValidating] = useState(false);
+  const [couponError, setCouponError] = useState("");
+
   const aiUserCount = professionals.filter(p => p.aiAccess).length;
   const additionalCost = aiUserCount * pricing.pricePerUser;
   
@@ -99,18 +112,6 @@ export default function AccountPage() {
     return () => clearTimeout(timer);
   }, [couponCode]);
 
-  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
-  const [pixData, setPixData] = useState<{ qrCode: string; qrCodeBase64: string; expiresAt: string; valor: number } | null>(null);
-  const [boletoData, setBoletoData] = useState<{ url: string; barcode: string; expiresAt: string } | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [cpfPendingMethod, setCpfPendingMethod] = useState<"pix" | "boleto" | null>(null);
-  const [cpf, setCpf] = useState("");
-  const [cpfError, setCpfError] = useState("");
-  const [couponCode, setCouponCode] = useState("");
-  const [showCoupon, setShowCoupon] = useState(false);
-  const [validatedCoupon, setValidatedCoupon] = useState<{ code: string; discountType: "percent" | "fixed"; discountValue: number; description?: string } | null>(null);
-  const [couponValidating, setCouponValidating] = useState(false);
-  const [couponError, setCouponError] = useState("");
 
   const formatDocument = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 14);
