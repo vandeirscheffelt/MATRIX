@@ -3,7 +3,6 @@ import { AppLayout } from "@/components/AppLayout";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -148,9 +147,26 @@ export default function AccountPage() {
   return (
     <AppLayout>
       <div className="mx-auto max-w-2xl space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t("account.title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("account.subtitle")}</p>
+        <div className="space-y-3">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">{t("account.title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("account.subtitle")}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="text-sm text-muted-foreground whitespace-nowrap">{t("account.managerPhone")}:</span>
+            <div className="flex-1 max-w-xs">
+              <Input
+                id="manager-phone"
+                type="tel"
+                placeholder="+55 11 99999-9999"
+                value={managerPhone}
+                onChange={(e) => handlePhoneChange(e.target.value)}
+                className={`h-8 text-sm ${phoneError ? "border-destructive" : ""}`}
+              />
+            </div>
+            {phoneError && <p className="text-xs text-destructive">{phoneError}</p>}
+          </div>
         </div>
 
         {/* 1. Status da Conta */}
@@ -369,23 +385,6 @@ export default function AccountPage() {
           </CardContent>
         </Card>
 
-        {/* 6. Acesso do Gerente */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Phone className="h-5 w-5 text-primary" />
-              {t("account.managerAccess")}
-            </CardTitle>
-            <CardDescription>{t("account.managerDesc")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="manager-phone">{t("account.managerPhone")}</Label>
-              <Input id="manager-phone" type="tel" placeholder="+55 11 99999-9999" value={managerPhone} onChange={(e) => handlePhoneChange(e.target.value)} className={phoneError ? "border-destructive" : ""} />
-              {phoneError && <p className="text-sm text-destructive">{phoneError}</p>}
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Team Activation Modal */}
