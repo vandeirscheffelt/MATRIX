@@ -25,11 +25,18 @@ export class StripeProvider implements IPaymentGateway {
       customerId = customer.id
     }
 
+    const lineItems: object[] = [{ price: priceId, quantity: 1 }]
+
+    const priceExtra = process.env.STRIPE_PRICE_SHAIKRON_USUARIO_EXTRA
+    if (priceExtra && (params.usuariosExtras ?? 0) > 0) {
+      lineItems.push({ price: priceExtra, quantity: params.usuariosExtras })
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: lineItems,
       success_url: params.successUrl,
       cancel_url: params.cancelUrl,
       subscription_data: {
