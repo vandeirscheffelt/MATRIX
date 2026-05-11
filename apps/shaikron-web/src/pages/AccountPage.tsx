@@ -105,7 +105,7 @@ export default function AccountPage() {
       setCpfPendingMethod(null);
       setCpf("");
     }
-  }, [t]);
+  }, [t, aiUserCount]);
 
   const handlePixOrBoleto = (method: "pix" | "boleto") => {
     setPixData(null);
