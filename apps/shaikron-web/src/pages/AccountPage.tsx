@@ -41,17 +41,18 @@ export default function AccountPage() {
 
   const aiUserCount = professionals.filter(p => p.aiAccess).length;
   const additionalCost = aiUserCount * pricing.pricePerUser;
+  const subtotal = pricing.basePrice + additionalCost;
   
   let discountAmount = 0;
   if (validatedCoupon) {
     if (validatedCoupon.discountType === "percent") {
-      discountAmount = pricing.basePrice * (validatedCoupon.discountValue / 100);
+      discountAmount = subtotal * (validatedCoupon.discountValue / 100);
     } else {
       discountAmount = validatedCoupon.discountValue;
     }
   }
   
-  const total = pricing.basePrice + additionalCost - discountAmount;
+  const total = subtotal - discountAmount;
 
   const handlePhoneChange = (value: string) => {
     setManagerPhone(value);

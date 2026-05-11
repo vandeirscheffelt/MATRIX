@@ -47,25 +47,37 @@ async function garantirCliente(params: GatewayCheckoutParams): Promise<number> {
 
 async function criarOrder(customerId: number, usuariosExtras: number = 0, couponCode?: string, discountType?: 'percent' | 'fixed', discountValue?: number): Promise<number> {
   let basePrice = 97.00
+  let extraUserPrice = 29.90
   
   if (discountType === 'percent' && discountValue) {
-    basePrice = Math.max(0, basePrice * (1 - discountValue / 100))
+    basePrice = Number((basePrice * (1 - discountValue / 100)).toFixed(2))
+    extraUserPrice = Number((extraUserPrice * (1 - discountValue / 100)).toFixed(2))
   } else if (discountType === 'fixed' && discountValue) {
-    basePrice = Math.max(0, basePrice - discountValue)
+    let remainingDiscount = discountValue
+    if (remainingDiscount <= basePrice) {
+      basePrice = Number((basePrice - remainingDiscount).toFixed(2))
+    } else {
+      remainingDiscount -= basePrice
+      basePrice = 0
+      if (usuariosExtras > 0) {
+        const discountPerUser = remainingDiscount / usuariosExtras
+        extraUserPrice = Number(Math.max(0, extraUserPrice - discountPerUser).toFixed(2))
+      }
+    }
   }
 
   const products: object[] = [{
     sku: 'SHAIKRON-BASE-97',
     name: 'Shaikron - Plano Base',
     qty: 1,
-    price: Number(basePrice.toFixed(2)),
+    price: basePrice,
   }]
   if (usuariosExtras > 0) {
     products.push({
       sku: 'SHAIKRON-USER-2990',
       name: 'Usuário adicional com IA',
       qty: usuariosExtras,
-      price: 29.90,
+      price: extraUserPrice,
     })
   }
   const res = await appmaxPost('/order', {
