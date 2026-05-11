@@ -25,6 +25,7 @@ export default function AccountPage() {
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("trial");
   const [diasRestantes, setDiasRestantes] = useState<number | null>(null);
+  const [periodEndsAt, setPeriodEndsAt] = useState<string | null>(null);
 
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [pixData, setPixData] = useState<{ qrCode: string; qrCodeBase64: string; expiresAt: string; valor: number } | null>(null);
@@ -75,10 +76,13 @@ export default function AccountPage() {
   // Carrega status real da assinatura da API
   useEffect(() => {
     api.get<any>("/app/billing/status").then(data => {
-      if (data?.status === "ACTIVE") setAccountStatus("active");
-      else if (data?.status === "TRIAL") setAccountStatus("trial");
+      if (data?.status === "TRIAL") setAccountStatus("trial");
+      else if (data?.status === "ACTIVE") setAccountStatus("active");
       else if (["CANCELED", "PAST_DUE"].includes(data?.status)) setAccountStatus("inactive");
+      
       if (data?.dias_restantes != null) setDiasRestantes(data.dias_restantes);
+      if (data?.period_ends_at) setPeriodEndsAt(data.period_ends_at);
+      else if (data?.trial_ends_at) setPeriodEndsAt(data.trial_ends_at);
     }).catch(() => {});
   }, []);
 
@@ -187,9 +191,17 @@ export default function AccountPage() {
     handleActivateSubscription(cpfPendingMethod!, digits);
   };
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("pt-BR");
+  };
+
   const statusConfig: Record<AccountStatus, { label: string; detail: string; variant: "default" | "secondary" | "destructive" }> = {
     trial: { label: t("account.trialActive"), detail: diasRestantes != null ? `${diasRestantes} dia${diasRestantes !== 1 ? "s" : ""} restante${diasRestantes !== 1 ? "s" : ""}` : t("account.daysRemaining"), variant: "default" },
-    active: { label: t("account.subscriptionActive"), detail: t("account.nextBillingDays"), variant: "secondary" },
+    active: { 
+      label: "Assinatura Ativa", 
+      detail: periodEndsAt ? `Próxima renovação/vencimento: ${formatDate(periodEndsAt)}` : t("account.nextBillingDays"), 
+      variant: "secondary" 
+    },
     inactive: { label: t("account.subscriptionInactive"), detail: t("account.renewPlan"), variant: "destructive" },
   };
 
