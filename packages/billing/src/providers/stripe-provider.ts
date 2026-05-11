@@ -1,9 +1,9 @@
 import type { IPaymentGateway, GatewayCheckoutParams, GatewayPortalParams, GatewayCheckoutResult } from '../gateway-interface'
+import Stripe from 'stripe'
 
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY não configurada')
-  const Stripe = require('stripe')
-  return new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' })
+  return new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' as any })
 }
 
 export class StripeProvider implements IPaymentGateway {
@@ -32,6 +32,18 @@ export class StripeProvider implements IPaymentGateway {
       lineItems.push({ price: priceExtra, quantity: params.usuariosExtras })
     }
 
+    let promotionCodeId: string | undefined
+    if (params.couponCode) {
+      try {
+        const promos = await stripe.promotionCodes.list({ code: params.couponCode, active: true, limit: 1 })
+        if (promos.data.length > 0) {
+          promotionCodeId = promos.data[0].id
+        }
+      } catch (err) {
+        // Ignora e não aplica o cupom pre-filled caso a Stripe falhe
+      }
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
@@ -39,9 +51,9 @@ export class StripeProvider implements IPaymentGateway {
       line_items: lineItems,
       success_url: params.successUrl,
       cancel_url: params.cancelUrl,
-      // Cupom: se code passado, aplica diretamente; senão deixa campo livre no checkout
-      ...(params.couponCode
-        ? { discounts: [{ promotion_code: params.couponCode }] }
+      // Cupom: se encontrado o ID, preenche; senão permite que o usuário digite
+      ...(promotionCodeId
+        ? { discounts: [{ promotion_code: promotionCodeId }] }
         : { allow_promotion_codes: true }),
       subscription_data: {
         trial_period_days: params.trialDays,
