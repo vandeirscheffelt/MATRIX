@@ -99,32 +99,17 @@ export class AppMaxProvider implements IPaymentGateway {
       const dueDate = new Date(Date.now() + 3 * 24 * 3600 * 1000)
       const dueDateStr = dueDate.toISOString().slice(0, 10) // YYYY-MM-DD
 
-      let boletoRes: any
-      try {
-        boletoRes = await appmaxPost('/payment/boleto', {
-          cart: { order_id: orderId },
-          customer: { customer_id: customerId },
-          payment: {
-            boleto: {
-              document_number: params.userCpf?.replace(/\D/g, '') ?? '',
-              due_date: dueDateStr,
-            },
+      // AppMax exige "Boleto" com B maiúsculo no payload
+      const boletoRes = await appmaxPost('/payment/boleto', {
+        cart: { order_id: orderId },
+        customer: { customer_id: customerId },
+        payment: {
+          Boleto: {
+            document_number: params.userCpf?.replace(/\D/g, '') ?? '',
+            due_date: dueDateStr,
           },
-        })
-      } catch (err: any) {
-        console.log('[AppMax Boleto error]', err.message)
-        // Tenta formato alternativo sem due_date explícito
-        boletoRes = await appmaxPost('/payment/billet', {
-          cart: { order_id: orderId },
-          customer: { customer_id: customerId },
-          payment: {
-            billet: {
-              document_number: params.userCpf?.replace(/\D/g, '') ?? '',
-              due_date: dueDateStr,
-            },
-          },
-        })
-      }
+        },
+      })
 
       console.log('[AppMax Boleto response]', JSON.stringify(boletoRes?.data ?? boletoRes, null, 2).slice(0, 500))
 
