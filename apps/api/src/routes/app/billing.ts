@@ -144,6 +144,69 @@ export async function billingRoutes(app: FastifyInstance) {
       }
     }
 
+    // Bypass gratuito para PIX/Boleto caso o total seja <= 0
+    let isFreeBypass = false
+    if ((body.data.paymentMethod === 'pix' || body.data.paymentMethod === 'boleto') && discountType && discountValue) {
+      let basePrice = 97.00
+      let extraUserPrice = 29.90
+      
+      if (discountType === 'percent') {
+        basePrice = Number((basePrice * (1 - discountValue / 100)).toFixed(2))
+        extraUserPrice = Number((extraUserPrice * (1 - discountValue / 100)).toFixed(2))
+      } else if (discountType === 'fixed') {
+        let remainingDiscount = discountValue
+        if (remainingDiscount <= basePrice) {
+          basePrice = Number((basePrice - remainingDiscount).toFixed(2))
+        } else {
+          remainingDiscount -= basePrice
+          basePrice = 0
+          if (body.data.usuariosExtras > 0) {
+            const discountPerUser = remainingDiscount / body.data.usuariosExtras
+            extraUserPrice = Number(Math.max(0, extraUserPrice - discountPerUser).toFixed(2))
+          }
+        }
+      }
+      
+      const total = basePrice + (body.data.usuariosExtras * extraUserPrice)
+      if (total <= 0) {
+        isFreeBypass = true
+      }
+    }
+
+    if (isFreeBypass) {
+      if (body.data.couponCode) {
+        await prisma.couponUsage.create({
+          data: {
+            couponCode: body.data.couponCode.toUpperCase(),
+            empresaId: request.empresaId,
+            userId: request.userId,
+          }
+        })
+        await prisma.coupon.update({
+          where: { code: body.data.couponCode.toUpperCase() },
+          data: { usedCount: { increment: 1 } }
+        })
+      }
+
+      const thirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      await prisma.subscription.upsert({
+        where: { empresaId: request.empresaId },
+        create: {
+          empresaId: request.empresaId,
+          paymentGateway: 'appmax',
+          status: 'ACTIVE',
+          currentPeriodEnd: thirtyDays,
+        },
+        update: {
+          paymentGateway: 'appmax',
+          status: 'ACTIVE',
+          currentPeriodEnd: thirtyDays,
+        },
+      })
+      
+      return { url: body.data.successUrl, gateway: 'bypass' }
+    }
+
     try {
       const result = await gateway.createCheckout({
         empresaId: request.empresaId,
