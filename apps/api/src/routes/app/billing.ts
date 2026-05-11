@@ -59,6 +59,7 @@ export async function billingRoutes(app: FastifyInstance) {
       usuarios_extras: usuariosExtras,
       trial_ends_at: sub.trialEndsAt,
       period_ends_at: sub.periodEndsAt,
+      gateway: sub.paymentGateway,
     }
   })
 
@@ -291,6 +292,30 @@ export async function billingRoutes(app: FastifyInstance) {
     }
 
     return { ok: true, usuarios_extras: body.data.quantidade }
+  })
+
+  // POST /app/billing/cancel — cancela renovação automática da assinatura
+  app.post('/cancel', { preHandler }, async (request: any, reply) => {
+    const sub = await prisma.subscription.findUnique({ where: { empresaId: request.empresaId } })
+    if (!sub || sub.status !== 'ACTIVE') {
+      return reply.code(422).send({ error: 'Nenhuma assinatura ativa encontrada.' })
+    }
+
+    if (sub.paymentGateway === 'stripe' && sub.stripeSubscriptionId) {
+      try {
+        const stripe = getStripe()
+        await stripe.subscriptions.update(sub.stripeSubscriptionId, {
+          cancel_at_period_end: true,
+        })
+        return { message: 'Renovação automática cancelada com sucesso.' }
+      } catch (err: any) {
+        request.log.error({ err: err?.message }, 'billing.cancel failed')
+        return reply.code(500).send({ error: err?.message ?? 'Erro ao cancelar na Stripe.' })
+      }
+    } else {
+      // Para AppMax ou PIX Bypass (que não têm renovação automática)
+      return { message: 'Sua assinatura não possui renovação automática. Ela será encerrada normalmente na data de vencimento.' }
+    }
   })
 
   // POST /app/billing/manager-phone — salva telefone do gerente para resumos

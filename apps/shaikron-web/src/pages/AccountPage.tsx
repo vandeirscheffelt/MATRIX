@@ -24,9 +24,12 @@ export default function AccountPage() {
   const [phoneError, setPhoneError] = useState("");
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("trial");
+  const [paymentGateway, setPaymentGateway] = useState<string>("stripe");
   const [confirmDowngradeModal, setConfirmDowngradeModal] = useState<{ isOpen: boolean; professionalId: string | null }>({ isOpen: false, professionalId: null });
   const [diasRestantes, setDiasRestantes] = useState<number | null>(null);
   const [periodEndsAt, setPeriodEndsAt] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [pixData, setPixData] = useState<{ qrCode: string; qrCodeBase64: string; expiresAt: string; valor: number } | null>(null);
@@ -112,6 +115,7 @@ export default function AccountPage() {
       if (data?.dias_restantes != null) setDiasRestantes(data.dias_restantes);
       if (data?.period_ends_at) setPeriodEndsAt(data.period_ends_at);
       else if (data?.trial_ends_at) setPeriodEndsAt(data.trial_ends_at);
+      if (data?.gateway) setPaymentGateway(data.gateway);
     }).catch(() => {});
   }, []);
 
@@ -218,6 +222,21 @@ export default function AccountPage() {
       return;
     }
     handleActivateSubscription(cpfPendingMethod!, digits);
+  };
+
+  const handleCancelPlan = async () => {
+    try {
+      setCancelLoading(true);
+      const res = await api.post<{ message: string }>("/app/billing/cancel", {});
+      alert(res.message);
+      setShowCancelModal(false);
+      // Se quiser atualizar a tela para forçar re-leitura do status:
+      window.location.reload();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || "Erro ao tentar cancelar a assinatura.");
+    } finally {
+      setCancelLoading(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -561,6 +580,19 @@ export default function AccountPage() {
 
       </div>
 
+      {/* 6. Cancelar Assinatura (Rodapé) */}
+      {accountStatus === "active" && (
+        <div className="flex justify-center pt-2 pb-10">
+          <button 
+            type="button" 
+            className="text-xs text-muted-foreground/60 hover:text-destructive transition-colors underline underline-offset-4"
+            onClick={() => setShowCancelModal(true)}
+          >
+            Deseja cancelar sua assinatura?
+          </button>
+        </div>
+      )}
+
       {/* Team Activation Modal */}
       <Dialog open={showTeamModal} onOpenChange={setShowTeamModal}>
         <DialogContent className="max-w-md">
@@ -608,6 +640,45 @@ export default function AccountPage() {
           <div className="flex justify-end gap-3 mt-6">
             <Button variant="outline" onClick={() => setConfirmDowngradeModal({ isOpen: false, professionalId: null })}>Cancelar</Button>
             <Button variant="destructive" onClick={confirmDowngrade}>Sim, quero remover</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Cancelamento do Plano Inteiro */}
+      <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Cancelar Assinatura
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-4">
+            {paymentGateway === "stripe" ? (
+              <>
+                <p className="text-sm text-foreground">
+                  Tem certeza que deseja cancelar sua assinatura? Você perderá o acesso à inteligência artificial para toda a sua equipe após o dia <strong>{periodEndsAt ? formatDate(periodEndsAt) : "de vencimento"}</strong>.
+                </p>
+                <div className="flex justify-end gap-3 mt-6">
+                  <Button variant="outline" onClick={() => setShowCancelModal(false)} disabled={cancelLoading}>Não, voltar</Button>
+                  <Button variant="destructive" onClick={handleCancelPlan} disabled={cancelLoading}>
+                    {cancelLoading ? "Processando..." : "Sim, cancelar renovação"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-foreground">
+                  Sua assinatura foi realizada via <strong>PIX ou Boleto</strong> e <span className="font-semibold text-destructive">não possui renovação automática</span>.
+                </p>
+                <p className="text-sm text-foreground">
+                  Fique tranquilo, você não receberá nenhuma cobrança surpresa. Seu acesso permanecerá ativo até o dia <strong>{periodEndsAt ? formatDate(periodEndsAt) : "de vencimento"}</strong> e depois será suspenso.
+                </p>
+                <div className="flex justify-end mt-6">
+                  <Button variant="outline" onClick={() => setShowCancelModal(false)}>Entendi, obrigado</Button>
+                </div>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
