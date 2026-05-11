@@ -328,6 +328,43 @@ export default function AccountPage() {
                 <span className="text-sm text-foreground">{formatCurrency(additionalCost)}</span>
               </div>
             )}
+            {/* Campo de cupom de desconto */}
+            <div className="space-y-1">
+              <button
+                type="button"
+                className="text-xs text-primary underline-offset-2 hover:underline"
+                onClick={() => { 
+                  setShowCoupon(v => !v); 
+                  setCouponCode(""); 
+                  setValidatedCoupon(null);
+                  setCouponError("");
+                }}
+              >
+                {showCoupon ? "Cancelar cupom" : "Tenho um cupom de desconto"}
+              </button>
+              {showCoupon && (
+                <div className="flex gap-2 items-center">
+                  <div className="relative flex-1">
+                    <Input
+                      id="coupon-code"
+                      placeholder="Código do cupom"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      className={`h-8 text-sm font-mono tracking-widest ${couponError ? "border-destructive" : ""}`}
+                      maxLength={32}
+                    />
+                    {couponValidating && (
+                      <div className="absolute right-2 top-2 h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    )}
+                  </div>
+                  {validatedCoupon && (
+                    <span className="text-xs text-green-500 whitespace-nowrap">✓ {validatedCoupon.discountType === "percent" ? `${validatedCoupon.discountValue}%` : formatCurrency(validatedCoupon.discountValue)}</span>
+                  )}
+                </div>
+              )}
+              {couponError && <p className="text-[10px] text-destructive font-medium">{couponError}</p>}
+            </div>
+
             {validatedCoupon && (
               <div className="flex items-center justify-between text-green-500">
                 <span className="text-sm">
@@ -363,42 +400,6 @@ export default function AccountPage() {
                   {aiUserCount > 0 && <span className="ml-1 text-muted-foreground">(plano base + {aiUserCount} usuário{aiUserCount > 1 ? "s" : ""} com IA)</span>}
                 </p>
 
-                {/* Campo de cupom de desconto */}
-                <div className="space-y-1">
-                  <button
-                    type="button"
-                    className="text-xs text-primary underline-offset-2 hover:underline"
-                    onClick={() => { 
-                      setShowCoupon(v => !v); 
-                      setCouponCode(""); 
-                      setValidatedCoupon(null);
-                      setCouponError("");
-                    }}
-                  >
-                    {showCoupon ? "Cancelar cupom" : "Tenho um cupom de desconto"}
-                  </button>
-                  {showCoupon && (
-                    <div className="flex gap-2 items-center">
-                      <div className="relative flex-1">
-                        <Input
-                          id="coupon-code"
-                          placeholder="Código do cupom"
-                          value={couponCode}
-                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                          className={`h-8 text-sm font-mono tracking-widest ${couponError ? "border-destructive" : ""}`}
-                          maxLength={32}
-                        />
-                        {couponValidating && (
-                          <div className="absolute right-2 top-2 h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                        )}
-                      </div>
-                      {validatedCoupon && (
-                        <span className="text-xs text-green-500 whitespace-nowrap">✓ {validatedCoupon.discountType === "percent" ? `${validatedCoupon.discountValue}%` : formatCurrency(validatedCoupon.discountValue)} de desconto</span>
-                      )}
-                    </div>
-                  )}
-                  {couponError && <p className="text-[10px] text-destructive font-medium">{couponError}</p>}
-                </div>
 
                 <div className="grid grid-cols-3 gap-2">
                   <Button variant={cpfPendingMethod === "pix" ? "default" : "outline"} className="flex flex-col h-auto py-3 gap-1 border-primary/40 hover:border-primary hover:bg-primary/5" onClick={() => handlePixOrBoleto("pix")} disabled={!!checkoutLoading}>
