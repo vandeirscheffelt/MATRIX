@@ -29,6 +29,7 @@ import { appmaxShaikronWebhookRoutes } from './routes/webhook/appmax-shaikron.js
 import { pricingRoutes } from './routes/admin/pricing.js'
 import { productsRoutes, productsPublicRoutes } from './routes/admin/products.js'
 import { modulesRoutes, modulesPublicRoutes } from './routes/admin/modules.js'
+import { adminCouponsRoutes } from './routes/admin/coupons.js'
 import { tutorialsAdminRoutes, tutorialsPublicRoutes } from './routes/app/tutorials.js'
 import { n8nWebhookRoutes } from './routes/webhook/n8n.js'
 
@@ -81,6 +82,7 @@ await app.register(appmaxShaikronWebhookRoutes, { prefix: '/webhook/appmax/shaik
 await app.register(pricingRoutes, { prefix: '/admin/pricing-versions' })
 await app.register(productsRoutes, { prefix: '/admin/products' })
 await app.register(modulesRoutes, { prefix: '/admin/modules' })
+await app.register(adminCouponsRoutes, { prefix: '/admin/coupons' })
 
 // Rotas públicas para tenants (sem auth de admin)
 await app.register(productsPublicRoutes, { prefix: '/products/public' })

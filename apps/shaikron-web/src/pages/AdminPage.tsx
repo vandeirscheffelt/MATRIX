@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Shield, Package, Plus, Calendar, Info, Tag, TrendingUp } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Shield, Package, Plus, Calendar, Info, Tag, TrendingUp, Ticket } from "lucide-react";
+import { api } from "@/lib/apiClient";
 import { usePricingContext, getVersionStatus, type PriceVersion, type AdjustmentApplyMode } from "@/contexts/PricingContext";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -27,6 +29,63 @@ export default function AdminPage() {
   const [showAdjModal, setShowAdjModal] = useState(false);
   const [adjVersionId, setAdjVersionId] = useState<string | null>(null);
   const [adjForm, setAdjForm] = useState({ type: "percentage" as "percentage" | "fixed", value: "", effectiveDate: "", applyMode: "all_customers" as AdjustmentApplyMode });
+
+  const [coupons, setCoupons] = useState<any[]>([]);
+  const [showCouponModal, setShowCouponModal] = useState(false);
+  const [couponForm, setCouponForm] = useState({
+    code: "",
+    description: "",
+    discountType: "percent" as "percent" | "fixed",
+    discountValue: "",
+    duration: "once" as "once" | "forever",
+    maxUses: "",
+    expiresAt: "",
+  });
+
+  useEffect(() => {
+    fetchCoupons();
+  }, []);
+
+  const fetchCoupons = async () => {
+    try {
+      const data = await api.get<any[]>("/admin/coupons");
+      setCoupons(data);
+    } catch (err) {}
+  };
+
+  const handleSaveCoupon = async () => {
+    if (!couponForm.code || !couponForm.discountValue) {
+      toast({ title: "Código e Valor são obrigatórios", variant: "destructive" });
+      return;
+    }
+    try {
+      const payload = {
+        code: couponForm.code.trim().toUpperCase(),
+        description: couponForm.description,
+        discountType: couponForm.discountType,
+        discountValue: parseFloat(couponForm.discountValue),
+        duration: couponForm.duration,
+        maxUses: couponForm.maxUses ? parseInt(couponForm.maxUses) : null,
+        expiresAt: couponForm.expiresAt || null,
+      };
+      await api.post("/admin/coupons", payload);
+      toast({ title: "Cupom criado com sucesso" });
+      setShowCouponModal(false);
+      setCouponForm({ code: "", description: "", discountType: "percent", discountValue: "", duration: "once", maxUses: "", expiresAt: "" });
+      fetchCoupons();
+    } catch (err: any) {
+      toast({ title: "Erro ao criar cupom", description: err.response?.data?.error || err.message, variant: "destructive" });
+    }
+  };
+
+  const toggleCoupon = async (id: string, currentStatus: boolean) => {
+    try {
+      await api.patch(`/admin/coupons/${id}`, { active: !currentStatus });
+      fetchCoupons();
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    }
+  };
 
   const [form, setForm] = useState({
     label: "",
@@ -215,6 +274,54 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
+        {/* Coupons Panel */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Ticket className="h-5 w-5 text-primary" />
+                  Cupons de Desconto
+                </CardTitle>
+                <CardDescription>
+                  Gerencie cupons integrados com AppMax (PIX/Boleto) e Stripe (Cartão).
+                </CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setShowCouponModal(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                Novo Cupom
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {coupons.map((c) => (
+              <div key={c.id} className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${c.active ? "border-primary/20 bg-primary/5" : "border-border bg-muted/30 opacity-70"}`}>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-foreground">{c.code}</span>
+                    <Badge variant={c.active ? "default" : "secondary"} className="text-[10px] h-5 px-1.5">
+                      {c.active ? "Ativo" : "Inativo"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{c.description || "Sem descrição"}</p>
+                  <div className="flex gap-3 text-xs text-muted-foreground mt-2">
+                    <span>{c.discountType === "percent" ? `${c.discountValue}%` : `R$ ${c.discountValue}`}</span>
+                    <span>• {c.duration === "once" ? "1ª Mensalidade" : "Recorrente"}</span>
+                    {c.maxUses && <span>• Usos: {c.usedCount}/{c.maxUses}</span>}
+                    {!c.maxUses && <span>• Usos: {c.usedCount}</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch checked={c.active} onCheckedChange={() => toggleCoupon(c.id, c.active)} />
+                </div>
+              </div>
+            ))}
+            {coupons.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum cupom cadastrado.</p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Info */}
         <Card>
           <CardHeader>
@@ -381,6 +488,90 @@ export default function AdminPage() {
               setShowAdjModal(false);
             }}>
               Save Adjustment
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Coupon Modal */}
+      <Dialog open={showCouponModal} onOpenChange={setShowCouponModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Novo Cupom</DialogTitle>
+            <DialogDescription>Cria um cupom no banco (AppMax) e no Stripe.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="c-code">Código do Cupom</Label>
+              <Input
+                id="c-code"
+                placeholder="PROMO30"
+                value={couponForm.code}
+                onChange={e => setCouponForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+                className="uppercase font-mono"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="c-desc">Descrição (Opcional)</Label>
+              <Input
+                id="c-desc"
+                placeholder="Ex: 30% na Black Friday"
+                value={couponForm.description}
+                onChange={e => setCouponForm(f => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Tipo de Desconto</Label>
+                <RadioGroup value={couponForm.discountType} onValueChange={(v) => setCouponForm(f => ({ ...f, discountType: v as "percent" | "fixed" }))} className="flex gap-4">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="percent" id="c-pct" />
+                    <Label htmlFor="c-pct">%</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="fixed" id="c-fix" />
+                    <Label htmlFor="c-fix">R$</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="c-val">Valor do Desconto</Label>
+                <Input
+                  id="c-val"
+                  type="number"
+                  placeholder="30"
+                  value={couponForm.discountValue}
+                  onChange={e => setCouponForm(f => ({ ...f, discountValue: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Duração</Label>
+                <RadioGroup value={couponForm.duration} onValueChange={(v) => setCouponForm(f => ({ ...f, duration: v as "once" | "forever" }))} className="flex flex-col gap-2">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="once" id="c-once" />
+                    <Label htmlFor="c-once">Apenas 1ª Mensalidade</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="forever" id="c-for" />
+                    <Label htmlFor="c-for">Recorrente (Sempre)</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="c-max">Máx. Usos (Opcional)</Label>
+                <Input
+                  id="c-max"
+                  type="number"
+                  placeholder="Ex: 100"
+                  value={couponForm.maxUses}
+                  onChange={e => setCouponForm(f => ({ ...f, maxUses: e.target.value }))}
+                />
+              </div>
+            </div>
+            <Button className="w-full" onClick={handleSaveCoupon}>
+              Criar Cupom
             </Button>
           </div>
         </DialogContent>
