@@ -70,6 +70,7 @@ export async function billingRoutes(app: FastifyInstance) {
       cancelUrl: z.string().url(),
       paymentMethod: z.enum(['pix', 'boleto', 'card_br', 'card_intl']).default('card_br'),
       userCpf: z.string().optional(),
+      usuariosExtras: z.number().int().min(0).default(0),
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
@@ -91,6 +92,7 @@ export async function billingRoutes(app: FastifyInstance) {
         paymentMethod: body.data.paymentMethod,
         successUrl: body.data.successUrl,
         cancelUrl: body.data.cancelUrl,
+        usuariosExtras: body.data.usuariosExtras,
       })
 
       // Persiste qual gateway foi escolhido (para o webhook saber onde atualizar)

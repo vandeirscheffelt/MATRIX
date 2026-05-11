@@ -7,6 +7,7 @@ export interface GatewayCheckoutParams {
   userName?: string
   userPhone?: string
   userCpf?: string
+  usuariosExtras?: number
   paymentMethod: PaymentMethod
   successUrl: string
   cancelUrl: string

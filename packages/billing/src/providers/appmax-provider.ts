@@ -45,16 +45,25 @@ async function garantirCliente(params: GatewayCheckoutParams): Promise<number> {
   return Number(res.data?.id ?? res.id)
 }
 
-async function criarOrder(customerId: number): Promise<number> {
+async function criarOrder(customerId: number, usuariosExtras: number = 0): Promise<number> {
+  const products: object[] = [{
+    sku: 'SHAIKRON-BASE-97',
+    name: 'Shaikron - Plano Base',
+    qty: 1,
+    price: 97.00,
+  }]
+  if (usuariosExtras > 0) {
+    products.push({
+      sku: 'SHAIKRON-USER-2990',
+      name: 'Usuário adicional com IA',
+      qty: usuariosExtras,
+      price: 29.90,
+    })
+  }
   const res = await appmaxPost('/order', {
     customer_id: customerId,
     digital_product: 1,
-    products: [{
-      sku: 'SHAIKRON-BASE-97',
-      name: 'Shaikron - Plano Base',
-      qty: 1,
-      price: 97.00,
-    }],
+    products,
   })
   return Number(res.data?.id ?? res.id)
 }
@@ -62,7 +71,7 @@ async function criarOrder(customerId: number): Promise<number> {
 export class AppMaxProvider implements IPaymentGateway {
   async createCheckout(params: GatewayCheckoutParams): Promise<GatewayCheckoutResult> {
     const customerId = await garantirCliente(params)
-    const orderId = await criarOrder(customerId)
+    const orderId = await criarOrder(customerId, params.usuariosExtras ?? 0)
 
     if (params.paymentMethod === 'pix') {
       const expiration = new Date(Date.now() + 30 * 60 * 1000) // 30 min
