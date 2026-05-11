@@ -24,6 +24,7 @@ export default function AccountPage() {
   const [phoneError, setPhoneError] = useState("");
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("trial");
+  const [confirmDowngradeModal, setConfirmDowngradeModal] = useState<{ isOpen: boolean; professionalId: string | null }>({ isOpen: false, professionalId: null });
   const [diasRestantes, setDiasRestantes] = useState<number | null>(null);
   const [periodEndsAt, setPeriodEndsAt] = useState<string | null>(null);
 
@@ -67,8 +68,36 @@ export default function AccountPage() {
   const formatCurrency = (value: number) =>
     `R$ ${value.toFixed(2).replace(".", ",")}`;
 
-  const toggleAiAccess = (id: string, current: boolean) => {
-    updateProfessional(id, { aiAccess: !current });
+  const handleDisableAccess = (id: string) => {
+    if (accountStatus === "active") {
+      setConfirmDowngradeModal({ isOpen: true, professionalId: id });
+    } else {
+      toggleAiAccess(id, false);
+    }
+  };
+
+  const confirmDowngrade = async () => {
+    if (confirmDowngradeModal.professionalId) {
+      await toggleAiAccess(confirmDowngradeModal.professionalId, false);
+      setConfirmDowngradeModal({ isOpen: false, professionalId: null });
+    }
+  };
+
+  const handleEnableAccess = (id: string) => {
+    if (accountStatus === "active") {
+      alert("Sua conta paga via PIX ou Boleto está ativa. Para adicionar membros no meio do ciclo, aguarde a próxima renovação.");
+      return;
+    }
+    toggleAiAccess(id, true);
+  };
+
+  const toggleAiAccess = async (id: string, value: boolean) => {
+    try {
+      const updated = await api.patch(`/app/professionals/${id}`, { aiAccess: value });
+      updateProfessional(updated.data);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const navigate = useNavigate();
@@ -206,7 +235,8 @@ export default function AccountPage() {
   };
 
   const status = statusConfig[accountStatus];
-  const aiProfessionals = professionals.filter(p => p.aiAccess);
+  const activeProfessionals = professionals.filter(p => p.aiAccess);
+  const inactiveProfessionals = professionals.filter(p => !p.aiAccess);
 
   return (
     <AppLayout>
@@ -263,7 +293,7 @@ export default function AccountPage() {
               {t("account.planOverview")}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-foreground">{pricing.planName}</p>
@@ -273,11 +303,41 @@ export default function AccountPage() {
                 {formatCurrency(pricing.basePrice)} {t("account.perMonth")}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground mt-2">{t("account.planDesc")}</p>
+            <p className="text-sm text-muted-foreground">{t("account.planDesc")}</p>
+            
+            {activeProfessionals.length > 0 && (
+              <>
+                <Separator />
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-3">Membros Inclusos na Assinatura ({activeProfessionals.length})</p>
+                  <div className="space-y-2">
+                    {activeProfessionals.map(pro => (
+                      <div key={pro.id} className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 p-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ backgroundColor: `hsl(${pro.color})` }}>
+                            <Bot className="h-4 w-4 text-primary-foreground" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{pro.name}</p>
+                            <p className="text-xs text-muted-foreground">{pro.phone || t("account.noPhone")}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge variant="secondary" className="text-xs">{formatCurrency(pricing.pricePerUser)}</Badge>
+                          <Button variant="outline" size="sm" className="text-xs border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground h-7 px-2" onClick={() => handleDisableAccess(pro.id)}>
+                            Remover
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
-        {/* 3. Acesso da Equipe */}
+        {/* 3. Membros Sem Acesso à IA (Inativos) */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -286,29 +346,19 @@ export default function AccountPage() {
                   <Users className="h-5 w-5 text-primary" />
                   {t("account.teamAccess")}
                 </CardTitle>
-                <CardDescription className="mt-1.5">{t("account.teamDesc")}</CardDescription>
+                <CardDescription className="mt-1.5">Membros da equipe que não possuem acesso à inteligência artificial.</CardDescription>
               </div>
-              <Button size="sm" onClick={() => setShowTeamModal(true)}>
-                <Plus className="h-4 w-4" />
-                {t("account.addTeamMember")}
-              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {accountStatus !== "active" && aiProfessionals.length > 0 && (
-              <div className="flex items-start gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/5 p-3">
-                <AlertTriangle className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-yellow-600 dark:text-yellow-400">{t("account.aiAccessWarning")}</p>
-              </div>
-            )}
-            {aiProfessionals.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">{t("account.noAiProfessionals")}</p>
+            {inactiveProfessionals.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Todos os membros da equipe já estão inclusos na sua assinatura.</p>
             ) : (
-              aiProfessionals.map(pro => (
-                <div key={pro.id} className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 p-3">
+              inactiveProfessionals.map(pro => (
+                <div key={pro.id} className="flex items-center justify-between rounded-lg border border-border p-3 opacity-80 hover:opacity-100 transition-opacity">
                   <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ backgroundColor: `hsl(${pro.color})` }}>
-                      <Bot className="h-4 w-4 text-primary-foreground" />
+                      <span className="text-primary-foreground font-medium text-xs">{pro.name.substring(0, 2).toUpperCase()}</span>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-foreground">{pro.name}</p>
@@ -316,8 +366,9 @@ export default function AccountPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge variant="secondary" className="text-xs">{formatCurrency(pricing.pricePerUser)}</Badge>
-                    <Switch checked={pro.aiAccess} onCheckedChange={() => toggleAiAccess(pro.id, pro.aiAccess)} />
+                    <Button variant="outline" size="sm" className="text-xs h-7 px-3" onClick={() => handleEnableAccess(pro.id)}>
+                      Ativar Acesso (+ {formatCurrency(pricing.pricePerUser)})
+                    </Button>
                   </div>
                 </div>
               ))
@@ -527,6 +578,28 @@ export default function AccountPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Modal de Confirmação de Downgrade */}
+      <Dialog open={confirmDowngradeModal.isOpen} onOpenChange={(open) => !open && setConfirmDowngradeModal({ isOpen: false, professionalId: null })}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Atenção: Ação Irreversível
+            </DialogTitle>
+            <DialogDescription className="pt-3 pb-2 text-base text-foreground font-medium">
+              Você está prestes a remover o acesso à IA deste profissional.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-destructive/10 text-destructive text-sm p-4 rounded-md border border-destructive/20 mt-2">
+            <p><strong>Aviso Importante:</strong> O valor já pago por esta licença durante o ciclo atual <strong>não é estornável</strong> em caso de pagamento via PIX/Boleto.</p>
+            <p className="mt-2">Se você decidir adicionar este ou outro membro novamente, poderá ser necessária uma nova cobrança de {formatCurrency(pricing.pricePerUser)}.</p>
+          </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <Button variant="outline" onClick={() => setConfirmDowngradeModal({ isOpen: false, professionalId: null })}>Cancelar</Button>
+            <Button variant="destructive" onClick={confirmDowngrade}>Sim, quero remover</Button>
           </div>
         </DialogContent>
       </Dialog>
