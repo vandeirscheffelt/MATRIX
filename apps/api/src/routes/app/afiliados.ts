@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '@boilerplate/database'
-import { requireAuth, requireActiveSubscription } from '../../lib/auth.js'
+import { requireAuth, requireAdminGlobal, requireActiveSubscription } from '../../lib/auth.js'
 
 const afiliadoBody = z.object({
   productName: z.string().min(1),
@@ -19,34 +19,33 @@ export async function afiliadosRoutes(app: FastifyInstance) {
   // GET /app/afiliados
   app.get('/', { preHandler }, async (request: any) => {
     return prisma.produtoAfiliado.findMany({
-      where: { empresaId: request.empresaId },
       orderBy: { displayOrder: 'asc' },
     })
   })
 
   // POST /app/afiliados
-  app.post('/', { preHandler }, async (request: any, reply) => {
+  app.post('/', { preHandler: [requireAuth, requireAdminGlobal] }, async (request: any, reply) => {
     const body = afiliadoBody.safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
     return reply.code(201).send(
-      await prisma.produtoAfiliado.create({ data: { empresaId: request.empresaId, ...body.data } })
+      await prisma.produtoAfiliado.create({ data: body.data })
     )
   })
 
   // PUT /app/afiliados/:id
-  app.put('/:id', { preHandler }, async (request: any, reply) => {
+  app.put('/:id', { preHandler: [requireAuth, requireAdminGlobal] }, async (request: any, reply) => {
     const { id } = request.params as { id: string }
     const body = afiliadoBody.partial().safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
-    const exists = await prisma.produtoAfiliado.findFirst({ where: { id, empresaId: request.empresaId } })
+    const exists = await prisma.produtoAfiliado.findUnique({ where: { id } })
     if (!exists) return reply.code(404).send({ error: 'Produto não encontrado' })
     return prisma.produtoAfiliado.update({ where: { id }, data: body.data })
   })
 
   // DELETE /app/afiliados/:id
-  app.delete('/:id', { preHandler }, async (request: any, reply) => {
+  app.delete('/:id', { preHandler: [requireAuth, requireAdminGlobal] }, async (request: any, reply) => {
     const { id } = request.params as { id: string }
-    const exists = await prisma.produtoAfiliado.findFirst({ where: { id, empresaId: request.empresaId } })
+    const exists = await prisma.produtoAfiliado.findUnique({ where: { id } })
     if (!exists) return reply.code(404).send({ error: 'Produto não encontrado' })
     await prisma.produtoAfiliado.delete({ where: { id } })
     return { ok: true }

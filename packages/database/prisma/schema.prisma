@@ -154,7 +154,6 @@ model CouponUsage {
 
 model ProdutoAfiliado {
   id               String   @id @default(uuid())
-  empresaId        String   @map("empresa_id")
   productName      String   @map("product_name")
   shortDescription String   @default("") @map("short_description")
   status           String   @default("active") @map("status")
@@ -163,8 +162,6 @@ model ProdutoAfiliado {
   highlightBadge   String   @default("") @map("highlight_badge")
   displayOrder     Int      @default(0) @map("display_order")
   criadoEm         DateTime @default(now()) @map("criado_em")
-
-  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
   @@map("produtos_afiliados")
   @@schema("atendente_ia")
