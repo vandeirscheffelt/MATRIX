@@ -17,7 +17,7 @@ export async function afiliadosRoutes(app: FastifyInstance) {
   const preHandler = [requireAuth, requireActiveSubscription]
 
   // GET /app/afiliados
-  app.get('/', { preHandler }, async (request: any) => {
+  app.get('/', { preHandler: [requireAuth] }, async (request: any) => {
     return prisma.produtoAfiliado.findMany({
       orderBy: { displayOrder: 'asc' },
     })
