@@ -134,4 +134,31 @@ export async function adminCouponsRoutes(app: FastifyInstance) {
 
     return updated
   })
+
+  // DELETE /admin/coupons/:id - Excluir cupom
+  app.delete('/:id', async (request: any, reply) => {
+    const params = z.object({ id: z.string() }).safeParse(request.params)
+    if (!params.success) return reply.code(400).send({ error: 'ID inválido' })
+
+    const coupon = await prisma.coupon.findUnique({ where: { id: params.data.id } })
+    if (!coupon) return reply.code(404).send({ error: 'Cupom não encontrado' })
+
+    // Na Stripe não é possível "deletar" um promotion_code via API, apenas inativar.
+    try {
+      const stripe = getStripe()
+      const promoCodes = await stripe.promotionCodes.list({ code: coupon.code })
+      for (const p of promoCodes.data) {
+        if (p.active) {
+          await stripe.promotionCodes.update(p.id, { active: false })
+        }
+      }
+    } catch (err) {
+      request.log.error({ err }, 'Erro ao inativar na Stripe durante exclusão')
+    }
+
+    // Exclui do nosso banco (cascade vai limpar os usages)
+    await prisma.coupon.delete({ where: { id: params.data.id } })
+
+    return { success: true }
+  })
 }

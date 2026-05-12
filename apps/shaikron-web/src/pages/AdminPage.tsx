@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { Shield, Package, Plus, Calendar, Info, Tag, TrendingUp, Ticket } from "lucide-react";
+import { Shield, Package, Plus, Calendar, Info, Tag, TrendingUp, Ticket, Trash2 } from "lucide-react";
 import { api } from "@/lib/apiClient";
 import { usePricingContext, getVersionStatus, type PriceVersion, type AdjustmentApplyMode } from "@/contexts/PricingContext";
 import { toast } from "@/hooks/use-toast";
@@ -84,6 +84,17 @@ export default function AdminPage() {
       fetchCoupons();
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const deleteCoupon = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este cupom permanentemente?")) return;
+    try {
+      await api.delete(`/admin/coupons/${id}`);
+      toast({ title: "Cupom excluído com sucesso" });
+      fetchCoupons();
+    } catch (err: any) {
+      toast({ title: "Erro ao excluir", description: err.response?.data?.error || err.message, variant: "destructive" });
     }
   };
 
@@ -313,6 +324,9 @@ export default function AdminPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Switch checked={c.active} onCheckedChange={() => toggleCoupon(c.id, c.active)} />
+                  <Button variant="ghost" size="icon" onClick={() => deleteCoupon(c.id)} className="h-8 w-8 text-destructive hover:bg-destructive/10" title="Excluir cupom">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             ))}
