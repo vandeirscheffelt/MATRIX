@@ -104,6 +104,22 @@ export default function Dashboard() {
         </p>
       </div>
 
+      {/* Name Change Banner */}
+      <div className="flex items-start gap-4 rounded-xl border border-primary/30 bg-primary/10 p-5">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20">
+          <Sparkles className="h-5 w-5 text-primary" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-sm font-semibold text-foreground">
+            O Shaikron evoluiu e agora se chama Evolia! ✨
+          </h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Nova marca, a mesma inteligência. Você notará o novo nome pela plataforma, mas fique tranquilo: 
+            <strong> nada mudou nas suas configurações, banco de dados ou faturamento.</strong>
+          </p>
+        </div>
+      </div>
+
       {/* Overview Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
