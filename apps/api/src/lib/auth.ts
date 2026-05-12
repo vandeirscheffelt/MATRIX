@@ -19,12 +19,33 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply) 
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) return reply.code(401).send({ error: 'Token inválido' })
 
-  const usuario = await prisma.usuario.findUnique({
+  let usuario = await prisma.usuario.findUnique({
     where: { id: user.id },
     select: { id: true, empresaId: true, role: true },
   })
 
-  if (!usuario) return reply.code(403).send({ error: 'Usuário não vinculado a nenhuma empresa' })
+  if (!usuario) {
+    // Sincronização automática (auto-create) no primeiro acesso
+    // Resolve o problema de contas criadas no frontend sem webhook
+    try {
+      usuario = await prisma.$transaction(async (tx) => {
+        const empresa = await tx.empresa.create({
+          data: { nome: 'Minha Empresa', slug: `empresa-${Date.now()}` },
+        })
+        const novoUsuario = await tx.usuario.create({
+          data: { id: user.id, empresaId: empresa.id, role: 'ADMIN' },
+          select: { id: true, empresaId: true, role: true },
+        })
+        const trialEndsAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+        await tx.subscription.create({
+          data: { empresaId: empresa.id, status: 'TRIAL', trialEndsAt },
+        })
+        return novoUsuario
+      })
+    } catch (e) {
+      return reply.code(403).send({ error: 'Erro ao sincronizar usuário recém-criado' })
+    }
+  }
 
   ;(request as any).userId = usuario.id
   ;(request as any).empresaId = usuario.empresaId
