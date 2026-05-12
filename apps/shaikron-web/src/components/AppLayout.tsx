@@ -59,7 +59,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 Período de teste encerrado
               </h1>
               <p className="text-muted-foreground">
-                Seu período gratuito de 3 dias chegou ao fim. Para continuar usando o Shaikron, ative sua assinatura agora.
+                Seu período gratuito de 3 dias chegou ao fim. Para continuar usando o Evolia, ative sua assinatura agora.
               </p>
             </div>
 
@@ -67,7 +67,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 space-y-3 text-left">
               <div className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-primary" />
-                <span className="font-semibold text-foreground">Plano Base Shaikron</span>
+                <span className="font-semibold text-foreground">Plano Base Evolia</span>
               </div>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>✓ Agenda completa com IA</li>
@@ -146,7 +146,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSidebarOpen(true)}>
                 <Menu className="h-5 w-5" />
               </Button>
-              <span className="text-sm font-bold text-foreground">Schaikron</span>
+              <span className="text-sm font-bold text-foreground">Evolia</span>
             </div>
           )}
           <AppHeader />

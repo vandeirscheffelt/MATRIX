@@ -40,7 +40,7 @@ export function AppSidebar() {
           <Zap className="h-4 w-4 text-primary-foreground" />
         </div>
         <span className="text-lg font-bold text-foreground tracking-tight">
-          Schaikron
+          Evolia
         </span>
       </div>
 
@@ -88,7 +88,7 @@ export function AppSidebar() {
       {/* Footer */}
       <div className="border-t border-border px-6 py-4">
         <p className="text-xs text-muted-foreground">
-          Schaikron <span className="text-muted-foreground/60">v1.0</span>
+          Evolia <span className="text-muted-foreground/60">v1.0</span>
         </p>
       </div>
     </aside>
