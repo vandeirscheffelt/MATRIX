@@ -9,6 +9,10 @@ Ele deve ser atualizado pelo **Tech Lead** após cada fase concluída.
 
 O Shaikron foi identificado como um ecossistema composto por dois repositórios fundamentais. Ambos estão sob controle de governança.
 
+## 🌟 NOTA ARQUITETURAL: Rebranding "Evolia by Shaikron"
+O produto "SaaS" visualizado pelo cliente foi renomeado para **Evolia**. 
+Toda a parte visual (Frontend React) utiliza o nome Evolia. Porém, a infraestrutura (pastas, repositórios, webhooks, imagens docker, schema do banco) se mantém com o nome técnico **Shaikron** para evitar quebra de integrações legadas de faturamento e infra. O modelo é de uma Holding (Shaikron) com um Produto (Evolia).
+
 | Data | Fase | Status | Responsável |
 |------|------|--------|-------------|
 | 16/04/2026 | Inicialização Dual-Repo | ✅ CONCLUÍDO | Antigravity |

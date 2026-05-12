@@ -1,5 +1,9 @@
 # Shaikron — STATUS
 
+> ⚠️ **AVISO DE REBRANDING (Evolia by Shaikron)**
+> O produto final para o cliente foi oficialmente renomeado para **Evolia**. 
+> Toda a identidade visual (textos, títulos, mensagens) no frontend exibe o nome "Evolia". Porém, a infraestrutura (pastas, repositórios, webhooks, imagens docker, schema do banco) se mantém com o nome técnico **Shaikron** para evitar quebra de integrações legadas de faturamento e infra. O modelo é de uma Holding (Shaikron) com um Produto (Evolia).
+
 **Última atualização:** 2026-05-11
 
 ---
