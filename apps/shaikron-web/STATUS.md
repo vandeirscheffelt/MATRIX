@@ -29,6 +29,17 @@
   - Rota `GET /app/billing/validate-coupon` para validação em tempo real no frontend.
   - **Desconto Visual**: O Resumo Mensal agora exibe a linha de desconto e abate o valor do Total Mensal.
   - **AppMax Integration**: O backend calcula o preço reduzido e envia o valor final para o AppMax (PIX/Boleto).
+  - **Bypass de 100% de desconto**: Se o desconto cobrir todo o valor, ativa a conta instantaneamente por 30 dias sem passar por AppMax ou Stripe.
+  - **Gestão no Admin**: Criação, listagem, ativação/desativação (Stripe PromoCode Sync) e exclusão definitiva de cupons com validação via `Cascade`.
+- **UX do Faturamento (Account Page)**:
+  - Destaca dinamicamente o valor da fatura (`Subtotal`) em relação ao plano Base.
+  - Proteção de Downgrade: Alerta crítico vermelho antes de remover membros (sem estorno de PIX).
+  - Fluxo "Sexto Elemento": Ocultação do botão de adicionar mais membros para contas ativadas por PIX/Boleto, prevenindo micro-faturas.
+- **Cancelamento (Churn)**:
+  - Lógica bifurcada (`POST /app/billing/cancel`).
+  - **Stripe**: Define `cancel_at_period_end: true` e preserva acesso até o vencimento.
+  - **PIX/Boleto (AppMax)**: Sem renovação automática; sistema apenas informa que expirará sem cobrança extra.
+  - Ocultação de portal do cliente para usuários AppMax/PIX.
 
 ---
 
