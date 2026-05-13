@@ -24,6 +24,20 @@ export default function WhatsAppConnection() {
   const loadInstancia = useCallback(async () => {
     try {
       const data = await api.get<InstanciaData>("/app/instancia");
+      // Se está conectando mas sem QR, busca QR novo automaticamente
+      if (data.status === "CONNECTING" && !data.qrCodeBase64) {
+        try {
+          const qrData = await api.get<{ qrCodeBase64: string; qrExpiresAt: string }>("/app/instancia/qr");
+          if (qrData.qrCodeBase64) {
+            setQrCode(qrData.qrCodeBase64);
+            setStatus("qr");
+            setPolling(true);
+            return;
+          }
+        } catch {
+          // ignora e cai no applyStatus normal
+        }
+      }
       applyStatus(data);
     } catch (err: any) {
       if (err?.message?.includes("404")) {
