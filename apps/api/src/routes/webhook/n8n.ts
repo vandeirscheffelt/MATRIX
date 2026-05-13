@@ -24,7 +24,104 @@ const conversaBody = z.object({
   telefone: z.string(),
 })
 
+// Resolve instanceName → empresaId + valida existência
+async function resolveInstancia(instanceName: string) {
+  return prisma.instanciaWhatsApp.findUnique({
+    where: { nomeInstancia: instanceName },
+    select: { empresaId: true },
+  })
+}
+
 export async function n8nWebhookRoutes(app: FastifyInstance) {
+
+  // GET /webhook/n8n/context/:instanceName
+  // Ponto de entrada do n8n: resolve instância → retorna empresaId + config completa
+  app.get('/context/:instanceName', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const { instanceName } = request.params as { instanceName: string }
+
+    const instancia = await resolveInstancia(instanceName)
+    if (!instancia) return reply.code(404).send({ error: 'Instância não encontrada' })
+
+    const { empresaId } = instancia
+
+    const config = await prisma.configBot.findUnique({ where: { empresaId } })
+
+    if (!config) return reply.code(404).send({ error: 'Config não encontrada para esta empresa' })
+
+    return {
+      empresaId,
+      botAtivo: config.botAtivo,
+      prompt: config.prompt,
+      nomeAssistente: config.nomeAssistente,
+      palavraPausa: config.palavraPausa,
+      palavraRetorno: config.palavraRetorno,
+      tempoRetornoMin: config.tempoRetornoMin,
+      disponibilidade: config.disponibilidade,
+      horarioInicio: config.horarioInicio,
+      horarioFim: config.horarioFim,
+      idioma: config.idioma,
+      faq: config.faq,
+    }
+  })
+
+  // GET /webhook/n8n/lead/:instanceName/:telefone
+  // Verifica se lead existe e se a IA está pausada para esse número
+  app.get('/lead/:instanceName/:telefone', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const { instanceName, telefone } = request.params as { instanceName: string; telefone: string }
+
+    const instancia = await resolveInstancia(instanceName)
+    if (!instancia) return reply.code(404).send({ error: 'Instância não encontrada' })
+
+    const { empresaId } = instancia
+
+    const lead = await prisma.lead.findUnique({
+      where: { empresaId_telefone: { empresaId, telefone } },
+      include: { conversa: { select: { statusIa: true, pausadoEm: true, retornoEm: true } } },
+    })
+
+    if (!lead) {
+      return { encontrado: false, iaPausada: false, lead: null }
+    }
+
+    const iaPausada = lead.conversa?.statusIa === 'PAUSADO'
+
+    return {
+      encontrado: true,
+      iaPausada,
+      retornoEm: lead.conversa?.retornoEm ?? null,
+      lead: {
+        id: lead.id,
+        nomeWpp: lead.nomeWpp,
+        telefone: lead.telefone,
+      },
+    }
+  })
+
+  // POST /webhook/n8n/lead/:instanceName — cria ou atualiza lead pelo n8n
+  app.post('/lead/:instanceName', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const { instanceName } = request.params as { instanceName: string }
+
+    const instancia = await resolveInstancia(instanceName)
+    if (!instancia) return reply.code(404).send({ error: 'Instância não encontrada' })
+
+    const body = z.object({
+      telefone: z.string().min(1),
+      nomeWpp: z.string().optional(),
+    }).safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const { empresaId } = instancia
+    const { telefone, nomeWpp } = body.data
+
+    const lead = await prisma.lead.upsert({
+      where: { empresaId_telefone: { empresaId, telefone } },
+      create: { empresaId, telefone, nomeWpp },
+      update: { ...(nomeWpp ? { nomeWpp } : {}) },
+    })
+
+    return { leadId: lead.id, empresaId }
+  })
+
   // GET /webhook/n8n/config/:empresa_id
   // n8n busca configs para injetar no agente IA
   app.get('/config/:empresaId', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
