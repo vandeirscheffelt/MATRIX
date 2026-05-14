@@ -260,11 +260,11 @@ REGRAS:
     const regraEstilo = `
 ----------------------------------------------------
 🚫 REGRAS DE ESTILO — SEGUIR SEMPRE
-- Máximo 2 mensagens por resposta
+- Use 1 mensagem para respostas curtas e diretas
+- Use 2 mensagens apenas quando o conteúdo for longo (listas, explicações detalhadas)
 - Cada mensagem: máximo 2 parágrafos curtos
 - Máximo 1 pergunta por mensagem
 - Usar 1 a 3 emojis por mensagem
-- Quando listar profissionais: máximo 2-3 por mensagem, nunca um por mensagem
 - Nunca mencionar: IA, API, automações, sistemas, n8n, bot
 - Nunca inventar informações — se não souber, diga que vai verificar e retorna em breve
 - Fluxo sempre humano e organizado`.trim()
