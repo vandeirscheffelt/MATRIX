@@ -1,0 +1,78 @@
+# Blue-Green Deploy — Ativar quando atingir ~1.000 usuários ativos simultâneos
+#
+# COMO USAR:
+#   1. Build da nova versão:
+#      docker build -t shaikron-api:green -f apps/api/Dockerfile .
+#
+#   2. Sobe o green (sem derrubar o blue):
+#      docker compose -f docker-compose.blue-green.yml up -d shaikron-api-green
+#
+#   3. Testa o green na porta 3005:
+#      curl http://localhost:3005/health
+#
+#   4. Troca o Nginx para apontar para o green (ver nginx/shaikron.conf):
+#      nginx -s reload
+#
+#   5. Derruba o blue:
+#      docker compose -f docker-compose.blue-green.yml stop shaikron-api-blue
+#
+#   Na próxima deploy, o green vira blue e vice-versa.
+
+version: '3.9'
+
+services:
+  shaikron-api-blue:
+    image: shaikron-api:blue
+    container_name: shaikron-api-blue
+    restart: always
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3004/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - shaikron-net
+    ports:
+      - "3004:3004"
+    environment:
+      NODE_ENV: production
+      PORT: 3004
+    env_file:
+      - /var/www/matrix/.env
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  shaikron-api-green:
+    image: shaikron-api:green
+    container_name: shaikron-api-green
+    restart: always
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3005/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - shaikron-net
+    ports:
+      - "3005:3004"
+    environment:
+      NODE_ENV: production
+      PORT: 3004
+    env_file:
+      - /var/www/matrix/.env
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  shaikron-net:
+    driver: bridge

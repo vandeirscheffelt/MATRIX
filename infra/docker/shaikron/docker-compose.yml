@@ -5,12 +5,14 @@ services:
     image: shaikron-api:latest
     container_name: shaikron-api
     restart: always
+    # Graceful shutdown: espera 30s para requests em andamento finalizarem antes de matar o container
+    stop_grace_period: 30s
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3004/health"]
-      interval: 30s
+      interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
     build:
       context: ../../../          # raiz do monorepo
       dockerfile: apps/api/Dockerfile
