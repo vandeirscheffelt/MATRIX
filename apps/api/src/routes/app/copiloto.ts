@@ -255,7 +255,21 @@ REGRAS:
       ],
     })
 
-    const contexto = completion.choices[0]?.message?.content?.trim() ?? ''
+    const contextoGerado = completion.choices[0]?.message?.content?.trim() ?? ''
+
+    const regraEstilo = `
+----------------------------------------------------
+🚫 REGRAS DE ESTILO — SEGUIR SEMPRE
+- Máximo 2 mensagens por resposta
+- Cada mensagem: máximo 2 parágrafos curtos
+- Máximo 1 pergunta por mensagem
+- Usar 1 a 3 emojis por mensagem
+- Quando listar profissionais: máximo 2-3 por mensagem, nunca um por mensagem
+- Nunca mencionar: IA, API, automações, sistemas, n8n, bot
+- Nunca inventar informações — se não souber, diga que vai verificar e retorna em breve
+- Fluxo sempre humano e organizado`.trim()
+
+    const contexto = `${contextoGerado}\n\n${regraEstilo}`
 
     await prisma.configBot.update({
       where: { empresaId },
