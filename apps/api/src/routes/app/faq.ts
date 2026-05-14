@@ -97,7 +97,16 @@ export async function faqRoutes(app: FastifyInstance) {
     ])
 
     const idioma = config?.idioma ?? 'pt-BR'
-    const tom = config?.tomDisplay ?? (config?.tom === 'FORMAL' ? 'profissional e cordial' : 'amigável e próximo')
+    const TOM_MAPEAMENTO: Record<string, string> = {
+      'Professional': 'profissional e cordial — linguagem formal, objetiva, sem gírias',
+      'Friendly': 'amigável e próximo — linguagem descontraída, calorosa, usa emojis com moderação',
+      'Casual': 'casual e informal — linguagem bem leve, como conversa entre amigos, uso natural de gírias',
+      'Formal': 'formal e reservado — linguagem culta, tratamento "senhor/senhora", sem informalidades',
+      'Empathetic': 'empático e acolhedor — demonstra compreensão genuína, valida sentimentos do cliente, linguagem cuidadosa e humana',
+      'Energetic': 'energético e entusiasmado — linguagem animada, proativa, usa pontuação expressiva (!), transmite energia positiva e motivação',
+    }
+    const rawTom = config?.tomDisplay ?? (config?.tom === 'FORMAL' ? 'Professional' : 'Friendly')
+    const tom = TOM_MAPEAMENTO[rawTom] ?? rawTom
 
     // Usa o prompt completo se já gerado — é a fonte mais rica. Caso contrário, usa o contexto operacional.
     const contextoEmpresa = config?.prompt

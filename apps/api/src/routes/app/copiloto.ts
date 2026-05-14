@@ -173,8 +173,18 @@ export async function copilotoRoutes(app: FastifyInstance) {
     const { default: OpenAI } = await import('openai')
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
+    const TOM_MAPEAMENTO: Record<string, string> = {
+      'Professional': 'profissional e cordial — linguagem formal, objetiva, sem gírias',
+      'Friendly': 'amigável e próximo — linguagem descontraída, calorosa, usa emojis com moderação',
+      'Casual': 'casual e informal — linguagem bem leve, como conversa entre amigos, uso natural de gírias',
+      'Formal': 'formal e reservado — linguagem culta, tratamento "senhor/senhora", sem informalidades',
+      'Empathetic': 'empático e acolhedor — demonstra compreensão genuína, valida sentimentos do cliente, linguagem cuidadosa e humana',
+      'Energetic': 'energético e entusiasmado — linguagem animada, proativa, usa pontuação expressiva (!), transmite energia positiva e motivação',
+    }
+
     const nomeAssistente = config?.nomeAssistente ?? 'Assistente'
-    const tomDisplay = config?.tomDisplay ?? (config?.tom === 'INFORMAL' ? 'amigável e próximo' : 'profissional e cordial')
+    const rawTom = config?.tomDisplay ?? (config?.tom === 'INFORMAL' ? 'Friendly' : 'Professional')
+    const tomDisplay = TOM_MAPEAMENTO[rawTom] ?? rawTom
     const identidade = config?.identidade ?? 'assistente_virtual'
     const ehHumano = identidade === 'atendente_humano'
 
