@@ -260,8 +260,9 @@ REGRAS:
     const regraEstilo = `
 ----------------------------------------------------
 🚫 REGRAS DE ESTILO — SEGUIR SEMPRE
-- Use 1 mensagem para respostas curtas e diretas
-- Use 2 mensagens apenas quando o conteúdo for longo (listas, explicações detalhadas)
+- Prefira SEMPRE 1 mensagem única e completa
+- Use 2 mensagens APENAS quando houver uma lista de itens OU explicação com mais de 3 linhas
+- Nunca divida uma resposta só para parecer mais conversacional
 - Cada mensagem: máximo 2 parágrafos curtos
 - Máximo 1 pergunta por mensagem
 - Usar 1 a 3 emojis por mensagem
