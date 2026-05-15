@@ -113,7 +113,7 @@ async function calcularAgendaDia(
   const agendamentos = await prisma.agendamento.findMany({
     where: {
       profissionalId,
-      status: { in: ['CONFIRMADO', 'REMARCADO'] },
+      status: { in: ['CONFIRMADO', 'REMARCADO', 'BLOQUEADO'] },
       inicio: { gte: inicioDiaUtc, lte: fimDiaUtc },
     },
     include: {
@@ -176,6 +176,15 @@ async function calcularAgendaDia(
       const agFimHora = `${String(agFimZoned.getHours()).padStart(2, '0')}:${String(agFimZoned.getMinutes()).padStart(2, '0')}`
       const agDuracaoMin = (agendado as any).servico?.duracaoMin
         ?? Math.round(((agendado as any).fim.getTime() - (agendado as any).inicio.getTime()) / 60000)
+      if ((agendado as any).status === 'BLOQUEADO') {
+        return {
+          hora: formatHora(inicio),
+          horaFim: agFimHora,
+          duracaoMin: agDuracaoMin,
+          status: 'BLOQUEADO' as SlotStatus,
+          agendamentoId: (agendado as any).id,
+        }
+      }
       return {
         hora: formatHora(inicio),
         horaFim: agFimHora,
