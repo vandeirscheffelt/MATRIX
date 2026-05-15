@@ -63,9 +63,11 @@ export default function AccountPage() {
   const total = subtotal - discountAmount;
 
   const handlePhoneChange = (value: string) => {
-    setManagerPhone(value);
-    if (value && !/^\+?\d[\d\s\-()]{7,}$/.test(value.trim())) {
-      setPhoneError(t("account.phoneError"));
+    // Aceita apenas dígitos
+    const digits = value.replace(/\D/g, '');
+    setManagerPhone(digits);
+    if (digits && (digits.length < 10 || digits.length > 15)) {
+      setPhoneError("Digite entre 10 e 15 dígitos (ex: 5511999999999)");
     } else {
       setPhoneError("");
     }
@@ -293,29 +295,34 @@ export default function AccountPage() {
             <h1 className="text-2xl font-bold text-foreground">{t("account.title")}</h1>
             <p className="text-sm text-muted-foreground">{t("account.subtitle")}</p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-sm text-muted-foreground whitespace-nowrap">{t("account.managerPhone")}:</span>
-            <div className="flex items-center gap-2">
-              <Input
-                id="manager-phone"
-                type="tel"
-                placeholder="+55 11 99999-9999"
-                value={managerPhone}
-                onChange={(e) => { handlePhoneChange(e.target.value); setPhoneSaved(false); }}
-                className={`h-8 text-sm w-48 ${phoneError ? "border-destructive" : savedPhone && managerPhone === savedPhone ? "border-green-500 focus-visible:ring-green-500" : ""}`}
-              />
-              <Button
-                size="sm"
-                variant={phoneSaved ? "default" : "outline"}
-                className={`h-8 px-3 text-xs transition-all ${phoneSaved ? "bg-green-600 hover:bg-green-700 text-white border-green-600" : ""}`}
-                onClick={handleSavePhone}
-                disabled={phoneSaving || !!phoneError || !managerPhone.trim() || managerPhone.trim() === savedPhone}
-              >
-                {phoneSaving ? "..." : phoneSaved ? "✓ Salvo" : "Salvar"}
-              </Button>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">{t("account.managerPhone")}:</span>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="manager-phone"
+                  type="tel"
+                  placeholder="5511999999999"
+                  value={managerPhone}
+                  onChange={(e) => { handlePhoneChange(e.target.value); setPhoneSaved(false); }}
+                  className={`h-8 text-sm w-48 ${phoneError ? "border-destructive" : savedPhone && managerPhone === savedPhone ? "border-green-500 focus-visible:ring-green-500" : ""}`}
+                />
+                <Button
+                  size="sm"
+                  variant={phoneSaved ? "default" : "outline"}
+                  className={`h-8 px-3 text-xs transition-all ${phoneSaved ? "bg-green-600 hover:bg-green-700 text-white border-green-600" : ""}`}
+                  onClick={handleSavePhone}
+                  disabled={phoneSaving || !!phoneError || !managerPhone.trim() || managerPhone.trim() === savedPhone}
+                >
+                  {phoneSaving ? "..." : phoneSaved ? "✓ Salvo" : "Salvar"}
+                </Button>
+              </div>
             </div>
-            {phoneError && <p className="text-xs text-destructive w-full pl-6">{phoneError}</p>}
+            <p className="text-xs text-muted-foreground pl-6">
+              DDI + DDD + número, sem espaços ou símbolos. Ex: <span className="font-mono text-foreground/70">5511999999999</span>
+            </p>
+            {phoneError && <p className="text-xs text-destructive pl-6">{phoneError}</p>}
           </div>
         </div>
 
