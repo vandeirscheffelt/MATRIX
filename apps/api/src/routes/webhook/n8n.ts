@@ -313,8 +313,8 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     const body = z.object({
       empresaId: z.string().uuid(),
       profissionalId: z.string().uuid(),
-      inicio: z.string().datetime(),
-      fim: z.string().datetime(),
+      inicio: z.string().datetime({ offset: true }),
+      fim: z.string().datetime({ offset: true }),
       motivo: z.string().optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
@@ -371,8 +371,8 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
   app.post('/agenda/reagendar', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
     const body = z.object({
       agendamentoId: z.string().uuid(),
-      novoInicio: z.string().datetime(),
-      novoFim: z.string().datetime(),
+      novoInicio: z.string().datetime({ offset: true }),
+      novoFim: z.string().datetime({ offset: true }),
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
