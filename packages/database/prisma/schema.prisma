@@ -41,10 +41,11 @@ model Empresa {
   chatHistories    ChatHistory[]
   eventos          AnalyticsEvento[]
   faqEntries       FaqEntry[]
-  faqSugestoes     FaqSugestao[]
-  keywords         Keyword[]
-  pacientes        Paciente[]
-  couponUsages     CouponUsage[]
+  faqSugestoes          FaqSugestao[]
+  keywords              Keyword[]
+  pacientes             Paciente[]
+  couponUsages          CouponUsage[]
+  notificacoesPendentes NotificacaoPendente[]
 
   @@map("empresas")
   @@schema("atendente_ia")
@@ -268,6 +269,7 @@ model Agendamento {
   inicio          DateTime
   fim             DateTime
   status          StatusAgendamento  @default(CONFIRMADO)
+  observacao      String?
   criadoEm        DateTime           @default(now()) @map("criado_em")
 
   empresa      Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
@@ -288,8 +290,27 @@ enum StatusAgendamento {
   REMARCADO
   REALIZADO
   NO_SHOW
+  BLOQUEADO
 
   @@map("status_agendamento_enum")
+  @@schema("atendente_ia")
+}
+
+model NotificacaoPendente {
+  id             String    @id @default(uuid())
+  empresaId      String    @map("empresa_id")
+  leadId         String    @map("lead_id")
+  agendamentoId  String?   @map("agendamento_id")
+  mensagem       String
+  enviada        Boolean   @default(false)
+  criadoEm       DateTime  @default(now()) @map("criado_em")
+  enviadaEm      DateTime? @map("enviada_em")
+
+  empresa     Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  lead        Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, enviada])
+  @@map("notificacoes_pendentes")
   @@schema("atendente_ia")
 }
 
@@ -437,9 +458,10 @@ model Lead {
   nomeWpp   String?  @map("nome_wpp")
   criadoEm  DateTime @default(now()) @map("criado_em")
 
-  empresa      Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  conversa     Conversa?
-  agendamentos Agendamento[]
+  empresa               Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  conversa              Conversa?
+  agendamentos          Agendamento[]
+  notificacoesPendentes NotificacaoPendente[]
 
   @@unique([empresaId, telefone])
   @@map("leads")

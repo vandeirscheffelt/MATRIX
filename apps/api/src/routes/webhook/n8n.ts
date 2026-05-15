@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@boilerplate/database'
 
 // Segredo compartilhado entre Fastify e n8n
-function requireWebhookSecret(request: any, reply: any) {
+async function requireWebhookSecret(request: any, reply: any) {
   const secret = request.headers['x-webhook-secret']
   if (secret !== process.env.N8N_WEBHOOK_SECRET) {
     return reply.code(401).send({ error: 'Unauthorized' })
@@ -32,6 +32,11 @@ async function resolveInstancia(instanceName: string) {
   })
 }
 
+// Normaliza telefone para comparação (remove +, espaços, traços)
+function normalizarTelefone(tel: string) {
+  return tel.replace(/\D/g, '')
+}
+
 export async function n8nWebhookRoutes(app: FastifyInstance) {
 
   // GET /webhook/n8n/context/:instanceName
@@ -48,10 +53,15 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
 
     if (!config) return reply.code(404).send({ error: 'Config não encontrada para esta empresa' })
 
+    // Monta o prompt completo: contexto_operacional (staff/horários) + prompt (persona/abertura)
+    const promptCompleto = [config.contextoOperacional, config.prompt]
+      .filter(Boolean)
+      .join('\n\n')
+
     return {
       empresaId,
       botAtivo: config.botAtivo,
-      prompt: config.prompt,
+      prompt: promptCompleto,
       nomeAssistente: config.nomeAssistente,
       palavraPausa: config.palavraPausa,
       palavraRetorno: config.palavraRetorno,
@@ -219,6 +229,206 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
 
     return { success: true, retornoEm }
   })
+
+  // ─── IA02 — Secretária Interna ───────────────────────────────────────────────
+
+  // GET /webhook/n8n/interno/identificar/:instanceName/:telefone
+  // Identifica se o número é gerente, profissional (com aiAccess) ou cliente
+  app.get('/interno/identificar/:instanceName/:telefone', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const { instanceName, telefone } = request.params as { instanceName: string; telefone: string }
+
+    const instancia = await resolveInstancia(instanceName)
+    if (!instancia) return reply.code(404).send({ error: 'Instância não encontrada' })
+
+    const { empresaId } = instancia
+    const telNorm = normalizarTelefone(telefone)
+
+    // Verifica gerente
+    const gerente = await prisma.numeroGerente.findFirst({
+      where: { empresaId },
+      select: { telefone: true },
+    })
+
+    if (gerente && normalizarTelefone(gerente.telefone) === telNorm) {
+      return { papel: 'gerente', empresaId, profissionalId: null }
+    }
+
+    // Verifica profissional com aiAccess
+    const profissionais = await prisma.profissional.findMany({
+      where: { empresaId, aiAccess: true, ativo: true },
+      select: { id: true, telefone: true, nome: true },
+    })
+
+    const profissional = profissionais.find(p => p.telefone && normalizarTelefone(p.telefone) === telNorm)
+    if (profissional) {
+      return { papel: 'profissional', empresaId, profissionalId: profissional.id, nomeProfissional: profissional.nome }
+    }
+
+    return { papel: 'cliente', empresaId, profissionalId: null }
+  })
+
+  // GET /webhook/n8n/agenda/:empresaId?profissionalId=&data=
+  // Retorna agendamentos do dia (ou data informada). Se profissionalId, filtra só os dele.
+  app.get('/agenda/:empresaId', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const { empresaId } = request.params as { empresaId: string }
+    const { profissionalId, data } = request.query as { profissionalId?: string; data?: string }
+
+    const dataAlvo = data ? new Date(data) : new Date()
+    const inicioDia = new Date(dataAlvo)
+    inicioDia.setHours(0, 0, 0, 0)
+    const fimDia = new Date(dataAlvo)
+    fimDia.setHours(23, 59, 59, 999)
+
+    const agendamentos = await prisma.agendamento.findMany({
+      where: {
+        empresaId,
+        ...(profissionalId ? { profissionalId } : {}),
+        status: { in: ['CONFIRMADO', 'REMARCADO'] },
+        inicio: { gte: inicioDia, lte: fimDia },
+      },
+      include: {
+        lead: { select: { nomeWpp: true, telefone: true } },
+        profissional: { select: { nome: true } },
+      },
+      orderBy: { inicio: 'asc' },
+    })
+
+    return { total: agendamentos.length, agendamentos }
+  })
+
+  // POST /webhook/n8n/agenda/bloquear
+  // Cria agendamento de bloqueio (sem lead) para horário vago
+  app.post('/agenda/bloquear', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const body = z.object({
+      empresaId: z.string().uuid(),
+      profissionalId: z.string().uuid(),
+      inicio: z.string().datetime(),
+      fim: z.string().datetime(),
+      motivo: z.string().optional(),
+    }).safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const { empresaId, profissionalId, inicio, fim, motivo } = body.data
+    const inicioDate = new Date(inicio)
+    const fimDate = new Date(fim)
+
+    const conflito = await prisma.agendamento.findFirst({
+      where: {
+        profissionalId,
+        status: { in: ['CONFIRMADO', 'REMARCADO', 'BLOQUEADO'] },
+        OR: [{ inicio: { lt: fimDate }, fim: { gt: inicioDate } }],
+      },
+    })
+    if (conflito) return reply.code(409).send({ error: 'Horário em conflito' })
+
+    const bloqueio = await prisma.agendamento.create({
+      data: { empresaId, profissionalId, inicio: inicioDate, fim: fimDate, status: 'BLOQUEADO', observacao: motivo },
+    })
+
+    return { success: true, agendamentoId: bloqueio.id }
+  })
+
+  // POST /webhook/n8n/agenda/cancelar
+  app.post('/agenda/cancelar', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const body = z.object({
+      agendamentoId: z.string().uuid(),
+      motivo: z.string().optional(),
+    }).safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const { agendamentoId, motivo } = body.data
+
+    const agendamento = await prisma.agendamento.findUnique({ where: { id: agendamentoId } })
+    if (!agendamento) return reply.code(404).send({ error: 'Agendamento não encontrado' })
+    if (agendamento.status === 'CANCELADO') return reply.code(409).send({ error: 'Agendamento já cancelado' })
+
+    const atualizado = await prisma.agendamento.update({
+      where: { id: agendamentoId },
+      data: { status: 'CANCELADO', observacao: motivo },
+      include: { lead: { select: { telefone: true, nomeWpp: true } } },
+    })
+
+    return {
+      success: true,
+      temCliente: !!atualizado.leadId,
+      leadTelefone: atualizado.lead?.telefone ?? null,
+      leadNome: atualizado.lead?.nomeWpp ?? null,
+    }
+  })
+
+  // POST /webhook/n8n/agenda/reagendar
+  app.post('/agenda/reagendar', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const body = z.object({
+      agendamentoId: z.string().uuid(),
+      novoInicio: z.string().datetime(),
+      novoFim: z.string().datetime(),
+    }).safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const { agendamentoId, novoInicio, novoFim } = body.data
+    const inicioDate = new Date(novoInicio)
+    const fimDate = new Date(novoFim)
+
+    const agendamento = await prisma.agendamento.findUnique({ where: { id: agendamentoId } })
+    if (!agendamento) return reply.code(404).send({ error: 'Agendamento não encontrado' })
+
+    const conflito = await prisma.agendamento.findFirst({
+      where: {
+        profissionalId: agendamento.profissionalId,
+        id: { not: agendamentoId },
+        status: { in: ['CONFIRMADO', 'REMARCADO', 'BLOQUEADO'] },
+        OR: [{ inicio: { lt: fimDate }, fim: { gt: inicioDate } }],
+      },
+    })
+    if (conflito) return reply.code(409).send({ error: 'Novo horário em conflito' })
+
+    const atualizado = await prisma.agendamento.update({
+      where: { id: agendamentoId },
+      data: { inicio: inicioDate, fim: fimDate, status: 'REMARCADO' },
+      include: { lead: { select: { telefone: true, nomeWpp: true } } },
+    })
+
+    return {
+      success: true,
+      temCliente: !!atualizado.leadId,
+      leadTelefone: atualizado.lead?.telefone ?? null,
+      leadNome: atualizado.lead?.nomeWpp ?? null,
+      novoInicio: atualizado.inicio,
+      novoFim: atualizado.fim,
+    }
+  })
+
+  // POST /webhook/n8n/agenda/notificar-cliente
+  // IA02 solicita que IA01 notifique o cliente (cria registro de notificação pendente)
+  app.post('/agenda/notificar-cliente', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const body = z.object({
+      empresaId: z.string().uuid(),
+      leadTelefone: z.string(),
+      mensagem: z.string().min(1),
+      agendamentoId: z.string().uuid().optional(),
+    }).safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const { empresaId, leadTelefone, mensagem, agendamentoId } = body.data
+
+    const lead = await prisma.lead.findUnique({
+      where: { empresaId_telefone: { empresaId, telefone: leadTelefone } },
+    })
+    if (!lead) return reply.code(404).send({ error: 'Lead não encontrado' })
+
+    const notificacao = await prisma.notificacaoPendente.create({
+      data: {
+        empresaId,
+        leadId: lead.id,
+        mensagem,
+        ...(agendamentoId ? { agendamentoId } : {}),
+      },
+    })
+
+    return { success: true, notificacaoId: notificacao.id }
+  })
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   // POST /webhook/n8n/conversa/reativar
   app.post('/conversa/reativar', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
