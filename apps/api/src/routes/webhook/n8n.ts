@@ -439,6 +439,18 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     return { success: true, notificacaoId: notificacao.id }
   })
 
+  // GET /webhook/n8n/profissionais/:empresaId
+  // IA02 usa para resolver nome → profissionalId antes de bloquear/cancelar
+  app.get('/profissionais/:empresaId', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const { empresaId } = request.params as { empresaId: string }
+    const profissionais = await prisma.profissional.findMany({
+      where: { empresaId },
+      select: { id: true, nome: true, cargo: true },
+      orderBy: { nome: 'asc' },
+    })
+    return profissionais
+  })
+
   // ─────────────────────────────────────────────────────────────────────────────
 
   // POST /webhook/n8n/conversa/reativar
