@@ -310,6 +310,7 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
   // POST /webhook/n8n/agenda/bloquear
   // Cria agendamento de bloqueio (sem lead) para horário vago
   app.post('/agenda/bloquear', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    request.log.info({ body: request.body }, 'bloquear body recebido')
     const body = z.object({
       empresaId: z.string().uuid(),
       profissionalId: z.string().uuid(),
