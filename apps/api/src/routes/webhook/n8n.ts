@@ -445,7 +445,7 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     const { empresaId } = request.params as { empresaId: string }
     const profissionais = await prisma.profissional.findMany({
       where: { empresaId },
-      select: { id: true, nome: true, cargo: true },
+      select: { id: true, nome: true },
       orderBy: { nome: 'asc' },
     })
     return profissionais
