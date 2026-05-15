@@ -313,15 +313,15 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     const body = z.object({
       empresaId: z.string().uuid(),
       profissionalId: z.string().uuid(),
-      inicio: z.string().datetime({ offset: true }),
-      fim: z.string().datetime({ offset: true }),
+      inicio: z.coerce.date(),
+      fim: z.coerce.date(),
       motivo: z.string().optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const { empresaId, profissionalId, inicio, fim, motivo } = body.data
-    const inicioDate = new Date(inicio)
-    const fimDate = new Date(fim)
+    const inicioDate = inicio
+    const fimDate = fim
 
     const conflito = await prisma.agendamento.findFirst({
       where: {
@@ -371,14 +371,14 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
   app.post('/agenda/reagendar', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
     const body = z.object({
       agendamentoId: z.string().uuid(),
-      novoInicio: z.string().datetime({ offset: true }),
-      novoFim: z.string().datetime({ offset: true }),
+      novoInicio: z.coerce.date(),
+      novoFim: z.coerce.date(),
     }).safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const { agendamentoId, novoInicio, novoFim } = body.data
-    const inicioDate = new Date(novoInicio)
-    const fimDate = new Date(novoFim)
+    const inicioDate = novoInicio
+    const fimDate = novoFim
 
     const agendamento = await prisma.agendamento.findUnique({ where: { id: agendamentoId } })
     if (!agendamento) return reply.code(404).send({ error: 'Agendamento não encontrado' })
