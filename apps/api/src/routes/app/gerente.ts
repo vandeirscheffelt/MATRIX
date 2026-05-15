@@ -18,10 +18,22 @@ export async function gerenteRoutes(app: FastifyInstance) {
     return prisma.numeroGerente.findMany({ where: { empresaId: request.empresaId } })
   })
 
-  // POST /app/gerente
+  // POST /app/gerente — upsert (one gerente per empresa)
   app.post('/', { preHandler }, async (request: any, reply) => {
     const body = gerenteBody.safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const existing = await prisma.numeroGerente.findFirst({
+      where: { empresaId: request.empresaId },
+    })
+
+    if (existing) {
+      const updated = await prisma.numeroGerente.update({
+        where: { id: existing.id },
+        data: body.data,
+      })
+      return updated
+    }
 
     const gerente = await prisma.numeroGerente.create({
       data: { empresaId: request.empresaId, ...body.data },

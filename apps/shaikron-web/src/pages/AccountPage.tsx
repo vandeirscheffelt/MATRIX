@@ -21,7 +21,10 @@ export default function AccountPage() {
   const { pricing } = usePricingContext();
   const { t } = useLanguage();
   const [managerPhone, setManagerPhone] = useState("");
+  const [savedPhone, setSavedPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
+  const [phoneSaving, setPhoneSaving] = useState(false);
+  const [phoneSaved, setPhoneSaved] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("trial");
   const [paymentGateway, setPaymentGateway] = useState<string>("stripe");
@@ -118,6 +121,31 @@ export default function AccountPage() {
       if (data?.gateway) setPaymentGateway(data.gateway);
     }).catch(() => {});
   }, []);
+
+  // Carrega número do gerente salvo
+  useEffect(() => {
+    api.get<any[]>("/app/gerente").then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        setManagerPhone(data[0].telefone);
+        setSavedPhone(data[0].telefone);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleSavePhone = async () => {
+    if (phoneError || !managerPhone.trim()) return;
+    setPhoneSaving(true);
+    try {
+      await api.post("/app/gerente", { telefone: managerPhone.trim() });
+      setSavedPhone(managerPhone.trim());
+      setPhoneSaved(true);
+      setTimeout(() => setPhoneSaved(false), 3000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPhoneSaving(false);
+    }
+  };
 
   // Validação de cupom
   useEffect(() => {
@@ -265,20 +293,29 @@ export default function AccountPage() {
             <h1 className="text-2xl font-bold text-foreground">{t("account.title")}</h1>
             <p className="text-sm text-muted-foreground">{t("account.subtitle")}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
             <span className="text-sm text-muted-foreground whitespace-nowrap">{t("account.managerPhone")}:</span>
-            <div className="flex-1 max-w-xs">
+            <div className="flex items-center gap-2">
               <Input
                 id="manager-phone"
                 type="tel"
                 placeholder="+55 11 99999-9999"
                 value={managerPhone}
-                onChange={(e) => handlePhoneChange(e.target.value)}
-                className={`h-8 text-sm ${phoneError ? "border-destructive" : ""}`}
+                onChange={(e) => { handlePhoneChange(e.target.value); setPhoneSaved(false); }}
+                className={`h-8 text-sm w-48 ${phoneError ? "border-destructive" : savedPhone && managerPhone === savedPhone ? "border-green-500 focus-visible:ring-green-500" : ""}`}
               />
+              <Button
+                size="sm"
+                variant={phoneSaved ? "default" : "outline"}
+                className={`h-8 px-3 text-xs transition-all ${phoneSaved ? "bg-green-600 hover:bg-green-700 text-white border-green-600" : ""}`}
+                onClick={handleSavePhone}
+                disabled={phoneSaving || !!phoneError || !managerPhone.trim() || managerPhone.trim() === savedPhone}
+              >
+                {phoneSaving ? "..." : phoneSaved ? "✓ Salvo" : "Salvar"}
+              </Button>
             </div>
-            {phoneError && <p className="text-xs text-destructive">{phoneError}</p>}
+            {phoneError && <p className="text-xs text-destructive w-full pl-6">{phoneError}</p>}
           </div>
         </div>
 
