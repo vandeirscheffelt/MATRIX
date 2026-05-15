@@ -310,14 +310,13 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
   // POST /webhook/n8n/agenda/bloquear
   // Cria agendamento de bloqueio (sem lead) para horário vago
   app.post('/agenda/bloquear', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
-    request.log.info({ body: request.body }, 'bloquear body recebido')
     const body = z.object({
       empresaId: z.string().uuid(),
       profissionalId: z.string().uuid(),
       inicio: z.coerce.date(),
       fim: z.coerce.date(),
       motivo: z.string().optional(),
-    }).safeParse(request.body)
+    }).safeParse({ ...request.body as any, ...request.query as any })
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const { empresaId, profissionalId, inicio, fim, motivo } = body.data
@@ -345,7 +344,7 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     const body = z.object({
       agendamentoId: z.string().uuid(),
       motivo: z.string().optional(),
-    }).safeParse(request.body)
+    }).safeParse({ ...request.body as any, ...request.query as any })
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const { agendamentoId, motivo } = body.data
@@ -374,7 +373,7 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       agendamentoId: z.string().uuid(),
       novoInicio: z.coerce.date(),
       novoFim: z.coerce.date(),
-    }).safeParse(request.body)
+    }).safeParse({ ...request.body as any, ...request.query as any })
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const { agendamentoId, novoInicio, novoFim } = body.data
@@ -418,7 +417,7 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       leadTelefone: z.string(),
       mensagem: z.string().min(1),
       agendamentoId: z.string().uuid().optional(),
-    }).safeParse(request.body)
+    }).safeParse({ ...request.body as any, ...request.query as any })
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const { empresaId, leadTelefone, mensagem, agendamentoId } = body.data
