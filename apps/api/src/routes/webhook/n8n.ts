@@ -37,6 +37,17 @@ function normalizarTelefone(tel: string) {
   return tel.replace(/\D/g, '')
 }
 
+// Compara dois telefones normalizados tolerando a variação do 9 extra do Brasil
+// Ex: 5561995683105 == 556195683105
+function telefonesIguais(a: string, b: string): boolean {
+  const na = normalizarTelefone(a)
+  const nb = normalizarTelefone(b)
+  if (na === nb) return true
+  // Se um tem 13 dígitos (com 9) e o outro 12 (sem 9), normaliza removendo o 9 na posição 4 (DDI55 + DDD2 + 9)
+  const remover9 = (n: string) => n.length === 13 ? n.slice(0, 4) + n.slice(5) : n
+  return remover9(na) === remover9(nb)
+}
+
 export async function n8nWebhookRoutes(app: FastifyInstance) {
 
   // GET /webhook/n8n/context/:instanceName
@@ -249,7 +260,7 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       select: { telefone: true },
     })
 
-    if (gerente && normalizarTelefone(gerente.telefone) === telNorm) {
+    if (gerente && telefonesIguais(gerente.telefone, telefone)) {
       return { papel: 'gerente', empresaId, profissionalId: null }
     }
 
@@ -259,7 +270,7 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       select: { id: true, telefone: true, nome: true },
     })
 
-    const profissional = profissionais.find(p => p.telefone && normalizarTelefone(p.telefone) === telNorm)
+    const profissional = profissionais.find(p => p.telefone && telefonesIguais(p.telefone, telefone))
     if (profissional) {
       return { papel: 'profissional', empresaId, profissionalId: profissional.id, nomeProfissional: profissional.nome }
     }
