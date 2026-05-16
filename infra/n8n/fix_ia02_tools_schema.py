@@ -109,6 +109,20 @@ TOOLS = {
         'toolDescription': 'Notifica o cliente via WhatsApp sobre alteracao no agendamento.',
         'options': {},
     },
+    'relatorio_agenda': {
+        'url': f"={{{{ '{API}/agenda/' + $fromAI('empresaId', 'ID da empresa fixo no contexto', 'string') + '/relatorio' }}}}",
+        'authentication': 'genericCredentialType',
+        'genericAuthType': 'httpHeaderAuth',
+        'sendQuery': True,
+        'parametersQuery': {
+            'values': [
+                {'name': 'dataInicio', 'value': "={{ $fromAI('dataInicio', 'Data inicio YYYY-MM-DD - deixar vazio para 14 dias atras', 'string', '') }}"},
+                {'name': 'dataFim',    'value': "={{ $fromAI('dataFim', 'Data fim YYYY-MM-DD - deixar vazio para hoje', 'string', '') }}"},
+            ]
+        },
+        'toolDescription': 'Gera relatorio de atendimentos por profissional em um periodo. Retorna total de atendimentos e horas trabalhadas de cada profissional. Sem parametros = ultimas 2 semanas.',
+        'options': {},
+    },
 }
 
 for n in wf['nodes']:

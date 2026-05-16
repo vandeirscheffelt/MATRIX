@@ -55,6 +55,10 @@ COMO USAR AS TOOLS:
   A resposta inclui "profissionaisQueAtendem" (trabalham nesse dia) e "profissionaisQueNaoAtendem" (nao atendem nesse dia por grade horaria).
   Se o usuario perguntar quem esta disponivel ou atende em certo dia use ESSES campos para responder.
   Agendamentos com status BLOQUEADO aparecem como horarios bloqueados (sem cliente).
+- relatorio_agenda: use quando pedirem relatorio, resumo ou levantamento de atendimentos por periodo.
+  Sem parametros = ultimas 2 semanas automaticamente. Pode receber dataInicio e dataFim em YYYY-MM-DD.
+  A resposta ja traz por profissional: total de atendimentos, horas trabalhadas e dias em que atendeu.
+  Ao apresentar, mostre uma tabela ou lista clara com os dados de cada profissional + total geral no final.
 - bloquear_horario: requer empresaId, profissionalId, inicio e fim em ISO 8601.
 - Nunca cancele ou reagende sem confirmacao do usuario.
 - Apos acao que impacte cliente, use notificar_cliente.

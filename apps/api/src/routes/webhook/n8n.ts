@@ -334,6 +334,81 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     }
   })
 
+  // GET /webhook/n8n/agenda/:empresaId/relatorio?dataInicio=YYYY-MM-DD&dataFim=YYYY-MM-DD
+  // Resumo de atendimentos por profissional em um período (padrão: últimas 2 semanas)
+  app.get('/agenda/:empresaId/relatorio', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const { empresaId } = request.params as { empresaId: string }
+    const { dataInicio, dataFim } = request.query as { dataInicio?: string; dataFim?: string }
+
+    const tz = DEFAULT_TZ
+    const nowBrasilia = toZonedTime(new Date(), tz)
+    const pad = (n: number) => String(n).padStart(2, '0')
+
+    const fimStr = (dataFim && dataFim.trim()) || `${nowBrasilia.getFullYear()}-${pad(nowBrasilia.getMonth() + 1)}-${pad(nowBrasilia.getDate())}`
+
+    let inicioStr = (dataInicio && dataInicio.trim()) || ''
+    if (!inicioStr) {
+      const d = new Date(`${fimStr}T12:00:00`)
+      d.setDate(d.getDate() - 13)
+      inicioStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    }
+
+    const inicioPeriodo = fromZonedTime(`${inicioStr}T00:00:00`, tz)
+    const fimPeriodo = fromZonedTime(`${fimStr}T23:59:59`, tz)
+    const diasPeriodo = Math.round((new Date(`${fimStr}T12:00:00`).getTime() - new Date(`${inicioStr}T12:00:00`).getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+    const [profissionais, agendamentos] = await Promise.all([
+      prisma.profissional.findMany({
+        where: { empresaId, ativo: true },
+        select: { id: true, nome: true },
+        orderBy: { nome: 'asc' },
+      }),
+      prisma.agendamento.findMany({
+        where: {
+          empresaId,
+          status: { in: ['CONFIRMADO', 'REMARCADO'] },
+          inicio: { gte: inicioPeriodo, lte: fimPeriodo },
+        },
+        select: { profissionalId: true, inicio: true, fim: true },
+      }),
+    ])
+
+    const mapa = new Map<string, { count: number; minutos: number; dias: Set<string> }>()
+
+    for (const ag of agendamentos) {
+      if (!ag.profissionalId) continue
+      const minutos = Math.round((ag.fim.getTime() - ag.inicio.getTime()) / 60_000)
+      const local = toZonedTime(ag.inicio, tz)
+      const diaStr = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}`
+      if (!mapa.has(ag.profissionalId)) mapa.set(ag.profissionalId, { count: 0, minutos: 0, dias: new Set() })
+      const e = mapa.get(ag.profissionalId)!
+      e.count++
+      e.minutos += minutos
+      e.dias.add(diaStr)
+    }
+
+    const fmt = (min: number) => {
+      const h = Math.floor(min / 60), m = min % 60
+      if (h === 0) return `${m}min`
+      if (m === 0) return `${h}h`
+      return `${h}h ${m}min`
+    }
+
+    const resultado = profissionais.map((p: any) => {
+      const d = mapa.get(p.id) ?? { count: 0, minutos: 0, dias: new Set<string>() }
+      return { id: p.id, nome: p.nome, atendimentos: d.count, minutosTrabalhados: d.minutos, horasTrabalhadas: fmt(d.minutos), diasAtivos: [...d.dias].sort() }
+    })
+
+    return {
+      periodo: { inicio: inicioStr, fim: fimStr, dias: diasPeriodo },
+      profissionais: resultado,
+      totalGeral: {
+        atendimentos: resultado.reduce((s: number, p: any) => s + p.atendimentos, 0),
+        horasTrabalhadas: fmt(resultado.reduce((s: number, p: any) => s + p.minutosTrabalhados, 0)),
+      },
+    }
+  })
+
   // POST /webhook/n8n/agenda/bloquear
   // Cria agendamento de bloqueio (sem lead) para horário vago
   app.post('/agenda/bloquear', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
