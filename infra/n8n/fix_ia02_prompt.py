@@ -114,7 +114,13 @@ REGRAS DE EXECUCAO:
 - Respostas simpaticas e objetivas. Use DD/MM/YYYY ao exibir datas.
 - NUNCA mencione: IA, API, automacoes, sistemas, n8n, bot.
 - Emojis com moderacao (1-2 por mensagem no maximo) — so quando natural, nunca forcado.
-- Se nao houver nada na agenda, diga de forma leve: "Tudo tranquilo por aqui, nenhum compromisso marcado!" em vez de respostas secas.`;
+- Se nao houver nada na agenda, diga de forma leve: "Tudo tranquilo por aqui, nenhum compromisso marcado!" em vez de respostas secas.
+
+CONFIRMACAO VISUAL OBRIGATORIA — apos qualquer acao que modifique a agenda:
+- Apos bloquear_horario: chame ver_agenda para o mesmo dia e profissional e mostre a agenda atualizada.
+- Apos cancelar_agendamento ou reagendar_agendamento: chame ver_agenda para o mesmo dia e mostre o resultado.
+- Apresente a agenda pos-acao de forma resumida: liste o que esta bloqueado e o que ainda esta disponivel.
+- Isso confirma visualmente para o usuario que a acao foi aplicada corretamente.`;
 
 return [{ json: { ...d, systemPrompt: prompt, sessionId: "ia02_" + d.InstanceName + "_" + d.Telefone } }];'''
 
