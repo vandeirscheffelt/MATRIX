@@ -2,6 +2,47 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '@boilerplate/database'
 import { requireAuth, requireActiveSubscription } from '../../lib/auth.js'
+import { toZonedTime } from 'date-fns-tz'
+
+const DEFAULT_TZ = 'America/Sao_Paulo'
+
+async function verificarLimiteHorario(
+  empresaId: string,
+  profissionalId: string,
+  inicio: Date,
+  fim: Date
+): Promise<string | null> {
+  const empresa = await prisma.empresa.findUnique({ where: { id: empresaId }, select: { timezone: true } })
+  const tz = empresa?.timezone ?? DEFAULT_TZ
+
+  const inicioLocal = toZonedTime(inicio, tz)
+  const fimLocal = toZonedTime(fim, tz)
+
+  if (fimLocal.getDate() !== inicioLocal.getDate()) {
+    return 'Agendamento termina no dia seguinte — fora do horário de atendimento'
+  }
+
+  const diaSemana = inicioLocal.getDay()
+  const profissional = await prisma.profissional.findFirst({
+    where: { id: profissionalId, empresaId },
+    include: { gradeHorarios: { where: { diaSemana } } },
+  })
+
+  if (!profissional) return null
+  const grade = (profissional as any).gradeHorarios?.[0]
+  if (!grade?.horaFim) return null
+
+  const [hF, mF] = (grade.horaFim as string).split(':').map(Number)
+  const horaFimMin = hF * 60 + mF
+  const fimLocalMin = fimLocal.getHours() * 60 + fimLocal.getMinutes()
+
+  if (fimLocalMin > horaFimMin) {
+    const fimStr = `${String(fimLocal.getHours()).padStart(2, '0')}:${String(fimLocal.getMinutes()).padStart(2, '0')}`
+    return `Agendamento terminaria às ${fimStr}, mas ${(profissional as any).nome} atende até ${grade.horaFim}`
+  }
+
+  return null
+}
 
 const agendamentoBody = z.object({
   profissionalId: z.string().uuid(),
@@ -70,6 +111,9 @@ export async function agendamentosRoutes(app: FastifyInstance) {
       }
     }
 
+    const erroLimite = await verificarLimiteHorario(request.empresaId, body.data.profissionalId, inicio, fim)
+    if (erroLimite) return reply.code(422).send({ error: erroLimite })
+
     const temConflito = await verificarConflito(body.data.profissionalId, inicio, fim)
     if (temConflito) return reply.code(409).send({ error: 'Horário em conflito com outro agendamento' })
 
@@ -102,6 +146,9 @@ export async function agendamentosRoutes(app: FastifyInstance) {
     const inicio = body.data.inicio ? new Date(body.data.inicio) : existing.inicio
     const fim = body.data.fim ? new Date(body.data.fim) : existing.fim
     const profissionalId = body.data.profissionalId ?? existing.profissionalId
+
+    const erroLimite = await verificarLimiteHorario(request.empresaId, profissionalId, inicio, fim)
+    if (erroLimite) return reply.code(422).send({ error: erroLimite })
 
     const temConflito = await verificarConflito(profissionalId, inicio, fim, id)
     if (temConflito) return reply.code(409).send({ error: 'Horário em conflito com outro agendamento' })
