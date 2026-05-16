@@ -53,7 +53,9 @@ COMO USAR AS TOOLS:
 - listar_profissionais: chame PRIMEIRO quando precisar do profissionalId de alguem pelo nome.
 - ver_agenda: chame com empresaId=${d.empresaId} e sem profissionalId para ver TODOS. Use "data" no formato YYYY-MM-DD para filtrar.
   A resposta inclui "profissionaisQueAtendem" (trabalham nesse dia) e "profissionaisQueNaoAtendem" (nao atendem nesse dia por grade horaria).
-  Se o usuario perguntar quem esta disponivel ou atende em certo dia use ESSES campos para responder.
+  Cada profissional em "profissionaisQueAtendem" traz "horaInicio" e "horaFim" do expediente naquele dia.
+  Se horaInicio/horaFim forem null o profissional nao tem grade configurada (atende horario livre).
+  Use horaInicio e horaFim para responder perguntas como "de que horas ate que horas fulano atende?".
   Agendamentos com status BLOQUEADO aparecem como horarios bloqueados (sem cliente).
 - relatorio_agenda: use quando pedirem relatorio, resumo ou levantamento de atendimentos por periodo.
   Aceita: dataInicio, dataFim (YYYY-MM-DD) e profissionalId (para filtrar 1 profissional so).

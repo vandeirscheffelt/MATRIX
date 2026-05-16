@@ -328,7 +328,15 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     return {
       data: dataStr,
       diaSemana,
-      profissionaisQueAtendem: atendem.map((p: any) => ({ id: p.id, nome: p.nome })),
+      profissionaisQueAtendem: atendem.map((p: any) => {
+        const grade = p.gradeHorarios.find((g: any) => g.diaSemana === diaSemana)
+        return {
+          id: p.id,
+          nome: p.nome,
+          horaInicio: grade?.horaInicio ?? null,
+          horaFim: grade?.horaFim ?? null,
+        }
+      }),
       profissionaisQueNaoAtendem: naoAtendem.map((p: any) => ({ id: p.id, nome: p.nome })),
       total: agendamentos.length,
       agendamentos,
