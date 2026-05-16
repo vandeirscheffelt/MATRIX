@@ -71,15 +71,32 @@ export default function Agenda() {
 
   // Grid is always 15-min granularity; zoom only controls row height
   const fineTimeSlots = useMemo(() => {
-    // Derive grid boundaries from professionals' working hours so no slot is hidden
-    const starts = professionals.map(p => timeToMin(p.schedule.workingHoursStart)).filter(Boolean);
-    const ends = professionals.map(p => timeToMin(p.schedule.workingHoursEnd)).filter(Boolean);
-    const gridStart = starts.length > 0 ? Math.min(...starts) : 6 * 60;
-    const gridEnd = ends.length > 0 ? Math.max(...ends) : 23 * 60;
+    // Use actual slots for the selected day (day-specific working hours, e.g. Sat ≠ Mon)
+    // Fall back to professionals' configured schedule while loading
+    const relevantSlots = filterPro === "all"
+      ? daySlots
+      : daySlots.filter(s => s.professionalId === filterPro);
+    const slotsToUse = relevantSlots.length > 0 ? relevantSlots : daySlots;
+
+    if (slotsToUse.length > 0) {
+      const times = slotsToUse.map(s => timeToMin(s.time));
+      const gridStart = Math.min(...times);
+      const gridEnd = slotsToUse.reduce((max, s) => Math.max(max, timeToMin(s.time) + (s.duration ?? 15)), gridStart + 60);
+      const result: string[] = [];
+      for (let min = gridStart; min < gridEnd; min += 15) result.push(minToTime(min));
+      return result;
+    }
+
+    // No slots at all (no one works today): fall back to professionals' schedule
+    // Number.isFinite correctly includes 0 (unlike Boolean which rejects 0 = "00:00")
+    const starts = professionals.map(p => timeToMin(p.schedule.workingHoursStart)).filter(Number.isFinite);
+    const ends = professionals.map(p => timeToMin(p.schedule.workingHoursEnd)).filter(n => Number.isFinite(n) && n > 0);
+    const gridStart = starts.length > 0 ? Math.min(...starts) : 8 * 60;
+    const gridEnd = ends.length > 0 ? Math.max(...ends) : 18 * 60;
     const result: string[] = [];
     for (let min = gridStart; min < gridEnd; min += 15) result.push(minToTime(min));
     return result;
-  }, [professionals]);
+  }, [daySlots, filterPro, professionals]);
 
   const ROW_H = zoom === 15 ? 20 : zoom === 30 ? 32 : 48;
 
