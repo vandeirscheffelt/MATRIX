@@ -123,6 +123,23 @@ TOOLS = {
         'toolDescription': 'Gera relatorio de atendimentos por profissional em um periodo. Retorna total de atendimentos e horas trabalhadas de cada profissional. Sem parametros = ultimas 2 semanas.',
         'options': {},
     },
+    'enviar_relatorio_email': {
+        'method': 'POST',
+        'url': f'{API}/agenda/enviar-relatorio-email',
+        'authentication': 'genericCredentialType',
+        'genericAuthType': 'httpHeaderAuth',
+        'sendQuery': True,
+        'parametersQuery': {
+            'values': [
+                {'name': 'empresaId',     'value': "={{ $fromAI('empresaId', 'ID da empresa fixo no contexto') }}"},
+                {'name': 'emailDestino',  'value': "={{ $fromAI('emailDestino', 'E-mail do destinatario') }}"},
+                {'name': 'dataInicio',    'value': "={{ $fromAI('dataInicio', 'Data inicio YYYY-MM-DD - deixar vazio para 14 dias atras', 'string', '') }}"},
+                {'name': 'dataFim',       'value': "={{ $fromAI('dataFim', 'Data fim YYYY-MM-DD - deixar vazio para hoje', 'string', '') }}"},
+            ]
+        },
+        'toolDescription': 'Envia o relatorio de atendimentos por e-mail. Requer empresaId e emailDestino. Periodo opcional (padrao = ultimas 2 semanas).',
+        'options': {},
+    },
 }
 
 for n in wf['nodes']:

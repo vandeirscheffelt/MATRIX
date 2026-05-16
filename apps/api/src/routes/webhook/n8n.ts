@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '@boilerplate/database'
 import { fromZonedTime, toZonedTime } from 'date-fns-tz'
+import { sendEmail } from '../../lib/email.js'
 
 const DEFAULT_TZ = 'America/Sao_Paulo'
 
@@ -407,6 +408,120 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
         horasTrabalhadas: fmt(resultado.reduce((s: number, p: any) => s + p.minutosTrabalhados, 0)),
       },
     }
+  })
+
+  // POST /webhook/n8n/agenda/enviar-relatorio-email
+  // Gera o relatório de atendimentos e envia por e-mail
+  app.post('/agenda/enviar-relatorio-email', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const body = z.object({
+      empresaId: z.string().uuid(),
+      emailDestino: z.string().email(),
+      dataInicio: z.string().optional(),
+      dataFim: z.string().optional(),
+    }).safeParse({ ...request.body as any, ...request.query as any })
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const { empresaId, emailDestino, dataInicio, dataFim } = body.data
+    const tz = DEFAULT_TZ
+    const nowBrasilia = toZonedTime(new Date(), tz)
+    const pad = (n: number) => String(n).padStart(2, '0')
+
+    const fimStr = (dataFim && dataFim.trim()) || `${nowBrasilia.getFullYear()}-${pad(nowBrasilia.getMonth() + 1)}-${pad(nowBrasilia.getDate())}`
+    let inicioStr = (dataInicio && dataInicio.trim()) || ''
+    if (!inicioStr) {
+      const d = new Date(`${fimStr}T12:00:00`)
+      d.setDate(d.getDate() - 13)
+      inicioStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    }
+
+    const inicioPeriodo = fromZonedTime(`${inicioStr}T00:00:00`, tz)
+    const fimPeriodo = fromZonedTime(`${fimStr}T23:59:59`, tz)
+
+    const [profissionais, agendamentos] = await Promise.all([
+      prisma.profissional.findMany({
+        where: { empresaId, ativo: true },
+        select: { id: true, nome: true },
+        orderBy: { nome: 'asc' },
+      }),
+      prisma.agendamento.findMany({
+        where: { empresaId, status: { in: ['CONFIRMADO', 'REMARCADO'] }, inicio: { gte: inicioPeriodo, lte: fimPeriodo } },
+        select: { profissionalId: true, inicio: true, fim: true },
+      }),
+    ])
+
+    const mapa = new Map<string, { count: number; minutos: number; dias: Set<string> }>()
+    for (const ag of agendamentos) {
+      if (!ag.profissionalId) continue
+      const minutos = Math.round((ag.fim.getTime() - ag.inicio.getTime()) / 60_000)
+      const local = toZonedTime(ag.inicio, tz)
+      const diaStr = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}`
+      if (!mapa.has(ag.profissionalId)) mapa.set(ag.profissionalId, { count: 0, minutos: 0, dias: new Set() })
+      const e = mapa.get(ag.profissionalId)!
+      e.count++; e.minutos += minutos; e.dias.add(diaStr)
+    }
+
+    const fmt = (min: number) => {
+      const h = Math.floor(min / 60), m = min % 60
+      if (h === 0) return `${m}min`; if (m === 0) return `${h}h`; return `${h}h ${m}min`
+    }
+
+    const resultado = profissionais.map((p: any) => {
+      const d = mapa.get(p.id) ?? { count: 0, minutos: 0, dias: new Set<string>() }
+      return { nome: p.nome, atendimentos: d.count, horasTrabalhadas: fmt(d.minutos), minutosTrabalhados: d.minutos, diasAtivos: [...d.dias].sort() }
+    })
+
+    const totalAtend = resultado.reduce((s: number, p: any) => s + p.atendimentos, 0)
+    const totalMin = resultado.reduce((s: number, p: any) => s + p.minutosTrabalhados, 0)
+
+    const [diaI, mesI, anoI] = [inicioStr.slice(8, 10), inicioStr.slice(5, 7), inicioStr.slice(0, 4)]
+    const [diaF, mesF, anoF] = [fimStr.slice(8, 10), fimStr.slice(5, 7), fimStr.slice(0, 4)]
+    const periodoLabel = `${diaI}/${mesI}/${anoI} a ${diaF}/${mesF}/${anoF}`
+
+    const linhas = resultado.map((p: any) => `
+      <tr>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb">${p.nome}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;text-align:center">${p.atendimentos}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;text-align:center">${p.horasTrabalhadas}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280">${p.diasAtivos.map((d: string) => `${d.slice(8)}/${d.slice(5,7)}`).join(', ') || '—'}</td>
+      </tr>`).join('')
+
+    const html = `
+    <div style="font-family:sans-serif;max-width:640px;margin:0 auto;color:#111827">
+      <div style="background:#7c3aed;padding:24px 32px;border-radius:12px 12px 0 0">
+        <h1 style="margin:0;color:#fff;font-size:22px">Relatório de Atendimentos</h1>
+        <p style="margin:4px 0 0;color:#ddd6fe;font-size:14px">Período: ${periodoLabel}</p>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:#f9fafb">
+              <th style="padding:10px 16px;text-align:left;font-size:13px;color:#6b7280;font-weight:600">Profissional</th>
+              <th style="padding:10px 16px;text-align:center;font-size:13px;color:#6b7280;font-weight:600">Atendimentos</th>
+              <th style="padding:10px 16px;text-align:center;font-size:13px;color:#6b7280;font-weight:600">Horas</th>
+              <th style="padding:10px 16px;text-align:left;font-size:13px;color:#6b7280;font-weight:600">Dias ativos</th>
+            </tr>
+          </thead>
+          <tbody>${linhas}</tbody>
+          <tfoot>
+            <tr style="background:#f3f4f6;font-weight:700">
+              <td style="padding:12px 16px">Total geral</td>
+              <td style="padding:12px 16px;text-align:center">${totalAtend}</td>
+              <td style="padding:12px 16px;text-align:center">${fmt(totalMin)}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p style="margin:16px 0 0;font-size:12px;color:#9ca3af;text-align:center">Enviado pela Evolia — sistema de agenda</p>
+    </div>`
+
+    await sendEmail({
+      to: emailDestino,
+      subject: `Relatório de Atendimentos — ${periodoLabel}`,
+      html,
+    })
+
+    return { success: true, emailDestino, periodo: { inicio: inicioStr, fim: fimStr } }
   })
 
   // POST /webhook/n8n/agenda/bloquear
