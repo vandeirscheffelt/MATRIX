@@ -30,14 +30,15 @@ wf = api(f'/api/v1/workflows/{IA02_ID}')
 TOOLS = {
     'ver_agenda': {
         # empresaId é path param; profissionalId e data são query params opcionais
-        'url': f"={{{{ '{API}/agenda/' + $fromAI('empresaId', 'ID da empresa (está no system prompt)') }}}}",
+        # 'string', '' como 3º/4º arg → n8n marca como não-required no JSON schema
+        'url': f"={{{{ '{API}/agenda/' + $fromAI('empresaId', 'ID da empresa fixo no contexto', 'string') }}}}",
         'authentication': 'genericCredentialType',
         'genericAuthType': 'httpHeaderAuth',
         'sendQuery': True,
         'parametersQuery': {
             'values': [
-                {'name': 'profissionalId', 'value': "={{ $fromAI('profissionalId', 'UUID do profissional (opcional, omitir para ver todos)') }}"},
-                {'name': 'data',           'value': "={{ $fromAI('data', 'Data no formato YYYY-MM-DD (opcional)') }}"},
+                {'name': 'profissionalId', 'value': "={{ $fromAI('profissionalId', 'UUID do profissional - deixar vazio para ver todos', 'string', '') }}"},
+                {'name': 'data',           'value': "={{ $fromAI('data', 'Data YYYY-MM-DD - deixar vazio para hoje', 'string', '') }}"},
             ]
         },
         'options': {},

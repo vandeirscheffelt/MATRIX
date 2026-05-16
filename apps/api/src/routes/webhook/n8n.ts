@@ -289,20 +289,22 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
 
     const tz = DEFAULT_TZ
     const nowBrasilia = toZonedTime(new Date(), tz)
-    const dataStr = data ?? `${nowBrasilia.getFullYear()}-${String(nowBrasilia.getMonth() + 1).padStart(2, '0')}-${String(nowBrasilia.getDate()).padStart(2, '0')}`
+    // Empty string from $fromAI() default → treat as "today" / "all professionals"
+    const dataStr = (data && data.trim()) || `${nowBrasilia.getFullYear()}-${String(nowBrasilia.getMonth() + 1).padStart(2, '0')}-${String(nowBrasilia.getDate()).padStart(2, '0')}`
+    const profissionalIdFinal = (profissionalId && profissionalId.trim()) || undefined
     const inicioDia = fromZonedTime(`${dataStr}T00:00:00`, tz)
     const fimDia = fromZonedTime(`${dataStr}T23:59:59`, tz)
     const diaSemana = toZonedTime(inicioDia, tz).getDay() // 0=dom ... 6=sáb
 
     const [profissionais, agendamentos] = await Promise.all([
       prisma.profissional.findMany({
-        where: { empresaId, ativo: true, ...(profissionalId ? { id: profissionalId } : {}) },
+        where: { empresaId, ativo: true, ...(profissionalIdFinal ? { id: profissionalIdFinal } : {}) },
         select: { id: true, nome: true, gradeHorarios: true },
       }),
       prisma.agendamento.findMany({
         where: {
           empresaId,
-          ...(profissionalId ? { profissionalId } : {}),
+          ...(profissionalIdFinal ? { profissionalId: profissionalIdFinal } : {}),
           status: { in: ['CONFIRMADO', 'REMARCADO', 'BLOQUEADO'] },
           inicio: { gte: inicioDia, lte: fimDia },
         },
