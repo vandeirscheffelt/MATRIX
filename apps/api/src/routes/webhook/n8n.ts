@@ -335,24 +335,24 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     }
   })
 
-  // GET /webhook/n8n/agenda/:empresaId/relatorio?dataInicio=YYYY-MM-DD&dataFim=YYYY-MM-DD
+  // GET /webhook/n8n/agenda/:empresaId/relatorio?dataInicio=&dataFim=&profissionalId=
   // Resumo de atendimentos por profissional em um período (padrão: últimas 2 semanas)
   app.get('/agenda/:empresaId/relatorio', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
     const { empresaId } = request.params as { empresaId: string }
-    const { dataInicio, dataFim } = request.query as { dataInicio?: string; dataFim?: string }
+    const { dataInicio, dataFim, profissionalId } = request.query as { dataInicio?: string; dataFim?: string; profissionalId?: string }
 
     const tz = DEFAULT_TZ
     const nowBrasilia = toZonedTime(new Date(), tz)
     const pad = (n: number) => String(n).padStart(2, '0')
 
     const fimStr = (dataFim && dataFim.trim()) || `${nowBrasilia.getFullYear()}-${pad(nowBrasilia.getMonth() + 1)}-${pad(nowBrasilia.getDate())}`
-
     let inicioStr = (dataInicio && dataInicio.trim()) || ''
     if (!inicioStr) {
       const d = new Date(`${fimStr}T12:00:00`)
       d.setDate(d.getDate() - 13)
       inicioStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
     }
+    const profIdFinal = (profissionalId && profissionalId.trim()) || undefined
 
     const inicioPeriodo = fromZonedTime(`${inicioStr}T00:00:00`, tz)
     const fimPeriodo = fromZonedTime(`${fimStr}T23:59:59`, tz)
@@ -360,13 +360,14 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
 
     const [profissionais, agendamentos] = await Promise.all([
       prisma.profissional.findMany({
-        where: { empresaId, ativo: true },
+        where: { empresaId, ativo: true, ...(profIdFinal ? { id: profIdFinal } : {}) },
         select: { id: true, nome: true },
         orderBy: { nome: 'asc' },
       }),
       prisma.agendamento.findMany({
         where: {
           empresaId,
+          ...(profIdFinal ? { profissionalId: profIdFinal } : {}),
           status: { in: ['CONFIRMADO', 'REMARCADO'] },
           inicio: { gte: inicioPeriodo, lte: fimPeriodo },
         },
@@ -375,6 +376,7 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     ])
 
     const mapa = new Map<string, { count: number; minutos: number; dias: Set<string> }>()
+    const fmt = (min: number) => { const h = Math.floor(min / 60), m = min % 60; if (h === 0) return `${m}min`; if (m === 0) return `${h}h`; return `${h}h ${m}min` }
 
     for (const ag of agendamentos) {
       if (!ag.profissionalId) continue
@@ -383,16 +385,7 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       const diaStr = `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}`
       if (!mapa.has(ag.profissionalId)) mapa.set(ag.profissionalId, { count: 0, minutos: 0, dias: new Set() })
       const e = mapa.get(ag.profissionalId)!
-      e.count++
-      e.minutos += minutos
-      e.dias.add(diaStr)
-    }
-
-    const fmt = (min: number) => {
-      const h = Math.floor(min / 60), m = min % 60
-      if (h === 0) return `${m}min`
-      if (m === 0) return `${h}h`
-      return `${h}h ${m}min`
+      e.count++; e.minutos += minutos; e.dias.add(diaStr)
     }
 
     const resultado = profissionais.map((p: any) => {
@@ -402,11 +395,93 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
 
     return {
       periodo: { inicio: inicioStr, fim: fimStr, dias: diasPeriodo },
+      ...(profIdFinal ? { filtroProfissional: profissionais[0]?.nome ?? profIdFinal } : {}),
       profissionais: resultado,
       totalGeral: {
         atendimentos: resultado.reduce((s: number, p: any) => s + p.atendimentos, 0),
         horasTrabalhadas: fmt(resultado.reduce((s: number, p: any) => s + p.minutosTrabalhados, 0)),
       },
+    }
+  })
+
+  // GET /webhook/n8n/agenda/:empresaId/relatorio-cliente?leadTelefone=&leadNome=&dataInicio=&dataFim=&profissionalId=
+  // Histórico de atendimentos de um cliente específico
+  app.get('/agenda/:empresaId/relatorio-cliente', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const { empresaId } = request.params as { empresaId: string }
+    const { leadTelefone, leadNome, dataInicio, dataFim, profissionalId } = request.query as {
+      leadTelefone?: string; leadNome?: string; dataInicio?: string; dataFim?: string; profissionalId?: string
+    }
+
+    if (!leadTelefone && !leadNome) return reply.code(400).send({ error: 'Informe leadTelefone ou leadNome' })
+
+    const tz = DEFAULT_TZ
+    const nowBrasilia = toZonedTime(new Date(), tz)
+    const pad = (n: number) => String(n).padStart(2, '0')
+
+    const fimStr = (dataFim && dataFim.trim()) || `${nowBrasilia.getFullYear()}-${pad(nowBrasilia.getMonth() + 1)}-${pad(nowBrasilia.getDate())}`
+    let inicioStr = (dataInicio && dataInicio.trim()) || ''
+    if (!inicioStr) {
+      const d = new Date(`${fimStr}T12:00:00`)
+      d.setDate(d.getDate() - 89) // 90 dias padrão para histórico de cliente
+      inicioStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    }
+    const profIdFinal = (profissionalId && profissionalId.trim()) || undefined
+
+    const inicioPeriodo = fromZonedTime(`${inicioStr}T00:00:00`, tz)
+    const fimPeriodo = fromZonedTime(`${fimStr}T23:59:59`, tz)
+
+    // Busca lead(s) que correspondam ao filtro
+    const leads = await prisma.lead.findMany({
+      where: {
+        empresaId,
+        ...(leadTelefone ? { telefone: { contains: leadTelefone.replace(/\D/g, '').slice(-8) } } : {}),
+        ...(leadNome ? { nomeWpp: { contains: leadNome, mode: 'insensitive' } } : {}),
+      },
+      select: { id: true, nomeWpp: true, telefone: true },
+      take: 5, // máximo 5 leads para evitar resposta gigante
+    })
+
+    if (leads.length === 0) return { encontrado: false, mensagem: 'Nenhum cliente encontrado com esse filtro.' }
+
+    const leadIds = leads.map((l: any) => l.id)
+
+    const agendamentos = await prisma.agendamento.findMany({
+      where: {
+        empresaId,
+        leadId: { in: leadIds },
+        ...(profIdFinal ? { profissionalId: profIdFinal } : {}),
+        status: { in: ['CONFIRMADO', 'REMARCADO', 'CANCELADO'] },
+        inicio: { gte: inicioPeriodo, lte: fimPeriodo },
+      },
+      include: {
+        profissional: { select: { nome: true } },
+        lead: { select: { nomeWpp: true, telefone: true } },
+      },
+      orderBy: { inicio: 'desc' },
+    })
+
+    const fmt = (min: number) => { const h = Math.floor(min / 60), m = min % 60; if (h === 0) return `${m}min`; if (m === 0) return `${h}h`; return `${h}h ${m}min` }
+
+    const historico = agendamentos.map((ag: any) => {
+      const local = toZonedTime(ag.inicio, tz)
+      const diaStr = `${pad(local.getDate())}/${pad(local.getMonth() + 1)}/${local.getFullYear()}`
+      const hora = `${pad(local.getHours())}:${pad(local.getMinutes())}`
+      const minutos = Math.round((ag.fim.getTime() - ag.inicio.getTime()) / 60_000)
+      return {
+        data: diaStr, hora, duracao: fmt(minutos),
+        profissional: ag.profissional?.nome ?? '—',
+        cliente: ag.lead?.nomeWpp ?? ag.lead?.telefone ?? '—',
+        status: ag.status,
+      }
+    })
+
+    return {
+      encontrado: true,
+      periodo: { inicio: inicioStr, fim: fimStr },
+      clientes: leads.map((l: any) => ({ nome: l.nomeWpp, telefone: l.telefone })),
+      totalAtendimentos: historico.filter((h: any) => h.status !== 'CANCELADO').length,
+      totalCancelados: historico.filter((h: any) => h.status === 'CANCELADO').length,
+      historico,
     }
   })
 

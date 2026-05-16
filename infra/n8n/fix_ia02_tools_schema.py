@@ -116,11 +116,29 @@ TOOLS = {
         'sendQuery': True,
         'parametersQuery': {
             'values': [
-                {'name': 'dataInicio', 'value': "={{ $fromAI('dataInicio', 'Data inicio YYYY-MM-DD - deixar vazio para 14 dias atras', 'string', '') }}"},
-                {'name': 'dataFim',    'value': "={{ $fromAI('dataFim', 'Data fim YYYY-MM-DD - deixar vazio para hoje', 'string', '') }}"},
+                {'name': 'dataInicio',     'value': "={{ $fromAI('dataInicio', 'Data inicio YYYY-MM-DD - deixar vazio para 14 dias atras', 'string', '') }}"},
+                {'name': 'dataFim',        'value': "={{ $fromAI('dataFim', 'Data fim YYYY-MM-DD - deixar vazio para hoje', 'string', '') }}"},
+                {'name': 'profissionalId', 'value': "={{ $fromAI('profissionalId', 'UUID do profissional para filtrar - deixar vazio para todos', 'string', '') }}"},
             ]
         },
-        'toolDescription': 'Gera relatorio de atendimentos por profissional em um periodo. Retorna total de atendimentos e horas trabalhadas de cada profissional. Sem parametros = ultimas 2 semanas.',
+        'toolDescription': 'Gera relatorio de atendimentos por profissional. Aceita filtro por profissionalId e periodo (dataInicio/dataFim). Sem parametros = todos os profissionais nas ultimas 2 semanas.',
+        'options': {},
+    },
+    'relatorio_cliente': {
+        'url': f"={{{{ '{API}/agenda/' + $fromAI('empresaId', 'ID da empresa fixo no contexto', 'string') + '/relatorio-cliente' }}}}",
+        'authentication': 'genericCredentialType',
+        'genericAuthType': 'httpHeaderAuth',
+        'sendQuery': True,
+        'parametersQuery': {
+            'values': [
+                {'name': 'leadTelefone',   'value': "={{ $fromAI('leadTelefone', 'Telefone do cliente (parcial ou completo) - use OU leadNome', 'string', '') }}"},
+                {'name': 'leadNome',       'value': "={{ $fromAI('leadNome', 'Nome do cliente (parcial) - use OU leadTelefone', 'string', '') }}"},
+                {'name': 'dataInicio',     'value': "={{ $fromAI('dataInicio', 'Data inicio YYYY-MM-DD - deixar vazio para 90 dias atras', 'string', '') }}"},
+                {'name': 'dataFim',        'value': "={{ $fromAI('dataFim', 'Data fim YYYY-MM-DD - deixar vazio para hoje', 'string', '') }}"},
+                {'name': 'profissionalId', 'value': "={{ $fromAI('profissionalId', 'UUID do profissional para filtrar - deixar vazio para todos', 'string', '') }}"},
+            ]
+        },
+        'toolDescription': 'Busca historico de atendimentos de um cliente especifico. Requer leadTelefone OU leadNome. Opcional: profissionalId, dataInicio, dataFim. Padrao = ultimos 90 dias.',
         'options': {},
     },
     'enviar_relatorio_email': {

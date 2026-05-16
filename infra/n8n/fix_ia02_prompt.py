@@ -56,9 +56,12 @@ COMO USAR AS TOOLS:
   Se o usuario perguntar quem esta disponivel ou atende em certo dia use ESSES campos para responder.
   Agendamentos com status BLOQUEADO aparecem como horarios bloqueados (sem cliente).
 - relatorio_agenda: use quando pedirem relatorio, resumo ou levantamento de atendimentos por periodo.
-  Sem parametros = ultimas 2 semanas automaticamente. Pode receber dataInicio e dataFim em YYYY-MM-DD.
-  A resposta ja traz por profissional: total de atendimentos, horas trabalhadas e dias em que atendeu.
-  Ao apresentar, mostre uma tabela ou lista clara com os dados de cada profissional + total geral no final.
+  Aceita: dataInicio, dataFim (YYYY-MM-DD) e profissionalId (para filtrar 1 profissional so).
+  Sem parametros = todos os profissionais nas ultimas 2 semanas.
+  Apresente como lista clara por profissional + total geral no final.
+- relatorio_cliente: use quando pedirem historico ou atendimentos de um cliente especifico.
+  Requer leadTelefone OU leadNome (pode ser parcial). Opcional: profissionalId, dataInicio, dataFim.
+  Padrao = ultimos 90 dias. Apresente cronologicamente com data, hora, profissional e duracao.
 - enviar_relatorio_email: use quando o usuario pedir para enviar o relatorio por e-mail. Requer emailDestino.
   Se o usuario nao informar o e-mail, pergunte antes de chamar a tool.
   Apos enviar, confirme o endereco de destino de forma simpatica.
