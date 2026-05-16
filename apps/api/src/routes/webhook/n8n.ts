@@ -1,6 +1,9 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '@boilerplate/database'
+import { fromZonedTime, toZonedTime } from 'date-fns-tz'
+
+const DEFAULT_TZ = 'America/Sao_Paulo'
 
 // Segredo compartilhado entre Fastify e n8n
 async function requireWebhookSecret(request: any, reply: any) {
@@ -279,32 +282,54 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
   })
 
   // GET /webhook/n8n/agenda/:empresaId?profissionalId=&data=
-  // Retorna agendamentos do dia (ou data informada). Se profissionalId, filtra só os dele.
+  // Retorna agendamentos + quais profissionais atendem no dia (baseado em grade horária).
   app.get('/agenda/:empresaId', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
     const { empresaId } = request.params as { empresaId: string }
     const { profissionalId, data } = request.query as { profissionalId?: string; data?: string }
 
-    const dataAlvo = data ? new Date(data) : new Date()
-    const inicioDia = new Date(dataAlvo)
-    inicioDia.setHours(0, 0, 0, 0)
-    const fimDia = new Date(dataAlvo)
-    fimDia.setHours(23, 59, 59, 999)
+    const tz = DEFAULT_TZ
+    const nowBrasilia = toZonedTime(new Date(), tz)
+    const dataStr = data ?? `${nowBrasilia.getFullYear()}-${String(nowBrasilia.getMonth() + 1).padStart(2, '0')}-${String(nowBrasilia.getDate()).padStart(2, '0')}`
+    const inicioDia = fromZonedTime(`${dataStr}T00:00:00`, tz)
+    const fimDia = fromZonedTime(`${dataStr}T23:59:59`, tz)
+    const diaSemana = toZonedTime(inicioDia, tz).getDay() // 0=dom ... 6=sáb
 
-    const agendamentos = await prisma.agendamento.findMany({
-      where: {
-        empresaId,
-        ...(profissionalId ? { profissionalId } : {}),
-        status: { in: ['CONFIRMADO', 'REMARCADO'] },
-        inicio: { gte: inicioDia, lte: fimDia },
-      },
-      include: {
-        lead: { select: { nomeWpp: true, telefone: true } },
-        profissional: { select: { nome: true } },
-      },
-      orderBy: { inicio: 'asc' },
-    })
+    const [profissionais, agendamentos] = await Promise.all([
+      prisma.profissional.findMany({
+        where: { empresaId, ativo: true, ...(profissionalId ? { id: profissionalId } : {}) },
+        select: { id: true, nome: true, gradeHorarios: true },
+      }),
+      prisma.agendamento.findMany({
+        where: {
+          empresaId,
+          ...(profissionalId ? { profissionalId } : {}),
+          status: { in: ['CONFIRMADO', 'REMARCADO', 'BLOQUEADO'] },
+          inicio: { gte: inicioDia, lte: fimDia },
+        },
+        include: {
+          lead: { select: { nomeWpp: true, telefone: true } },
+          profissional: { select: { nome: true } },
+        },
+        orderBy: { inicio: 'asc' },
+      }),
+    ])
 
-    return { total: agendamentos.length, agendamentos }
+    // Profissional atende no dia se: não tem grade configurada (irrestrito) OU tem grade para este dia da semana
+    const atendem = profissionais.filter((p: any) =>
+      p.gradeHorarios.length === 0 || p.gradeHorarios.some((g: any) => g.diaSemana === diaSemana)
+    )
+    const naoAtendem = profissionais.filter((p: any) =>
+      p.gradeHorarios.length > 0 && !p.gradeHorarios.some((g: any) => g.diaSemana === diaSemana)
+    )
+
+    return {
+      data: dataStr,
+      diaSemana,
+      profissionaisQueAtendem: atendem.map((p: any) => ({ id: p.id, nome: p.nome })),
+      profissionaisQueNaoAtendem: naoAtendem.map((p: any) => ({ id: p.id, nome: p.nome })),
+      total: agendamentos.length,
+      agendamentos,
+    }
   })
 
   // POST /webhook/n8n/agenda/bloquear

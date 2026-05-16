@@ -110,7 +110,6 @@ async function calcularAgendaDia(
   const slotsBrutos = gerarSlots(horaInicio, horaFim, 15)
 
   // Query agendamentos using company-timezone day bounds (real UTC)
-  console.log(`[agenda] ${profissionalId} ${dataStr} inicioDiaUtc=${inicioDiaUtc.toISOString()} fimDiaUtc=${fimDiaUtc.toISOString()}`)
   const agendamentos = await prisma.agendamento.findMany({
     where: {
       profissionalId,
@@ -122,8 +121,6 @@ async function calcularAgendaDia(
       servico: { select: { duracaoMin: true } },
     },
   })
-
-  console.log(`[agenda] agendamentos encontrados: ${agendamentos.length}`, agendamentos.map((a: any) => ({ id: a.id, status: a.status, inicio: a.inicio })))
 
   // Intervalo de almoço em minutos (valores locais armazenados como "HH:MM")
   const intervaloInicioMin = profissional.intervaloInicio
