@@ -613,15 +613,18 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     const body = z.object({
       empresaId: z.string().uuid(),
       profissionalId: z.string().uuid(),
-      inicio: z.coerce.date(),
-      fim: z.coerce.date(),
+      inicio: z.string(),
+      fim: z.string(),
       motivo: z.string().optional(),
     }).safeParse({ ...request.body as any, ...request.query as any })
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const { empresaId, profissionalId, inicio, fim, motivo } = body.data
-    const inicioDate = inicio
-    const fimDate = fim
+    // Se não tem offset de timezone, interpreta como horário de Brasília
+    const parseBR = (s: string) =>
+      s.match(/[Zz]$/) || s.match(/[+-]\d{2}:\d{2}$/) ? new Date(s) : fromZonedTime(s, DEFAULT_TZ)
+    const inicioDate = parseBR(inicio)
+    const fimDate = parseBR(fim)
 
     const conflito = await prisma.agendamento.findFirst({
       where: {
@@ -671,14 +674,16 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
   app.post('/agenda/reagendar', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
     const body = z.object({
       agendamentoId: z.string().uuid(),
-      novoInicio: z.coerce.date(),
-      novoFim: z.coerce.date(),
+      novoInicio: z.string(),
+      novoFim: z.string(),
     }).safeParse({ ...request.body as any, ...request.query as any })
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const { agendamentoId, novoInicio, novoFim } = body.data
-    const inicioDate = novoInicio
-    const fimDate = novoFim
+    const parseBR = (s: string) =>
+      s.match(/[Zz]$/) || s.match(/[+-]\d{2}:\d{2}$/) ? new Date(s) : fromZonedTime(s, DEFAULT_TZ)
+    const inicioDate = parseBR(novoInicio)
+    const fimDate = parseBR(novoFim)
 
     const agendamento = await prisma.agendamento.findUnique({ where: { id: agendamentoId } })
     if (!agendamento) return reply.code(404).send({ error: 'Agendamento não encontrado' })
