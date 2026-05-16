@@ -317,6 +317,13 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       }),
     ])
 
+    // Converte timestamps UTC → horário de Brasília legível para a IA
+    const pad2 = (n: number) => String(n).padStart(2, '0')
+    const fmtLocal = (d: Date) => {
+      const l = toZonedTime(d, tz)
+      return `${l.getFullYear()}-${pad2(l.getMonth() + 1)}-${pad2(l.getDate())}T${pad2(l.getHours())}:${pad2(l.getMinutes())}:00`
+    }
+
     // Profissional atende no dia se: não tem grade configurada (irrestrito) OU tem grade para este dia da semana
     const atendem = profissionais.filter((p: any) =>
       p.gradeHorarios.length === 0 || p.gradeHorarios.some((g: any) => g.diaSemana === diaSemana)
@@ -339,7 +346,11 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       }),
       profissionaisQueNaoAtendem: naoAtendem.map((p: any) => ({ id: p.id, nome: p.nome })),
       total: agendamentos.length,
-      agendamentos,
+      agendamentos: agendamentos.map((ag: any) => ({
+        ...ag,
+        inicio: fmtLocal(ag.inicio),
+        fim: fmtLocal(ag.fim),
+      })),
     }
   })
 
