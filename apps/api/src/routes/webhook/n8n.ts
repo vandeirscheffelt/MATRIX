@@ -839,4 +839,47 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
 
     return { success: true }
   })
+
+  // GET /webhook/n8n/contato-perfil?empresaId=&telefone=
+  app.get('/contato-perfil', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const q = z.object({
+      empresaId: z.string().uuid(),
+      telefone: z.string(),
+    }).safeParse(request.query)
+    if (!q.success) return reply.code(400).send({ error: q.error.flatten() })
+
+    const perfil = await prisma.contatoPerfil.findUnique({
+      where: { empresaId_telefone: { empresaId: q.data.empresaId, telefone: q.data.telefone } },
+    })
+    return perfil ?? { empresaId: q.data.empresaId, telefone: q.data.telefone, apelido: null, fonte: null }
+  })
+
+  // POST /webhook/n8n/contato-perfil
+  // Salva ou atualiza o apelido do contato. Nunca sobrescreve se fonte='usuario'.
+  app.post('/contato-perfil', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const body = z.object({
+      empresaId: z.string().uuid(),
+      telefone: z.string(),
+      apelido: z.string().min(1),
+      fonte: z.enum(['whatsapp', 'usuario']),
+    }).safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const { empresaId, telefone, apelido, fonte } = body.data
+
+    // Se já existe com fonte='usuario', não sobrescrever
+    const existing = await prisma.contatoPerfil.findUnique({
+      where: { empresaId_telefone: { empresaId, telefone } },
+    })
+    if (existing?.fonte === 'usuario' && fonte !== 'usuario') {
+      return { success: true, skipped: true, apelido: existing.apelido }
+    }
+
+    const perfil = await prisma.contatoPerfil.upsert({
+      where: { empresaId_telefone: { empresaId, telefone } },
+      create: { empresaId, telefone, apelido, fonte },
+      update: { apelido, fonte },
+    })
+    return { success: true, skipped: false, apelido: perfil.apelido }
+  })
 }

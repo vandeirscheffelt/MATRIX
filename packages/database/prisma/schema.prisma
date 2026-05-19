@@ -343,6 +343,20 @@ enum StatusInstancia {
   @@schema("atendente_ia")
 }
 
+model ContatoPerfil {
+  id           String    @id @default(uuid())
+  empresaId    String    @map("empresa_id")
+  telefone     String
+  apelido      String?
+  fonte        String?   // 'whatsapp' | 'usuario' — quando 'usuario', nunca sobrescrever
+  criadoEm     DateTime  @default(now()) @map("criado_em")
+  atualizadoEm DateTime  @updatedAt @map("atualizado_em")
+
+  @@unique([empresaId, telefone])
+  @@map("contato_perfil")
+  @@schema("atendente_ia")
+}
+
 // -----------------------------------------------------------------------------
 // CRM — Pacientes / Clientes
 // -----------------------------------------------------------------------------
