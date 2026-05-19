@@ -653,6 +653,35 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     return { success: true, agendamentoId: bloqueio.id }
   })
 
+  // POST /webhook/n8n/agenda/desbloquear
+  // Cancela todos os agendamentos BLOQUEADO que se sobrepõem ao intervalo informado.
+  // Permite desbloqueio parcial: só remove bloqueios dentro do range, sem tocar nos demais.
+  app.post('/agenda/desbloquear', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const body = z.object({
+      profissionalId: z.string().uuid(),
+      inicio: z.string(),
+      fim: z.string(),
+    }).safeParse({ ...request.body as any, ...request.query as any })
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const parseBR = (s: string) =>
+      s.match(/[Zz]$/) || s.match(/[+-]\d{2}:\d{2}$/) ? new Date(s) : fromZonedTime(s, DEFAULT_TZ)
+    const inicioDate = parseBR(body.data.inicio)
+    const fimDate = parseBR(body.data.fim)
+
+    const { count } = await prisma.agendamento.updateMany({
+      where: {
+        profissionalId: body.data.profissionalId,
+        status: 'BLOQUEADO',
+        inicio: { lt: fimDate },
+        fim: { gt: inicioDate },
+      },
+      data: { status: 'CANCELADO' },
+    })
+
+    return { success: true, desbloqueados: count }
+  })
+
   // POST /webhook/n8n/agenda/cancelar
   app.post('/agenda/cancelar', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
     const body = z.object({
