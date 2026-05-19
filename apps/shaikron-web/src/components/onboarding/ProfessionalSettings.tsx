@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { useProfessionals } from "@/hooks/api/useProfessionals";
 import { useServices } from "@/hooks/api/useServices";
 import type { Professional, ProfessionalSchedule, BreakPeriod, DayScheduleOverride } from "@/hooks/api/types";
@@ -600,7 +601,7 @@ export default function ProfessionalSettings() {
     setEditingId(pro.id);
   };
 
-  const save = () => {
+  const save = async () => {
     if (!form.name.trim()) return;
     const data = {
       name: form.name.trim(),
@@ -610,13 +611,20 @@ export default function ProfessionalSettings() {
       services: form.selectedServices,
       schedule: formToSchedule(form),
     };
-    if (editingId === "new") {
-      addProfessional(data);
-    } else if (editingId) {
-      updateProfessional(editingId, data);
+    try {
+      if (editingId === "new") {
+        await addProfessional(data);
+      } else if (editingId) {
+        await updateProfessional(editingId, data);
+      }
+      setEditingId(null);
+    } catch (e: any) {
+      if (e?.message?.includes("409")) {
+        toast.error("Já existe um profissional com esse nome.");
+      } else {
+        toast.error(e?.message ?? "Erro ao salvar profissional.");
+      }
     }
-    console.log("Saved professionals:", editingId, data);
-    setEditingId(null);
   };
 
   return (

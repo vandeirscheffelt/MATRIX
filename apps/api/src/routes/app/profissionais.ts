@@ -51,6 +51,11 @@ export async function profissionaisRoutes(app: FastifyInstance) {
     const body = profissionalBody.safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
+    const duplicate = await prisma.profissional.findFirst({
+      where: { empresaId: request.empresaId, nome: body.data.nome, ativo: true },
+    })
+    if (duplicate) return reply.code(409).send({ error: 'Já existe um profissional ativo com esse nome.' })
+
     return prisma.profissional.create({
       data: { empresaId: request.empresaId, ...body.data },
     })
