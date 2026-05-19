@@ -654,8 +654,8 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
   })
 
   // POST /webhook/n8n/agenda/desbloquear
-  // Cancela todos os agendamentos BLOQUEADO que se sobrepõem ao intervalo informado.
-  // Permite desbloqueio parcial: só remove bloqueios dentro do range, sem tocar nos demais.
+  // Remove o bloqueio exatamente no intervalo informado, preservando as bordas.
+  // Ex: bloqueio 08:00–21:00 + desbloquear 12:00–21:00 → sobra 08:00–12:00 bloqueado.
   app.post('/agenda/desbloquear', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
     const body = z.object({
       profissionalId: z.string().uuid(),
@@ -668,18 +668,39 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       s.match(/[Zz]$/) || s.match(/[+-]\d{2}:\d{2}$/) ? new Date(s) : fromZonedTime(s, DEFAULT_TZ)
     const inicioDate = parseBR(body.data.inicio)
     const fimDate = parseBR(body.data.fim)
+    const { profissionalId } = body.data
 
-    const { count } = await prisma.agendamento.updateMany({
+    // Buscar todos os bloqueios que se sobrepõem ao intervalo
+    const bloqueios = await prisma.agendamento.findMany({
       where: {
-        profissionalId: body.data.profissionalId,
+        profissionalId,
         status: 'BLOQUEADO',
         inicio: { lt: fimDate },
         fim: { gt: inicioDate },
       },
-      data: { status: 'CANCELADO' },
     })
 
-    return { success: true, desbloqueados: count }
+    if (bloqueios.length === 0) return { success: true, desbloqueados: 0 }
+
+    // Para cada bloqueio: cancelar e recriar os pedaços que ficam fora do intervalo
+    for (const b of bloqueios) {
+      await prisma.agendamento.update({ where: { id: b.id }, data: { status: 'CANCELADO' } })
+
+      // Sobra à esquerda: bloqueio começa antes do intervalo
+      if (b.inicio < inicioDate) {
+        await prisma.agendamento.create({
+          data: { empresaId: b.empresaId, profissionalId, inicio: b.inicio, fim: inicioDate, status: 'BLOQUEADO', observacao: b.observacao },
+        })
+      }
+      // Sobra à direita: bloqueio termina depois do intervalo
+      if (b.fim > fimDate) {
+        await prisma.agendamento.create({
+          data: { empresaId: b.empresaId, profissionalId, inicio: fimDate, fim: b.fim, status: 'BLOQUEADO', observacao: b.observacao },
+        })
+      }
+    }
+
+    return { success: true, desbloqueados: bloqueios.length }
   })
 
   // POST /webhook/n8n/agenda/cancelar
