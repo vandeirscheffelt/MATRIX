@@ -4,11 +4,17 @@
 > O produto final para o cliente foi oficialmente renomeado para **Evolia**. 
 > Toda a identidade visual (textos, títulos, mensagens) no frontend exibe o nome "Evolia". Porém, a infraestrutura (pastas, repositórios, webhooks, imagens docker, schema do banco) se mantém com o nome técnico **Shaikron** para evitar quebra de integrações legadas de faturamento e infra. O modelo é de uma Holding (Shaikron) com um Produto (Evolia).
 
-**Última atualização:** 2026-05-11
+**Última atualização:** 2026-05-17
 
 ---
 
 ## ✅ O que está funcionando
+
+- **Redirect pós-pagamento**: polling no `BillingSuccessPage` aguarda status `ACTIVE` antes de redirecionar
+- **Log de debug removido**: `billing.ts` e `appmax-provider.ts` limpos
+- **Bug intervalo de almoço resolvido**: dados chegam corretamente no banco
+
+
 
 - Auth (Supabase — email/password)
 - Multi-tenant por `empresa_id`
@@ -47,25 +53,50 @@
 
 ---
 
-## ⚠️ Bugs / Pendências em aberto
+## ⚠️ Pendências em aberto
 
-### 1. Redirect pós-pagamento exibe layout "trial"
-- **Causa:** navegação full-page do Stripe zera o estado React; `aiUserCount` volta a 0; o webhook pode ainda não ter processado quando o usuário retorna a `/account`
-- **Sintoma:** ao retornar de `/billing/success`, a AccountPage ainda exibe status "trial" e checkout com R$97
-- **Próxima ação:** polling ou query param `?payment=success` em `BillingSuccessPage.tsx` para aguardar webhook antes de redirecionar; ou `BillingSuccessPage` chamar `GET /app/billing/status` em loop até `ACTIVE`
+### 🔴 Dívida Técnica — Isolamento de dados da IA02 (segurança)
 
-### 2. Log de debug ainda ativo em billing.ts
-- Linha 77 em `apps/api/src/routes/app/billing.ts` loga `rawBody` em produção
-- **Remover após validação**: `request.log.info({ ... }, 'checkout body recebido')`
+**Contexto:** A IA02 (secretária interna) hoje usa uma única instância n8n com restrições apenas em nível de prompt. Isso significa que um profissional com acesso ao chat poderia, em tese, visualizar ou modificar dados de outros profissionais da mesma empresa via jailbreak ou alucinação do LLM.
 
-### 3. Bug intervalo de almoço (pendente desde antes)
-- Colunas existem no banco (`intervalo_inicio`, `intervaloFim`), Prisma mapeado, frontend envia — dados não chegam no banco
-- Debug já deployado na rota `PUT /app/profissionais/:id`
-- Para diagnosticar:
-  ```bash
-  ssh root@209.50.228.131 "docker logs shaikron-api --since=1m 2>&1 | grep DEBUG"
-  ```
-- Remover logs `[DEBUG]` de `apps/api/src/routes/app/profissionais.ts` após resolver
+**Risco:** Alto para operação em escala (200k+ leads, múltiplas empresas). Potencial violação de LGPD entre profissionais de uma mesma empresa.
+
+**Solução planejada (duas camadas):**
+
+1. **Fork do workflow n8n** — criar IA02-Profissional separado onde os tool nodes de escrita (bloquear, cancelar, reagendar) usam `profissionalId` fixo do contexto verificado (`$('Dados IA02').first().json.profissionalId`) em vez de `$fromAI()`. O `ver_agenda` também recebe `profissionalId` fixo — profissional não consegue ver agenda de outros.
+
+2. **Backend enforcement** — nos endpoints `/webhook/n8n/bloquear`, `/cancelar`, `/reagendar`: validar explicitamente que o `profissionalId` recebido pertence à `empresaId` do contexto. Impede que empresa A opere sobre profissionais da empresa B mesmo com requisição direta à API.
+
+**Decisão:** Implementar após estabilização e testes completos dos tools da IA02 atuais.
+
+---
+
+### 🟡 Dívida Técnica — Seleção justa de profissional (IA02/IA03)
+
+**Contexto:** Ao sugerir horários disponíveis, a IA tende a privilegiar o mesmo profissional repetidamente (ex: Eduardo aparece antes de Aroldo por ordem de resposta da query). Em testes, o Aroldo só foi sugerido porque Eduardo estava bloqueado — não por critério de equidade.
+
+**Risco:** Médio. Em escala, um profissional recebe desproporcionalmente mais agendamentos do que outros da mesma equipe.
+
+**Solução planejada:**
+- Agente especialista de distribuição de agenda (skill dedicada)
+- Ao buscar slots disponíveis, ordenar profissionais por número de agendamentos no período (ASC) — menor agenda tem prioridade
+- Alternativa simples: round-robin por `profissionalId` com estado no Redis por `empresaId`
+
+**Decisão:** Implementar como task do agente especialista quando os tools básicos estiverem estáveis.
+
+---
+
+### 🟡 Dívida Técnica — Injeção automática de telefone do cliente (IA01 → n8n)
+
+**Contexto:** Quando um cliente agenda via WhatsApp (IA01), o n8n já tem o número de telefone do remetente (`body.data.key.remoteJid`). Porém esse telefone não é injetado automaticamente no agendamento — a IA03 pode acabar pedindo o telefone que o cliente já forneceu simplesmente por estar conversando.
+
+**Solução planejada:**
+- No node de criação de agendamento (tool `criar_agendamento` via IA03), o n8n injeta `clienteTelefone` extraído de `$('Webhook EVO').item.json.body.data.key.remoteJid` (normalizado, sem `@s.whatsapp.net`)
+- Campo fica disponível no contexto do agendamento sem precisar perguntar ao cliente
+
+**Decisão:** Implementar ao construir a IA03 (agenda inteligente).
+
+---
 
 ---
 
@@ -83,10 +114,6 @@ ssh root@209.50.228.131 "cd /root/Matrix && git pull origin main && cd infra/doc
 
 ---
 
-## 📋 Próximos passos (ordem sugerida)
+## 📋 Próximos passos
 
-1. **Resolver redirect pós-pagamento** — polling no `BillingSuccessPage` até status `ACTIVE`
-2. **Remover log de debug** do `billing.ts` linha 77
-3. **Resolver bug intervalo de almoço** (debug já no lugar)
-4. Dashboard real (`/app/dashboard/overview`)
-5. Integrar fluxos n8n com backend completo
+1. **Integração n8n** — conectar fluxos de automação (agendamentos, notificações, WhatsApp) com o backend
