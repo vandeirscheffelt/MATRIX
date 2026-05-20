@@ -177,7 +177,7 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
   // POST /webhook/n8n/agendamento
   // n8n chama quando IA confirma um agendamento
   app.post('/agendamento', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
-    const body = agendamentoBody.safeParse(request.body)
+    const body = agendamentoBody.safeParse({ ...request.body as any, ...request.query as any })
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const { empresaId, leadTelefone, leadNome, profissionalId, inicio, fim } = body.data
