@@ -182,6 +182,65 @@ O atendimento via WhatsApp roda na VPS via **Evolution API + n8n**. O código aq
 
 ---
 
+## 🧠 Ecossistema Shaikron — Visão Estratégica
+
+> Leia esta seção sempre que precisar entender o propósito de qualquer app ou decisão de produto.
+
+**Shaikron** é o nome da holding/infraestrutura. **Matrix** é o workspace técnico. O ecossistema é uma **infraestrutura comercial cognitiva distribuída** — um sistema econômico semi-autônomo onde cada produto alimenta os demais.
+
+### A lógica central (flywheel)
+
+```
+Prospecta → captura leads (173k iniciais; projeção 6,9M+)
+    ↓
+LIADS → ativa esses leads com disparos inteligentes (WhatsApp API oficial + templates Meta)
+    ↓
+LIAS → IAs conversacionais que convertem leads em clientes
+    ↓
+Evolia → entrega valor operacional (SaaS B2B com 6 IAs integradas)
+    ↓
+MasterSaaS → transforma cliente em afiliado/canal de distribuição
+    ↓
+Afiliados → multiplicam alcance e retroalimentam o topo do funil
+```
+
+Cada novo produto entra pegando carona nessa infraestrutura — não depende de um único produto dar certo isoladamente.
+
+### Apps e seus papéis
+
+| App | Papel no ecossistema | Status |
+|-----|---------------------|--------|
+| **Evolia** (brand) / **Shaikron** (técnico) | Produto principal — SaaS B2B de atendimento WhatsApp com 6 IAs (agenda, secretária, copilot, lacunas, agente de agenda) | Em produção |
+| **Prospecta** | Motor de mineração territorial — scraper Google Maps para capturar leads por categoria/bairro | Ativo (173k leads coletados) |
+| **LIADS** | Motor de disparos — campanhas Scale (API Meta oficial) e Smart (WhatsApp comum), com budget diário, reinvestimento e teto operacional | Em desenvolvimento |
+| **LIAS** | IAs conversacionais de conversão — governam o discurso de vendas nas campanhas | Integradas ao n8n |
+| **MasterSaaS** | Portal de afiliados — painel, tutoriais, simulador de renda, rede própria de afiliados (microredes), financeiro | Em desenvolvimento |
+| **Tesouraria** (futuro) | Cérebro econômico — decide quanto escalar, reinvestir, provisionar e qual teto por campanha/afiliado | Planejado |
+
+### Evolia — cavalo de entrada
+O Evolia **não é só produto**; é a porta de entrada do ecossistema. Dentro dele o cliente encontra o MasterSaaS, vira afiliado, passa a divulgar outros módulos e retroalimenta a máquina.
+
+**6 IAs do Evolia:**
+- **IA01** — Atendente: agenda clientes via WhatsApp
+- **IA02** — Secretária do gerente: consulta dados e relatórios da agenda
+- **IA02b** — Secretária individual: cada profissional tem a sua
+- **IA03** — Copilot: auxilia o cliente a configurar o app
+- **IA04** — Leitura de lacunas: sugere novas perguntas/respostas para o sistema se adaptar
+- **IA05** — Agente especialista de agenda: auxilia a IA01 nas marcações
+
+### Marcos de evolução
+
+| Marco | Objetivo |
+|-------|----------|
+| R$ 20k/mês | Provar renda complementar e operação mínima saudável |
+| R$ 50k–100k/mês | Provar escala, suporte, cobrança, afiliados e retenção |
+| R$ 100k+/mês | Tratar como carro-chefe com governança, equipe e processos |
+
+### Visão de longo prazo
+Ecossistema multilíngue (PT-BR, EN, ES) para LATAM — primeiro consolidar musculatura no Brasil, depois internacionalizar.
+
+---
+
 ## VPS (laboratório atual — Speedfy)
 
 A infraestrutura roda em VPS gerenciada pelo painel **Speedfy.host**:
@@ -195,6 +254,55 @@ A infraestrutura roda em VPS gerenciada pelo painel **Speedfy.host**:
 | n8n | 2.7.4 | 5678 |
 
 **Migração futura:** quando houver o primeiro produto em produção real, migrar para VPS Hostinger dedicada. O ambiente é idêntico — só trocar IP/SSH nos secrets do GitHub Actions.
+
+---
+
+## 🔑 Acesso a Serviços Externos (use sempre desta forma)
+
+### n8n (VPS Speedfy)
+Nunca usar MCP do n8n — ele aponta para outra instância. Acessar diretamente via API REST:
+
+```
+URL base:  http://209.50.228.131:5678/api/v1
+API Key:   eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZjQ3ZGEyYy01N2QzLTQ0NzMtOWQxNy05Yjg2OWJkMGEyMzAiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiZGI4NDM2YjMtZTJkOC00OTBjLWE5NzAtYWY5MGRlM2M4Njk0IiwiaWF0IjoxNzc2MTAyOTMwfQ.SCadqH4puE_9Aj6NHmA6yvkR41AOa0IEl2GXmVjj0To
+Header:    X-N8N-API-KEY: <api_key>
+```
+
+Operações comuns:
+```bash
+# Listar workflows
+curl -H "X-N8N-API-KEY: <key>" http://209.50.228.131:5678/api/v1/workflows
+
+# Baixar workflow
+curl -H "X-N8N-API-KEY: <key>" http://209.50.228.131:5678/api/v1/workflows/<id> -o workflow.json
+
+# Atualizar workflow (campos aceitos: name, nodes, connections, settings, staticData)
+curl -X PUT -H "X-N8N-API-KEY: <key>" -H "Content-Type: application/json; charset=utf-8" \
+  -d @workflow.json http://209.50.228.131:5678/api/v1/workflows/<id>
+
+# Execuções rodando
+curl -H "X-N8N-API-KEY: <key>" http://209.50.228.131:5678/api/v1/executions?status=running
+```
+
+> ⚠️ PUT do workflow aceita apenas: `name`, `nodes`, `connections`, `settings`, `staticData` — campos extras retornam 400.
+> ⚠️ Frases com acentos em nós JS do n8n sofrem double-encoding no Evolution API → usar apenas ASCII nas strings enviadas ao WhatsApp.
+
+### Supabase (banco do Shaikron/Evolia)
+Nunca usar MCP do Supabase para DDL — usar `prisma db execute` com a DATABASE_URL do `.env`:
+
+```bash
+# DATABASE_URL está em: packages/database/.env
+cd packages/database
+npx prisma db execute --stdin --url "<DATABASE_URL>" << 'SQL'
+ALTER TABLE atendente_ia.minha_tabela ADD COLUMN IF NOT EXISTS meu_campo TEXT;
+SQL
+```
+
+```
+Projeto:  tbapcaxbawruijrigafn
+URL:      https://tbapcaxbawruijrigafn.supabase.co
+DB host:  db.tbapcaxbawruijrigafn.supabase.co:6543 (pgbouncer)
+```
 
 ---
 
@@ -349,6 +457,26 @@ Nunca usar `app` como schema genérico — ele não escala para múltiplos produ
 - Types compartilhados em `@boilerplate/shared-types`
 - Fastify para backend — não Next.js API routes
 - Pino para logs — nunca `console.log` em produção
+
+---
+
+## Princípios de Execução (Karpathy-inspired)
+
+> Aplicar em qualquer tarefa — técnica ou exploratória.
+
+**1. Surface tradeoffs antes de codar**
+Nunca implementar silenciosamente quando há ambiguidade. Declarar premissas explicitamente e perguntar antes de escolher por conta própria. "Tenho duas interpretações: X ou Y — qual seguimos?"
+
+**2. Execução orientada a critério verificável**
+Transformar tarefas vagas em objetivos mensuráveis antes de executar.
+- ❌ "arruma o bug de autenticação"
+- ✅ "escreva o teste que reproduz o bug → faça-o passar → verifique regressões"
+
+**3. Mudanças cirúrgicas**
+Editar somente o que foi pedido. Não "melhorar" código adjacente, formatação ou comentários que não fazem parte da tarefa.
+
+**4. Simplicidade primeiro**
+Nenhuma feature além do solicitado. Nenhuma abstração para uso único. Se um engenheiro sênior chamaria de overengineering — é overengineering.
 
 ---
 

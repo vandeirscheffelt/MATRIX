@@ -882,4 +882,40 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     })
     return { success: true, skipped: false, apelido: perfil.apelido }
   })
+
+  // GET /webhook/n8n/contato-perfil/email?empresaId=&telefone=
+  // IA02 busca o e-mail salvo do gerente antes de enviar relatório
+  app.get('/contato-perfil/email', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const q = z.object({
+      empresaId: z.string().uuid(),
+      telefone: z.string(),
+    }).safeParse(request.query)
+    if (!q.success) return reply.code(400).send({ error: q.error.flatten() })
+
+    const perfil = await prisma.contatoPerfil.findUnique({
+      where: { empresaId_telefone: { empresaId: q.data.empresaId, telefone: q.data.telefone } },
+      select: { emailRelatorio: true },
+    })
+    return { emailRelatorio: perfil?.emailRelatorio ?? null }
+  })
+
+  // PATCH /webhook/n8n/contato-perfil/email
+  // IA02 salva o e-mail confirmado pelo gerente
+  app.patch('/contato-perfil/email', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const body = z.object({
+      empresaId: z.string().uuid(),
+      telefone: z.string(),
+      emailRelatorio: z.string().email(),
+    }).safeParse(request.body)
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const { empresaId, telefone, emailRelatorio } = body.data
+
+    const perfil = await prisma.contatoPerfil.upsert({
+      where: { empresaId_telefone: { empresaId, telefone } },
+      create: { empresaId, telefone, emailRelatorio },
+      update: { emailRelatorio },
+    })
+    return { success: true, emailRelatorio: perfil.emailRelatorio }
+  })
 }
