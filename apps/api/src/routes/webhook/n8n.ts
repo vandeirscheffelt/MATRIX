@@ -882,8 +882,8 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       empresaId: z.string().uuid(),
       telefone: z.string(),
       apelido: z.string().min(1),
-      fonte: z.enum(['whatsapp', 'usuario']),
-    }).safeParse(request.body)
+      fonte: z.enum(['whatsapp', 'usuario']).default('usuario'),
+    }).safeParse({ ...request.body as any, ...request.query as any })
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const { empresaId, telefone, apelido, fonte } = body.data
@@ -927,7 +927,7 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       empresaId: z.string().uuid(),
       telefone: z.string(),
       emailRelatorio: z.string().email(),
-    }).safeParse(request.body)
+    }).safeParse({ ...request.body as any, ...request.query as any })
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
     const { empresaId, telefone, emailRelatorio } = body.data
