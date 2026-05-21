@@ -827,15 +827,14 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     const { empresaId } = request.params as { empresaId: string }
     const { nome } = request.query as { nome?: string }
     if (!nome?.trim()) return reply.code(400).send({ error: 'nome é obrigatório' })
-    const leads = await prisma.lead.findMany({
-      where: {
-        empresaId,
-        nomeWpp: { contains: nome.trim(), mode: 'insensitive' },
-      },
+    const norm = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    const busca = norm(nome)
+    const todos = await prisma.lead.findMany({
+      where: { empresaId, nomeWpp: { not: null } },
       select: { telefone: true, nomeWpp: true },
       orderBy: { nomeWpp: 'asc' },
-      take: 10,
     })
+    const leads = todos.filter(l => norm(l.nomeWpp ?? '').includes(busca) && l.telefone).slice(0, 10)
     return { total: leads.length, leads }
   })
 
