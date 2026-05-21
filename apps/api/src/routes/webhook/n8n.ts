@@ -6,9 +6,9 @@ import { sendEmail } from '../../lib/email.js'
 
 const DEFAULT_TZ = 'America/Sao_Paulo'
 
-// Segredo compartilhado entre Fastify e n8n
+// Segredo compartilhado entre Fastify e n8n (aceita header ou query param _s)
 async function requireWebhookSecret(request: any, reply: any) {
-  const secret = request.headers['x-webhook-secret']
+  const secret = request.headers['x-webhook-secret'] || (request.query as any)['_s']
   if (secret !== process.env.N8N_WEBHOOK_SECRET) {
     return reply.code(401).send({ error: 'Unauthorized' })
   }
