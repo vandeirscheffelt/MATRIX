@@ -23,6 +23,20 @@ export async function gerenteRoutes(app: FastifyInstance) {
     const body = gerenteBody.safeParse(request.body)
     if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
 
+    // Bloqueia se o número informado é o mesmo da instância da Atendente
+    const instancia = await prisma.instanciaWhatsApp.findUnique({
+      where: { empresaId: request.empresaId },
+      select: { telefoneConectado: true },
+    })
+    if (instancia?.telefoneConectado) {
+      const norm = (t: string) => t.replace(/\D/g, '')
+      if (norm(instancia.telefoneConectado) === norm(body.data.telefone)) {
+        return reply.code(400).send({
+          error: 'Este número é o número da sua Atendente. O Gerente precisa ser cadastrado com um número diferente.',
+        })
+      }
+    }
+
     const existing = await prisma.numeroGerente.findFirst({
       where: { empresaId: request.empresaId },
     })

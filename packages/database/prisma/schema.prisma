@@ -319,14 +319,15 @@ model NotificacaoPendente {
 // -----------------------------------------------------------------------------
 
 model InstanciaWhatsApp {
-  id              String   @id @default(uuid())
-  empresaId       String   @unique @map("empresa_id")
-  nomeInstancia   String   @unique @map("nome_instancia")
-  token           String
-  status          StatusInstancia @default(DISCONNECTED)
-  qrCodeBase64    String?  @map("qr_code_base64") @db.Text
-  qrExpiresAt     DateTime? @map("qr_expires_at")
-  criadoEm        DateTime @default(now()) @map("criado_em")
+  id                  String   @id @default(uuid())
+  empresaId           String   @unique @map("empresa_id")
+  nomeInstancia       String   @unique @map("nome_instancia")
+  token               String
+  status              StatusInstancia @default(DISCONNECTED)
+  qrCodeBase64        String?  @map("qr_code_base64") @db.Text
+  qrExpiresAt         DateTime? @map("qr_expires_at")
+  telefoneConectado   String?  @map("telefone_conectado")
+  criadoEm            DateTime @default(now()) @map("criado_em")
 
   empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 

@@ -294,8 +294,11 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
 
     const tz = DEFAULT_TZ
     const nowBrasilia = toZonedTime(new Date(), tz)
-    // Empty string from $fromAI() default → treat as "today" / "all professionals"
-    const dataStr = (data && data.trim()) || `${nowBrasilia.getFullYear()}-${String(nowBrasilia.getMonth() + 1).padStart(2, '0')}-${String(nowBrasilia.getDate()).padStart(2, '0')}`
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const hoje = `${nowBrasilia.getFullYear()}-${pad(nowBrasilia.getMonth() + 1)}-${pad(nowBrasilia.getDate())}`
+    // Aceita só YYYY-MM-DD — qualquer lixo do $fromAI cai para hoje
+    const dataRaw = (data && data.trim()) || ''
+    const dataStr = /^\d{4}-\d{2}-\d{2}$/.test(dataRaw) ? dataRaw : hoje
     const profissionalIdFinal = (profissionalId && profissionalId.trim()) || undefined
     const inicioDia = fromZonedTime(`${dataStr}T00:00:00`, tz)
     const fimDia = fromZonedTime(`${dataStr}T23:59:59`, tz)

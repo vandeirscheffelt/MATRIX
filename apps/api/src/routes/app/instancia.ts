@@ -25,12 +25,47 @@ async function evoRequest(path: string, method = 'GET', body?: object) {
 export async function instanciaRoutes(app: FastifyInstance) {
   const preHandler = [requireAuth, requireActiveSubscription]
 
-  // GET /app/instancia — status atual
+  // GET /app/instancia — status atual (sincroniza com Evolution API)
   app.get('/', { preHandler }, async (request: any, reply) => {
     const instancia = await prisma.instanciaWhatsApp.findUnique({
       where: { empresaId: request.empresaId },
     })
     if (!instancia) return reply.code(404).send({ error: 'Nenhuma instância criada' })
+
+    // Sincroniza status real com Evolution API
+    try {
+      const evoState = await evoRequest(`/instance/connectionState/${instancia.nomeInstancia}`)
+      const evoStatus = evoState?.instance?.state
+
+      if (evoStatus === 'open' && instancia.status !== 'CONNECTED') {
+        // Tenta capturar o número conectado para validar conflitos futuros
+        let telefoneConectado: string | null = instancia.telefoneConectado ?? null
+        try {
+          const instances = await evoRequest(`/instance/fetchInstances?instanceName=${instancia.nomeInstancia}`)
+          const owner = Array.isArray(instances) ? instances[0]?.instance?.owner : instances?.instance?.owner
+          if (owner) {
+            telefoneConectado = owner.replace(/@.*/, '').replace(/\D/g, '')
+          }
+        } catch { /* Evolution API pode não retornar owner — não bloqueia */ }
+
+        const updated = await prisma.instanciaWhatsApp.update({
+          where: { empresaId: request.empresaId },
+          data: { status: 'CONNECTED', qrCodeBase64: null, ...(telefoneConectado ? { telefoneConectado } : {}) },
+        })
+        return updated
+      }
+
+      if (evoStatus === 'close' && instancia.status === 'CONNECTED') {
+        const updated = await prisma.instanciaWhatsApp.update({
+          where: { empresaId: request.empresaId },
+          data: { status: 'DISCONNECTED' },
+        })
+        return updated
+      }
+    } catch {
+      // Evolution API indisponível — retorna o que temos no banco
+    }
+
     return instancia
   })
 
