@@ -16,7 +16,7 @@ async function requireWebhookSecret(request: any, reply: any) {
 
 const agendamentoBody = z.object({
   empresaId: z.string().uuid(),
-  leadTelefone: z.string(),
+  leadTelefone: z.string().optional().transform(v => (v && v.trim()) || null),
   leadNome: z.string().optional(),
   profissionalId: z.string().uuid(),
   inicio: z.string().datetime({ offset: true }),
@@ -194,15 +194,19 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     })
     if (conflito) return reply.code(409).send({ error: 'Horário em conflito' })
 
-    // Upsert do lead
-    const lead = await prisma.lead.upsert({
-      where: { empresaId_telefone: { empresaId, telefone: leadTelefone } },
-      create: { empresaId, telefone: leadTelefone, nomeWpp: leadNome },
-      update: { nomeWpp: leadNome },
-    })
+    // Upsert do lead apenas se telefone informado
+    let leadId: string | null = null
+    if (leadTelefone) {
+      const lead = await prisma.lead.upsert({
+        where: { empresaId_telefone: { empresaId, telefone: leadTelefone } },
+        create: { empresaId, telefone: leadTelefone, nomeWpp: leadNome ?? undefined },
+        update: { nomeWpp: leadNome ?? undefined },
+      })
+      leadId = lead.id
+    }
 
     const agendamento = await prisma.agendamento.create({
-      data: { empresaId, profissionalId, leadId: lead.id, inicio: inicioDate, fim: fimDate },
+      data: { empresaId, profissionalId, ...(leadId ? { leadId } : {}), inicio: inicioDate, fim: fimDate },
     })
 
     return { success: true, agendamentoId: agendamento.id }
