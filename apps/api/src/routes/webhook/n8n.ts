@@ -821,6 +821,24 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     return profissionais
   })
 
+  // GET /webhook/n8n/agenda/:empresaId/buscar-lead?nome=
+  // IA02 usa para encontrar telefone de um cliente pelo nome antes de criar agendamento
+  app.get('/agenda/:empresaId/buscar-lead', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const { empresaId } = request.params as { empresaId: string }
+    const { nome } = request.query as { nome?: string }
+    if (!nome?.trim()) return reply.code(400).send({ error: 'nome é obrigatório' })
+    const leads = await prisma.lead.findMany({
+      where: {
+        empresaId,
+        nomeWpp: { contains: nome.trim(), mode: 'insensitive' },
+      },
+      select: { telefone: true, nomeWpp: true },
+      orderBy: { nomeWpp: 'asc' },
+      take: 10,
+    })
+    return { total: leads.length, leads }
+  })
+
   // ─────────────────────────────────────────────────────────────────────────────
 
   // POST /webhook/n8n/conversa/reativar
