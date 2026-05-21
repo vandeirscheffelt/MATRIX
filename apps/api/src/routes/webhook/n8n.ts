@@ -19,8 +19,8 @@ const agendamentoBody = z.object({
   leadTelefone: z.string(),
   leadNome: z.string().optional(),
   profissionalId: z.string().uuid(),
-  inicio: z.string().datetime(),
-  fim: z.string().datetime(),
+  inicio: z.string().datetime({ offset: true }),
+  fim: z.string().datetime({ offset: true }),
 })
 
 const conversaBody = z.object({
