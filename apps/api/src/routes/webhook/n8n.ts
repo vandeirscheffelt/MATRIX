@@ -184,6 +184,13 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     const inicioDate = new Date(inicio)
     const fimDate = new Date(fim)
 
+    // Valida que o profissional pertence a esta empresa
+    const profissional = await prisma.profissional.findFirst({
+      where: { id: profissionalId, empresaId },
+      select: { id: true },
+    })
+    if (!profissional) return reply.code(400).send({ error: 'profissionalId invalido para esta empresa. Chame listar_profissionais para obter o UUID correto.' })
+
     // Verifica conflito
     const conflito = await prisma.agendamento.findFirst({
       where: {
