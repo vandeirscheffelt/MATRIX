@@ -201,6 +201,16 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     })
     if (bloqueio) return reply.send({ sucesso: false, bloqueado: true, mensagem: 'Horario bloqueado neste periodo. Use a tool desbloquear_horario para liberar o horario e entao crie o agendamento novamente.' })
 
+    // Verifica bloqueio na tabela bloqueios (calendario UI Evolia — UTC timestamps)
+    const bloqueioCalendario = await prisma.bloqueio.findFirst({
+      where: {
+        profissionalId,
+        dataInicio: { lt: fimDate },
+        dataFim: { gt: inicioDate },
+      },
+    })
+    if (bloqueioCalendario) return reply.send({ sucesso: false, bloqueado: true, mensagem: 'Horario bloqueado neste periodo (calendario). Use a tool desbloquear_horario para liberar o horario e entao crie o agendamento novamente.' })
+
     // Verifica conflito com agendamento existente
     const conflito = await prisma.agendamento.findFirst({
       where: {
@@ -732,6 +742,33 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     return { success: true, desbloqueados: bloqueios.length }
   })
 
+  // POST /webhook/n8n/agenda/remover-bloqueio-calendario
+  // Remove bloqueios da tabela bloqueios (calendario UI Evolia) que se sobrepoem ao intervalo.
+  app.post('/agenda/remover-bloqueio-calendario', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const body = z.object({
+      profissionalId: z.string().uuid(),
+      inicio: z.string(),
+      fim: z.string(),
+    }).safeParse({ ...request.body as any, ...request.query as any })
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const parseBR = (s: string) =>
+      s.match(/[Zz]$/) || s.match(/[+-]\d{2}:\d{2}$/) ? new Date(s) : fromZonedTime(s, DEFAULT_TZ)
+    const inicioDate = parseBR(body.data.inicio)
+    const fimDate = parseBR(body.data.fim)
+    const { profissionalId } = body.data
+
+    const removed = await prisma.bloqueio.deleteMany({
+      where: {
+        profissionalId,
+        dataInicio: { lt: fimDate },
+        dataFim: { gt: inicioDate },
+      },
+    })
+
+    return { success: true, removidos: removed.count }
+  })
+
   // POST /webhook/n8n/agenda/cancelar
   app.post('/agenda/cancelar', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
     const body = z.object({
@@ -844,6 +881,50 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       orderBy: { nome: 'asc' },
     })
     return profissionais
+  })
+
+  // GET /webhook/n8n/agenda/:empresaId/bloqueios-calendario?data=&profissionalId=
+  // Retorna bloqueios da tabela bloqueios (calendario UI Evolia) para um dia, convertidos para Brasilia
+  app.get('/agenda/:empresaId/bloqueios-calendario', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const { empresaId } = request.params as { empresaId: string }
+    const { data, profissionalId } = request.query as { data?: string; profissionalId?: string }
+
+    if (!data?.trim()) return reply.code(400).send({ error: 'data e obrigatorio (YYYY-MM-DD)' })
+
+    const tz = DEFAULT_TZ
+    const inicioDia = fromZonedTime(`${data}T00:00:00`, tz)
+    const fimDia = fromZonedTime(`${data}T23:59:59`, tz)
+
+    const profissionaisDaEmpresa = await prisma.profissional.findMany({
+      where: { empresaId, ...(profissionalId ? { id: profissionalId } : {}) },
+      select: { id: true, nome: true },
+    })
+    const profIds = profissionaisDaEmpresa.map((p: any) => p.id)
+
+    const bloqueios = await prisma.bloqueio.findMany({
+      where: {
+        profissionalId: { in: profIds },
+        dataInicio: { lt: fimDia },
+        dataFim: { gt: inicioDia },
+      },
+      orderBy: { dataInicio: 'asc' },
+    })
+
+    const profMap: Record<string, string> = Object.fromEntries(profissionaisDaEmpresa.map((p: any) => [p.id, p.nome]))
+    const pad2 = (n: number) => String(n).padStart(2, '0')
+    const fmtLocal = (d: Date) => {
+      const l = toZonedTime(d, tz)
+      return `${l.getFullYear()}-${pad2(l.getMonth() + 1)}-${pad2(l.getDate())}T${pad2(l.getHours())}:${pad2(l.getMinutes())}:00`
+    }
+
+    return bloqueios.map((b: any) => ({
+      id: b.id,
+      profissionalId: b.profissionalId,
+      profissionalNome: profMap[b.profissionalId] ?? b.profissionalId,
+      inicio: fmtLocal(b.dataInicio),
+      fim: fmtLocal(b.dataFim),
+      motivo: b.motivo ?? null,
+    }))
   })
 
   // GET /webhook/n8n/agenda/:empresaId/buscar-lead?nome=
