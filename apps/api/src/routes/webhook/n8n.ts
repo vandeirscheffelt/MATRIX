@@ -206,7 +206,12 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     }
 
     const agendamento = await prisma.agendamento.create({
-      data: { empresaId, profissionalId, ...(leadId ? { leadId } : {}), inicio: inicioDate, fim: fimDate },
+      data: {
+        empresaId, profissionalId,
+        ...(leadId ? { leadId } : {}),
+        ...(leadNome ? { clienteNome: leadNome } : {}),
+        inicio: inicioDate, fim: fimDate,
+      },
     })
 
     return { success: true, agendamentoId: agendamento.id }
