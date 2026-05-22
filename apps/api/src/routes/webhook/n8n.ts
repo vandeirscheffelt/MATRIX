@@ -841,6 +841,70 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     }
   })
 
+  // GET /webhook/n8n/agenda/:empresaId/notificacoes-pendentes
+  // IA02 consulta fila de notificacoes ainda nao enviadas
+  app.get('/agenda/:empresaId/notificacoes-pendentes', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const { empresaId } = request.params as { empresaId: string }
+
+    const tz = DEFAULT_TZ
+    const notificacoes = await prisma.notificacaoPendente.findMany({
+      where: { empresaId, enviada: false },
+      include: { lead: { select: { nomeWpp: true, telefone: true } } },
+      orderBy: { criadoEm: 'asc' },
+    })
+
+    const pad2 = (n: number) => String(n).padStart(2, '0')
+    const fmtLocal = (d: Date) => {
+      const l = toZonedTime(d, tz)
+      return `${pad2(l.getDate())}/${pad2(l.getMonth() + 1)} ${pad2(l.getHours())}:${pad2(l.getMinutes())}`
+    }
+
+    return {
+      total: notificacoes.length,
+      notificacoes: notificacoes.map((n: any) => ({
+        id: n.id,
+        leadNome: n.lead?.nomeWpp ?? '—',
+        leadTelefone: n.lead?.telefone ?? '—',
+        mensagem: n.mensagem,
+        criadoEm: fmtLocal(n.criadoEm),
+      })),
+    }
+  })
+
+  // POST /webhook/n8n/agenda/cancelar-notificacao
+  // IA02 cancela notificacao pendente por id ou por leadTelefone (todas do lead)
+  app.post('/agenda/cancelar-notificacao', { preHandler: requireWebhookSecret }, async (request: any, reply) => {
+    const body = z.object({
+      empresaId: z.string().uuid(),
+      notificacaoId: z.string().optional(),
+      leadTelefone: z.string().optional(),
+    }).safeParse({ ...request.body as any, ...request.query as any })
+    if (!body.success) return reply.code(400).send({ error: body.error.flatten() })
+
+    const { empresaId, notificacaoId, leadTelefone } = body.data
+    if (!notificacaoId && !leadTelefone) {
+      return reply.code(400).send({ error: 'Informe notificacaoId ou leadTelefone' })
+    }
+
+    if (notificacaoId) {
+      const removed = await prisma.notificacaoPendente.deleteMany({
+        where: { id: notificacaoId, empresaId, enviada: false },
+      })
+      return { success: true, canceladas: removed.count }
+    }
+
+    // Cancela todas as pendentes do lead
+    const lead = await prisma.lead.findUnique({
+      where: { empresaId_telefone: { empresaId, telefone: leadTelefone! } },
+    })
+    if (!lead) return reply.send({ success: true, canceladas: 0 })
+
+    const removed = await prisma.notificacaoPendente.deleteMany({
+      where: { leadId: lead.id, empresaId, enviada: false },
+    })
+    return { success: true, canceladas: removed.count }
+  })
+
   // POST /webhook/n8n/agenda/notificar-cliente
   // IA02 solicita que IA01 notifique o cliente (cria registro de notificação pendente)
   app.post('/agenda/notificar-cliente', { preHandler: requireWebhookSecret }, async (request: any, reply) => {

@@ -448,6 +448,114 @@ TOOLCODE_NODES = {
         ),
         None,
     ),
+    'consultar_notificacoes': (
+        'Lista as notificacoes pendentes (ainda nao enviadas ao cliente). Use para o gerente saber o que esta na fila.',
+        (
+            "const empresaId = $('Sortear Aviso').item.json.empresaId;\n"
+            "const secret = '" + SECRET + "';\n"
+            "const base = '" + BASE + "';\n"
+            "\n"
+            "const url = base + '/agenda/' + empresaId + '/notificacoes-pendentes?_s=' + secret;\n"
+            "const result = await helpers.httpRequest({ method: 'GET', url: url });\n"
+            "return JSON.stringify(result);"
+        ),
+        None,
+    ),
+    'cancelar_notificacao': (
+        'Cancela notificacoes pendentes antes de serem enviadas. Use notificacaoId para cancelar uma especifica, ou leadTelefone para cancelar todas do cliente.',
+        (
+            "const notificacaoId = query.notificacaoId || '';\n"
+            "const leadTelefone = query.leadTelefone || '';\n"
+            "const empresaId = $('Sortear Aviso').item.json.empresaId;\n"
+            "const secret = '" + SECRET + "';\n"
+            "const base = '" + BASE + "';\n"
+            "\n"
+            "let url = base + '/agenda/cancelar-notificacao?_s=' + secret\n"
+            "  + '&empresaId=' + encodeURIComponent(empresaId);\n"
+            "if (notificacaoId) url += '&notificacaoId=' + encodeURIComponent(notificacaoId);\n"
+            "if (leadTelefone) url += '&leadTelefone=' + encodeURIComponent(leadTelefone);\n"
+            "\n"
+            "const result = await helpers.httpRequest({ method: 'POST', url: url });\n"
+            "return JSON.stringify(result);"
+        ),
+        {
+            "type": "object",
+            "properties": {
+                "notificacaoId": {
+                    "type": "string",
+                    "description": "ID da notificacao a cancelar. Use consultar_notificacoes para obter. Opcional se leadTelefone fornecido."
+                },
+                "leadTelefone": {
+                    "type": "string",
+                    "description": "Telefone do cliente ex: 5561999999999. Cancela todas as notificacoes pendentes desse cliente. Opcional se notificacaoId fornecido."
+                }
+            },
+            "required": []
+        }
+    ),
+    'notificar_cliente': (
+        'Envia mensagem WhatsApp ao cliente via IA01. Use buscar_lead para obter o leadTelefone.',
+        (
+            "const leadTelefone = query.leadTelefone;\n"
+            "const mensagem = query.mensagem;\n"
+            "const agendamentoId = query.agendamentoId || '';\n"
+            "const empresaId = $('Sortear Aviso').item.json.empresaId;\n"
+            "const secret = '" + SECRET + "';\n"
+            "const base = '" + BASE + "';\n"
+            "\n"
+            "let url = base + '/agenda/notificar-cliente?_s=' + secret\n"
+            "  + '&empresaId=' + encodeURIComponent(empresaId)\n"
+            "  + '&leadTelefone=' + encodeURIComponent(leadTelefone)\n"
+            "  + '&mensagem=' + encodeURIComponent(mensagem);\n"
+            "if (agendamentoId) url += '&agendamentoId=' + encodeURIComponent(agendamentoId);\n"
+            "\n"
+            "const result = await helpers.httpRequest({ method: 'POST', url: url });\n"
+            "return JSON.stringify(result);"
+        ),
+        {
+            "type": "object",
+            "properties": {
+                "leadTelefone": {
+                    "type": "string",
+                    "description": "Telefone do cliente ex: 5561999999999. Use buscar_lead para obter."
+                },
+                "mensagem": {
+                    "type": "string",
+                    "description": "Mensagem a enviar ao cliente via WhatsApp."
+                },
+                "agendamentoId": {
+                    "type": "string",
+                    "description": "UUID do agendamento relacionado. Opcional."
+                }
+            },
+            "required": ["leadTelefone", "mensagem"]
+        }
+    ),
+    'buscar_lead': (
+        'Busca o telefone de um cliente pelo nome. Chame antes de criar_agendamento quando o gerente mencionar o nome do cliente.',
+        (
+            "const nome = query.nome;\n"
+            "const empresaId = $('Sortear Aviso').item.json.empresaId;\n"
+            "const secret = '" + SECRET + "';\n"
+            "const base = '" + BASE + "';\n"
+            "\n"
+            "const url = base + '/agenda/' + empresaId + '/buscar-lead?_s=' + secret\n"
+            "  + '&nome=' + encodeURIComponent(nome);\n"
+            "\n"
+            "const result = await helpers.httpRequest({ method: 'GET', url: url });\n"
+            "return JSON.stringify(result);"
+        ),
+        {
+            "type": "object",
+            "properties": {
+                "nome": {
+                    "type": "string",
+                    "description": "Nome ou parte do nome do cliente a buscar ex: Maria, Joao Silva."
+                }
+            },
+            "required": ["nome"]
+        }
+    ),
     'reagendar_agendamento': (
         'Remarca um agendamento para novo horario. Use ver_agenda para obter o agendamentoId.',
         (
@@ -577,16 +685,14 @@ CRIAR_AGEND_URL = E(
 )
 
 TOOLS = {
-    # bloquear_horario, cancelar_agendamento, reagendar_agendamento, buscar_email, salvar_email migrados para TOOLCODE_NODES
-    'notificar_cliente':      ('Envia mensagem WhatsApp ao cliente via IA01.', NOTIFICAR_URL, 'POST'),
-    # listar_profissionais migrado para TOOLCODE_NODES
+    # todos migrados para TOOLCODE_NODES
     # relatorio_agenda migrado para TOOLCODE_NODES
     # enviar_relatorio_email migrado para TOOLCODE_NODES
     # desbloquear_horario migrado para TOOLCODE_NODES
     # salvar_nome migrado para TOOLCODE_NODES
     # buscar_email migrado para TOOLCODE_NODES
     # salvar_email migrado para TOOLCODE_NODES
-    'buscar_lead':            ('Busca o telefone de um cliente pelo nome. Use SEMPRE antes de criar_agendamento.', BUSCAR_LEAD_URL, 'GET'),
+    # buscar_lead migrado para TOOLCODE_NODES
     # criar_agendamento migrado para TOOLCODE_NODES
 }
 
