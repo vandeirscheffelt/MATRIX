@@ -191,7 +191,17 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     })
     if (!profissional) return reply.code(400).send({ error: 'profissionalId invalido para esta empresa. Chame listar_profissionais para obter o UUID correto.' })
 
-    // Verifica conflito
+    // Verifica bloqueio (retorna 200 com campo bloqueado:true para a IA poder oferecer desbloqueio)
+    const bloqueio = await prisma.agendamento.findFirst({
+      where: {
+        profissionalId,
+        status: 'BLOQUEADO',
+        OR: [{ inicio: { lt: fimDate }, fim: { gt: inicioDate } }],
+      },
+    })
+    if (bloqueio) return reply.send({ sucesso: false, bloqueado: true, mensagem: 'Horario bloqueado neste periodo. Use a tool desbloquear_horario para liberar o horario e entao crie o agendamento novamente.' })
+
+    // Verifica conflito com agendamento existente
     const conflito = await prisma.agendamento.findFirst({
       where: {
         profissionalId,
@@ -199,7 +209,7 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
         OR: [{ inicio: { lt: fimDate }, fim: { gt: inicioDate } }],
       },
     })
-    if (conflito) return reply.code(409).send({ error: 'Horário em conflito' })
+    if (conflito) return reply.send({ sucesso: false, conflito: true, mensagem: 'Horario em conflito com agendamento ja existente. Verifique a agenda e escolha outro horario.' })
 
     // Upsert do lead apenas se telefone informado
     let leadId: string | null = null
@@ -221,7 +231,7 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       },
     })
 
-    return { success: true, agendamentoId: agendamento.id }
+    return { sucesso: true, agendamentoId: agendamento.id }
   })
 
   // POST /webhook/n8n/conversa/pausar
