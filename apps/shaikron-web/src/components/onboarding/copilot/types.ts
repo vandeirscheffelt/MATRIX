@@ -28,5 +28,4 @@ export interface AICopilotProps {
   onApplyTone: (tone: string) => void;
   onApplyKeywords: (keywords: string[]) => void;
   promptDesatualizado?: boolean;
-  contextoDesatualizado?: boolean;
 }

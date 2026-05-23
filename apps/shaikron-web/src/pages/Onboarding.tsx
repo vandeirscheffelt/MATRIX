@@ -201,7 +201,6 @@ export default function Onboarding() {
   const [promptExpandido, setPromptExpandido] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [customSubInput, setCustomSubInput] = useState("");
-  const [contextoDesatualizado, setContextoDesatualizado] = useState(false);
   const latestFormRef = useRef(form);
   const requestIdRef = useRef(0);
   const requestLockRef = useRef(false);
@@ -401,22 +400,6 @@ export default function Onboarding() {
       setKeywordInput("");
     }
   };
-
-  const handleGerarContexto = useCallback(async () => {
-    if (improvingField) return;
-    setImprovingField("description");
-    setImproveError(null);
-    try {
-      const result = await api.post<{ contexto: string }>("/app/copiloto/gerar-contexto", {});
-      if (!result?.contexto) throw new Error("Sem retorno");
-      update("description", result.contexto);
-      toast.success("Perfil do assistente gerado com sucesso!");
-    } catch {
-      setImproveError({ field: "description", message: "Não foi possível gerar. Preencha tipo de negócio e nome antes de tentar." });
-    } finally {
-      setImprovingField(null);
-    }
-  }, [improvingField, update]);
 
   const handleImproveFaq = useCallback((index: number) => {
     const formSnapshot = buildFormSnapshot();
@@ -706,7 +689,7 @@ export default function Onboarding() {
                         update("businessType", cat.label);
                         api.patch("/app/config/tipo-negocio", { tipoNegocio: cat.label }).catch(() => null);
                         setPromptDesatualizado(true);
-                        setContextoDesatualizado(true);
+                        ;
                       }
                     }}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
@@ -732,7 +715,7 @@ export default function Onboarding() {
                           update("businessType", sub);
                           api.patch("/app/config/tipo-negocio", { tipoNegocio: sub }).catch(() => null);
                           setPromptDesatualizado(true);
-                          setContextoDesatualizado(true);
+                          ;
                           setCustomSubInput("");
                         }}
                         className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
@@ -756,7 +739,7 @@ export default function Onboarding() {
                             update("businessType", val);
                             api.patch("/app/config/tipo-negocio", { tipoNegocio: val }).catch(() => null);
                             setPromptDesatualizado(true);
-                            setContextoDesatualizado(true);
+                            ;
                             setCustomSubInput("");
                           }
                         }}
@@ -770,7 +753,7 @@ export default function Onboarding() {
                             update("businessType", val);
                             api.patch("/app/config/tipo-negocio", { tipoNegocio: val }).catch(() => null);
                             setPromptDesatualizado(true);
-                            setContextoDesatualizado(true);
+                            ;
                             setCustomSubInput("");
                           }}
                           className="h-7 w-7 rounded-lg border border-primary/50 bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-colors"
@@ -790,56 +773,6 @@ export default function Onboarding() {
             </div>
 
             {/* Description — gerado pela IA03, não editável pelo usuário */}
-            <div id="field-description">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
-                {t("label.operationalContext")}
-              </label>
-              <p className="text-xs text-muted-foreground mb-1.5">
-                Perfil gerado automaticamente pelo Copiloto com base nas suas configurações.
-              </p>
-              <div className={`min-h-[100px] rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground leading-relaxed ${!form.description ? "text-muted-foreground italic" : ""}`}>
-                {form.description || "Clique em \"Gerar com IA\" para criar o perfil do seu assistente automaticamente."}
-              </div>
-              <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`text-xs h-7 px-2 ${contextoDesatualizado ? "text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 border border-orange-500/30" : "text-primary hover:text-primary hover:bg-primary/10"}`}
-                  onClick={async () => { await handleGerarContexto(); setContextoDesatualizado(false); }}
-                  disabled={!!improvingField}
-                >
-                  {improvingField === "description" ? (
-                    <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Gerando...</>
-                  ) : (
-                    <><Sparkles className="h-3 w-3 mr-1" /> {form.description ? "Regenerar com IA" : "Gerar com IA"}</>
-                  )}
-                </Button>
-                {contextoDesatualizado && !improvingField && (
-                  <span className="text-[10px] text-orange-400">
-                    ⚠ Configurações alteradas — regenere para atualizar
-                  </span>
-                )}
-              </div>
-              {improveError?.field === "description" && !improvingField && (
-                <div className="mt-2 flex items-center gap-1.5 text-xs text-destructive">
-                  <AlertCircle className="h-3 w-3" />
-                  {improveError.message}
-                </div>
-              )}
-              {false && pendingSuggestion?.field === "description" && (
-                <div className="mt-2">
-                  <AISuggestionCard
-                    key={`${pendingSuggestion.field}-${pendingSuggestion.suggested}`}
-                    fieldLabel={pendingSuggestion.label}
-                    original={pendingSuggestion.original}
-                    suggested={pendingSuggestion.suggested}
-                    onApply={handleApplySuggestion}
-                    onDismiss={handleDismissSuggestion}
-                  />
-                </div>
-              )}
-            </div>
-
             {/* Tone */}
             <div>
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
@@ -849,7 +782,7 @@ export default function Onboarding() {
                 {toneOptions.map((tone) => (
                   <button
                     key={tone}
-                    onClick={() => { update("tone", tone); api.patch("/app/config/tom", { tom: tone === "Formal" || tone === "Professional" ? "FORMAL" : "INFORMAL", tomDisplay: tone }).catch(() => null); setPromptDesatualizado(true); setContextoDesatualizado(true); }}
+                    onClick={() => { update("tone", tone); api.patch("/app/config/tom", { tom: tone === "Formal" || tone === "Professional" ? "FORMAL" : "INFORMAL", tomDisplay: tone }).catch(() => null); setPromptDesatualizado(true); }}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
                       form.tone === tone
                         ? "border-primary bg-primary/15 text-primary glow-blue"
@@ -1220,7 +1153,7 @@ export default function Onboarding() {
                       update("assistantIdentity", opt.value);
                       api.patch("/app/config/identidade", { identidade: opt.value === "virtual" ? "assistente_virtual" : "atendente_humano" }).catch(() => null);
                       setPromptDesatualizado(true);
-                      setContextoDesatualizado(true);
+                      ;
                     }}
                     className={`text-left rounded-lg border p-3 transition-all ${
                       form.assistantIdentity === opt.value
@@ -1254,7 +1187,7 @@ export default function Onboarding() {
                 placeholder={t("assistantName.placeholder")}
                 value={form.assistantName}
                 onChange={(e) => update("assistantName", e.target.value)}
-                onBlur={(e) => { if (e.target.value.trim()) { api.patch("/app/config/nome-assistente", { nomeAssistente: e.target.value.trim() }).catch(() => null); setPromptDesatualizado(true); setContextoDesatualizado(true); } }}
+                onBlur={(e) => { if (e.target.value.trim()) { api.patch("/app/config/nome-assistente", { nomeAssistente: e.target.value.trim() }).catch(() => null); setPromptDesatualizado(true); } }}
                 maxLength={50}
                 className="bg-secondary border-border"
               />
@@ -1401,7 +1334,7 @@ export default function Onboarding() {
               onApplyKeywords={(kws) => update("keywords", kws)}
               onApplyField={update}
               promptDesatualizado={promptDesatualizado}
-              contextoDesatualizado={contextoDesatualizado}
+
             />
           </CopilotErrorBoundary>
         </div>
