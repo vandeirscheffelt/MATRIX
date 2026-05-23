@@ -11,14 +11,14 @@ const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120];
 const CUSTOM_SENTINEL = 0;
 
 const PALETTE = [
-  "#38bdf8", // sky
-  "#a78bfa", // violet
-  "#34d399", // emerald
-  "#fb923c", // orange
-  "#f472b6", // pink
-  "#facc15", // yellow
-  "#60a5fa", // blue
-  "#4ade80", // green
+  "#38bdf8",
+  "#a78bfa",
+  "#34d399",
+  "#fb923c",
+  "#f472b6",
+  "#facc15",
+  "#60a5fa",
+  "#4ade80",
 ];
 
 export default function ServicesManager() {
@@ -56,21 +56,21 @@ export default function ServicesManager() {
     }
   };
 
-  const handleSaveOrientacoes = async (id: string) => {
-    try {
-      await updateService(id, { orientacoes: editingOrientacoes[id] ?? null } as any);
-      toast.success("Orientações salvas");
-    } catch {
-      toast.error("Erro ao salvar orientações");
-    }
-  };
-
   const handleRemove = async (id: string, name: string) => {
     try {
       await removeService(id);
       toast(t("svc.removed", { name }));
     } catch {
       toast.error("Erro ao remover serviço");
+    }
+  };
+
+  const handleSaveOrientacoes = async (id: string) => {
+    try {
+      await updateService(id, { orientacoes: editingOrientacoes[id] ?? null } as any);
+      toast.success("Orientações salvas");
+    } catch {
+      toast.error("Erro ao salvar orientações");
     }
   };
 
@@ -106,7 +106,9 @@ export default function ServicesManager() {
                 <button
                   onClick={() => {
                     setExpandedId(isExpanded ? null : svc.id);
-                    if (!isExpanded) setEditingOrientacoes(prev => ({ ...prev, [svc.id]: svc.orientacoes ?? "" }));
+                    if (!isExpanded) {
+                      setEditingOrientacoes(prev => ({ ...prev, [svc.id]: svc.orientacoes ?? "" }));
+                    }
                   }}
                   className="text-muted-foreground/60 hover:text-primary transition-colors"
                   title="Orientações pós-agendamento"
@@ -142,65 +144,66 @@ export default function ServicesManager() {
       </div>
 
       {/* Add new */}
-      <div className="space-y-2 pt-2 border-t border-border">
-        <div className="flex-1">
-          <label className="text-xs text-muted-foreground mb-1 block">{t("svc.nameLabel")}</label>
-          <Input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            placeholder={t("svc.namePlaceholder")}
-            className="bg-secondary border-border text-sm"
+      <div className="space-y-3 pt-2 border-t border-border">
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <label className="text-xs text-muted-foreground mb-1 block">{t("svc.nameLabel")}</label>
+            <Input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              placeholder={t("svc.namePlaceholder")}
+              className="bg-secondary border-border text-sm"
+            />
+          </div>
+          <div className={isCustom ? "w-52" : "w-28"}>
+            <label className="text-xs text-muted-foreground mb-1 block">{t("svc.duration")}</label>
+            <div className="flex gap-1.5">
+              <select
+                value={newDuration}
+                onChange={(e) => { setNewDuration(Number(e.target.value)); setCustomDuration(""); }}
+                className="flex h-9 rounded-md border border-border bg-secondary px-2 py-1 text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring flex-1 min-w-0"
+              >
+                {DURATION_OPTIONS.map((d) => (
+                  <option key={d} value={d}>{d} min</option>
+                ))}
+                <option value={CUSTOM_SENTINEL}>Personalizado</option>
+              </select>
+              {isCustom && (
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={480}
+                    placeholder="min"
+                    value={customDuration}
+                    onChange={(e) => setCustomDuration(e.target.value)}
+                    className="bg-secondary border-border text-sm h-9 w-16 text-center"
+                    autoFocus
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAdd}
+            disabled={!canAdd}
+            className="h-9"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Orientações pós-agendamento (opcional)</label>
+          <Textarea
+            value={newOrientacoes}
+            onChange={(e) => setNewOrientacoes(e.target.value)}
+            placeholder="Ex: Jejum de 12h. Trazer exames anteriores."
+            className="bg-secondary border-border text-sm resize-none h-16"
           />
         </div>
-        <div className={isCustom ? "w-52" : "w-28"}>
-          <label className="text-xs text-muted-foreground mb-1 block">{t("svc.duration")}</label>
-          <div className="flex gap-1.5">
-            <select
-              value={newDuration}
-              onChange={(e) => { setNewDuration(Number(e.target.value)); setCustomDuration(""); }}
-              className="flex h-9 rounded-md border border-border bg-secondary px-2 py-1 text-sm text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring flex-1 min-w-0"
-            >
-              {DURATION_OPTIONS.map((d) => (
-                <option key={d} value={d}>{d} min</option>
-              ))}
-              <option value={CUSTOM_SENTINEL}>Personalizado</option>
-            </select>
-            {isCustom && (
-              <div className="flex items-center gap-1">
-                <Input
-                  type="number"
-                  min={1}
-                  max={480}
-                  placeholder="min"
-                  value={customDuration}
-                  onChange={(e) => setCustomDuration(e.target.value)}
-                  className="bg-secondary border-border text-sm h-9 w-16 text-center"
-                  autoFocus
-                />
-              </div>
-            )}
-          </div>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleAdd}
-          disabled={!canAdd}
-          className="h-9"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
-      <div>
-        <label className="text-xs text-muted-foreground mb-1 block">Orientações pós-agendamento (opcional)</label>
-        <Textarea
-          value={newOrientacoes}
-          onChange={(e) => setNewOrientacoes(e.target.value)}
-          placeholder="Ex: Jejum de 12h. Trazer exames anteriores."
-          className="bg-secondary border-border text-sm resize-none h-16"
-        />
-      </div>
       </div>
     </div>
   );
