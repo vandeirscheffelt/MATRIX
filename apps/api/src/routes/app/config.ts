@@ -31,8 +31,9 @@ const configBody = z.object({
 })
 
 async function buildPromptContext(empresaId: string): Promise<string> {
-  const [config, profissionais, keywords, servicos] = await Promise.all([
+  const [config, empresa, profissionais, keywords, servicos] = await Promise.all([
     prisma.configBot.findUnique({ where: { empresaId } }),
+    prisma.empresa.findUnique({ where: { id: empresaId }, select: { nome: true } }),
     prisma.profissional.findMany({
       where: { empresaId, ativo: true },
       include: {
@@ -49,6 +50,7 @@ async function buildPromptContext(empresaId: string): Promise<string> {
 
   const parts: string[] = []
 
+  if (empresa?.nome) parts.push(`Nome do estabelecimento: ${empresa.nome}`)
   if (config?.tipoNegocio) parts.push(`Tipo de negócio: ${TIPO_PT[config.tipoNegocio] ?? config.tipoNegocio}`)
   if (config?.horarioInicio && config?.horarioFim)
     parts.push(`Horário de funcionamento: ${config.horarioInicio} às ${config.horarioFim}`)
@@ -333,9 +335,10 @@ export async function configRoutes(app: FastifyInstance) {
 
   // POST /app/config/gerar-prompt
   app.post('/gerar-prompt', { preHandler }, async (request: any, reply) => {
-    const config = await prisma.configBot.findUnique({
-      where: { empresaId: request.empresaId },
-    })
+    const [config, empresa] = await Promise.all([
+      prisma.configBot.findUnique({ where: { empresaId: request.empresaId } }),
+      prisma.empresa.findUnique({ where: { id: request.empresaId }, select: { nome: true } }),
+    ])
     if (!config) return reply.code(404).send({ error: 'Config não encontrada' })
 
     const contexto = await buildPromptContext(request.empresaId)
@@ -346,9 +349,12 @@ export async function configRoutes(app: FastifyInstance) {
     const pronomeRef = genero === 'feminino' ? 'ela' : genero === 'masculino' ? 'ele' : 'você'
     const pronomeAdj = genero === 'feminino' ? 'bem-disposta, educada e atenciosa' : genero === 'masculino' ? 'bem-disposto, educado e atencioso' : 'bem-disposto(a), educado(a) e atencioso(a)'
 
+    const nomeEmpresa = empresa?.nome ? ` da ${empresa.nome}` : ''
+    const tipoNegocio = config.tipoNegocio ? ` — ${TIPO_PT[config.tipoNegocio] ?? config.tipoNegocio}` : ''
+
     const identidadeInstrucao = config.identidade === 'atendente_humano'
-      ? `Você se apresenta como ${pronomeArtigo ? pronomeArtigo + ' ' : ''}atendente ${config.nomeAssistente}. Nunca mencione que é uma IA ou assistente virtual. Comporte-se como ${pronomeRef} seria: ${pronomeAdj}.`
-      : `Você é ${pronomeArtigo ? pronomeArtigo + ' ' : ''}assistente virtual chamado(a) ${config.nomeAssistente}.`
+      ? `Você se apresenta como ${pronomeArtigo ? pronomeArtigo + ' ' : ''}atendente ${config.nomeAssistente}${nomeEmpresa}${tipoNegocio}. Nunca mencione que é uma IA ou assistente virtual. Comporte-se como ${pronomeRef} seria: ${pronomeAdj}.`
+      : `Você é ${pronomeArtigo ? pronomeArtigo + ' ' : ''}assistente virtual chamado(a) ${config.nomeAssistente}${nomeEmpresa}${tipoNegocio}.`
 
     const TOM_MAPEAMENTO: Record<string, string> = {
       'Professional': 'profissional e cordial — linguagem formal, objetiva, sem gírias',
@@ -400,13 +406,13 @@ Crie um prompt de sistema completo e profissional usando EXATAMENTE as informaç
 O prompt DEVE ser estruturado obrigatoriamente nos seguintes blocos, nesta ordem, com os títulos em maiúsculas entre colchetes:
 
 [IDENTIDADE]
-Quem é o assistente, nome, personalidade e tom de comunicação.
+Parágrafo único e fluido apresentando: quem é o assistente (nome, se é humano ou IA), em qual estabelecimento trabalha e o tipo de negócio, quais serviços o estabelecimento oferece (resumo em lista inline), quem compõe a equipe (nomes e especialidades, resumido), e qual é o tom/personalidade. Este bloco deve dar ao assistente uma visão completa de onde ele está e o que o negócio faz — sem fragmentar em sub-seções.
 
 [SERVICOS]
-Lista dos serviços oferecidos com duração. Apenas os serviços, sem vincular a profissionais aqui.
+Lista detalhada dos serviços com duração de cada um.
 
 [EQUIPE]
-Lista dos profissionais com seus serviços e horários de atendimento.
+Lista detalhada dos profissionais com seus serviços e grades de horário.
 
 [ORIENTACOES POS-AGENDAMENTO]
 Instruções específicas por serviço que devem ser repassadas ao cliente após o agendamento. Omitir este bloco se não houver orientações.
@@ -434,12 +440,12 @@ Regras obrigatórias:
             role: 'user',
             content: `Gere o prompt do assistente com base nestas configurações:
 
-IDENTIDADE: ${identidadeInstrucao}
+ASSISTENTE: ${identidadeInstrucao}
 TOM: ${tomInstrucao}
 COLETA DE DADOS NO CRM: ${coletaInstrucao}
 CONFIRMAÇÃO DE AGENDAMENTOS: ${confirmacaoInstrucao}
 
-DADOS DO NEGÓCIO:
+DADOS COMPLETOS DO NEGÓCIO (use tudo isso para construir o [IDENTIDADE] e os demais blocos):
 ${contexto}`,
           },
         ],
