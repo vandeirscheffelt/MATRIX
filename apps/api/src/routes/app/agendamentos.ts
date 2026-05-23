@@ -107,13 +107,15 @@ export async function agendamentosRoutes(app: FastifyInstance) {
     let fim = new Date(body.data.fim)
     let servicoNome = body.data.servicoNome
 
+    let servicoOrientacoes: string | null = null
     if (body.data.servicoId) {
-      const servico = await prisma.servico.findFirst({
+      const servico = await (prisma as any).servico.findFirst({
         where: { id: body.data.servicoId, empresaId: request.empresaId },
       })
       if (servico) {
         fim = new Date(inicio.getTime() + servico.duracaoMin * 60 * 1000)
         servicoNome = servico.nome
+        servicoOrientacoes = servico.orientacoes ?? null
       }
     }
 
@@ -139,7 +141,7 @@ export async function agendamentosRoutes(app: FastifyInstance) {
       leadId = lead.id
     }
 
-    return prisma.agendamento.create({
+    const agendamento = await prisma.agendamento.create({
       data: {
         empresaId: request.empresaId,
         profissionalId: body.data.profissionalId,
@@ -152,6 +154,22 @@ export async function agendamentosRoutes(app: FastifyInstance) {
         fim,
       },
     })
+
+    // Disparar orientações pós-agendamento via Evolution API se houver
+    if (servicoOrientacoes && telefone) {
+      const nome = body.data.clienteNome ? body.data.clienteNome.split(' ')[0] : ''
+      const mensagem = nome
+        ? `Ola ${nome}! Seguem as orientacoes para o seu agendamento:\n\n${servicoOrientacoes}`
+        : `Seguem as orientacoes para o seu agendamento:\n\n${servicoOrientacoes}`
+
+      fetch(`http://localhost:8080/message/sendText/Evolia`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: process.env.EVOLUTION_API_KEY ?? '' },
+        body: JSON.stringify({ number: telefone, text: mensagem }),
+      }).catch(() => null) // fire-and-forget
+    }
+
+    return agendamento
   })
 
   // PUT /app/agendamentos/:id — remarca

@@ -8,6 +8,7 @@ const servicoBody = z.object({
   duracaoMin: z.number().int().positive().default(60),
   ordem: z.number().int().min(0).default(0),
   color: z.string().default(""),
+  orientacoes: z.string().optional().nullable(),
 })
 
 const servicoUpdateBody = servicoBody.partial()
@@ -45,6 +46,7 @@ export async function servicosRoutes(app: FastifyInstance) {
           nome: body.data.nome,
           duracaoMin: body.data.duracaoMin,
           color: body.data.color,
+          orientacoes: body.data.orientacoes ?? null,
           ordem: ultimo ? ultimo.ordem + 1 : 0,
         },
       })

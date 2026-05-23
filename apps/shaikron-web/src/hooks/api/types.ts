@@ -8,6 +8,7 @@ export interface Service {
   name: string;
   duration: number; // in minutes
   color?: string;
+  orientacoes?: string | null;
 }
 
 export interface DayScheduleOverride {
