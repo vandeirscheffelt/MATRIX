@@ -599,7 +599,8 @@ export default function Onboarding() {
                   toast.error("IA retornou resposta vazia. Tente novamente.");
                 }
               } catch (err: any) {
-                toast.error(err?.message ?? "Erro ao regenerar o prompt.");
+                const msg = err?.message ?? "Erro ao regenerar o prompt.";
+                toast.error(msg, { duration: 8000 });
               } finally {
                 setRegenerandoPrompt(false);
               }
