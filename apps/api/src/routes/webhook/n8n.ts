@@ -932,6 +932,21 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       },
     })
 
+    // Injeta a mensagem no histórico da IA01 para que ela tenha contexto quando o cliente responder
+    const sessionId = `${leadTelefone}@s.whatsapp.net`
+    await (prisma as any).$queryRawUnsafe(
+      `INSERT INTO public.n8n_chat_histories (session_id, message) VALUES ($1, $2::jsonb)`,
+      sessionId,
+      JSON.stringify({
+        type: 'ai',
+        content: mensagem,
+        tool_calls: [],
+        additional_kwargs: { origem: 'ia02_notificacao', notificacaoId: notificacao.id },
+        response_metadata: {},
+        invalid_tool_calls: [],
+      })
+    )
+
     return { success: true, notificacaoId: notificacao.id }
   })
 
