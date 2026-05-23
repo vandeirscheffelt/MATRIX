@@ -144,6 +144,13 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       update: { ...(nomeWpp ? { nomeWpp } : {}) },
     })
 
+    // Espelhar no CRM (paciente) para que o dono veja todos os contatos
+    await (prisma as any).paciente.upsert({
+      where: { empresaId_whatsapp: { empresaId, whatsapp: telefone } },
+      create: { empresaId, whatsapp: telefone, nome: nomeWpp ?? telefone, origem: 'whatsapp' },
+      update: { ...(nomeWpp ? { nome: nomeWpp } : {}) },
+    }).catch(() => null)
+
     return { leadId: lead.id, empresaId }
   })
 

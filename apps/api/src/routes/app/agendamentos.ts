@@ -139,6 +139,20 @@ export async function agendamentosRoutes(app: FastifyInstance) {
         },
       })
       leadId = lead.id
+
+      // Espelhar no CRM (paciente) — agendamento manual sempre cria/enriquece o registro
+      await (prisma as any).paciente.upsert({
+        where: { empresaId_whatsapp: { empresaId: request.empresaId, whatsapp: telefone } },
+        create: {
+          empresaId: request.empresaId,
+          whatsapp: telefone,
+          nome: body.data.clienteNome ?? telefone,
+          origem: 'manual',
+        },
+        update: {
+          ...(body.data.clienteNome ? { nome: body.data.clienteNome } : {}),
+        },
+      }).catch(() => null) // não bloqueia o agendamento se falhar
     }
 
     const agendamento = await prisma.agendamento.create({
