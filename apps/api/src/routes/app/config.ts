@@ -391,14 +391,38 @@ export async function configRoutes(app: FastifyInstance) {
           content: `Você é especialista em criar prompts para assistentes de IA no WhatsApp focados em agendamento.
 Crie um prompt de sistema completo e profissional usando EXATAMENTE as informações fornecidas pelo usuário.
 
+O prompt DEVE ser estruturado obrigatoriamente nos seguintes blocos, nesta ordem, com os títulos em maiúsculas entre colchetes:
+
+[IDENTIDADE]
+Quem é o assistente, nome, personalidade e tom de comunicação.
+
+[SERVICOS]
+Lista dos serviços oferecidos com duração. Apenas os serviços, sem vincular a profissionais aqui.
+
+[EQUIPE]
+Lista dos profissionais com seus serviços e horários de atendimento.
+
+[ORIENTACOES POS-AGENDAMENTO]
+Instruções específicas por serviço que devem ser repassadas ao cliente após o agendamento. Omitir este bloco se não houver orientações.
+
+[COLETA DE DADOS]
+Quais dados coletar do cliente e como fazer isso de forma natural durante a conversa.
+
+[CONFIRMACAO DE AGENDAMENTOS]
+Como tratar confirmações e cancelamentos enviados pelo cliente.
+
+[REGRAS DE COMPORTAMENTO]
+Tom, limites, o que nunca fazer, como responder quando não souber algo.
+
 Regras obrigatórias:
-- Use as informações de identidade, tom e dados da equipe exatamente como fornecidas
-- NÃO inclua instruções para "confirmar identidade" (CPF/RG) — o sistema de CRM não coleta isso
-- NÃO inclua "verificar disponibilidade no sistema" diretamente — o assistente aciona uma agente de agenda separada
-- NÃO inclua "encaminhe para equipe humana" — o mecanismo ainda não existe; substitua por "informe que vai verificar e retorna em breve"
-- Para preços, horários específicos e serviços detalhados, instrua a consultar o FAQ
+- Use EXATAMENTE as informações fornecidas — não invente dados
+- NÃO inclua instruções para "confirmar identidade" (CPF/RG)
+- NÃO inclua "verificar disponibilidade no sistema" — o assistente aciona um agente de agenda separado
+- NÃO inclua "encaminhe para equipe humana" — substitua por "informe que vai verificar e retorna em breve"
+- Para preços e informações não fornecidas, instrua a consultar o FAQ
+- Cada bloco deve ser claro, direto e em tópicos curtos — sem parágrafos longos
 - Responda APENAS em ${idioma}
-- Retorne APENAS o prompt, sem explicações adicionais`,
+- Retorne APENAS o prompt estruturado, sem explicações adicionais`,
         },
         {
           role: 'user',
