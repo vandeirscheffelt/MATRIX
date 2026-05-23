@@ -200,6 +200,7 @@ export default function Onboarding() {
   const [promptGerado, setPromptGerado] = useState<string | null>(null);
   const [promptExpandido, setPromptExpandido] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [customSubInput, setCustomSubInput] = useState("");
   const [contextoDesatualizado, setContextoDesatualizado] = useState(false);
   const latestFormRef = useRef(form);
   const requestIdRef = useRef(0);
@@ -723,7 +724,7 @@ export default function Onboarding() {
                 const cat = BUSINESS_CATEGORIES.find(c => c.id === selectedCategory);
                 if (!cat || cat.sub.length === 0) return null;
                 return (
-                  <div className="mt-2 pl-3 border-l-2 border-primary/30 flex flex-wrap gap-2">
+                  <div className="mt-2 pl-3 border-l-2 border-primary/30 flex flex-wrap gap-2 items-center">
                     {cat.sub.map((sub) => (
                       <button
                         key={sub}
@@ -732,6 +733,7 @@ export default function Onboarding() {
                           api.patch("/app/config/tipo-negocio", { tipoNegocio: sub }).catch(() => null);
                           setPromptDesatualizado(true);
                           setContextoDesatualizado(true);
+                          setCustomSubInput("");
                         }}
                         className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
                           form.businessType === sub
@@ -742,6 +744,41 @@ export default function Onboarding() {
                         {sub}
                       </button>
                     ))}
+                    {/* Campo personalizado */}
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={customSubInput}
+                        onChange={(e) => setCustomSubInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && customSubInput.trim()) {
+                            const val = customSubInput.trim();
+                            update("businessType", val);
+                            api.patch("/app/config/tipo-negocio", { tipoNegocio: val }).catch(() => null);
+                            setPromptDesatualizado(true);
+                            setContextoDesatualizado(true);
+                            setCustomSubInput("");
+                          }
+                        }}
+                        placeholder="Personalizado..."
+                        className="h-7 rounded-lg border border-dashed border-primary/40 bg-transparent px-2.5 text-xs text-muted-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary focus:text-foreground w-32 transition-all"
+                      />
+                      {customSubInput.trim() && (
+                        <button
+                          onClick={() => {
+                            const val = customSubInput.trim();
+                            update("businessType", val);
+                            api.patch("/app/config/tipo-negocio", { tipoNegocio: val }).catch(() => null);
+                            setPromptDesatualizado(true);
+                            setContextoDesatualizado(true);
+                            setCustomSubInput("");
+                          }}
+                          className="h-7 w-7 rounded-lg border border-primary/50 bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-colors"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })()}
