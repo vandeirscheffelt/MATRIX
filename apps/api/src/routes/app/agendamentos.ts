@@ -44,11 +44,17 @@ async function verificarLimiteHorario(
   return null
 }
 
+// Telefone E.164 brasileiro: 55 + DDD (2 dígitos) + número (8 ou 9 dígitos) = 12 ou 13 dígitos
+const telefoneRegex = /^55\d{10,11}$/
+
 const agendamentoBody = z.object({
   profissionalId: z.string().uuid(),
   leadId: z.string().uuid().optional(),
   clienteNome: z.string().optional(),
-  clienteTelefone: z.string().optional(),
+  clienteTelefone: z.string().optional().refine(
+    v => !v || telefoneRegex.test(v.replace(/\D/g, '')),
+    { message: 'Telefone inválido. Use o formato 55DDD + número (ex: 5561999998888)' }
+  ),
   servicoNome: z.string().optional(),
   servicoId: z.string().uuid().optional(),
   inicio: z.string().datetime(),
@@ -117,13 +123,29 @@ export async function agendamentosRoutes(app: FastifyInstance) {
     const temConflito = await verificarConflito(body.data.profissionalId, inicio, fim)
     if (temConflito) return reply.code(409).send({ error: 'Horário em conflito com outro agendamento' })
 
+    // Upsert lead pelo telefone para garantir vínculo e permitir notificações
+    let leadId = body.data.leadId ?? null
+    const telefone = body.data.clienteTelefone ? body.data.clienteTelefone.replace(/\D/g, '') : null
+    if (telefone && !leadId) {
+      const lead = await (prisma as any).lead.upsert({
+        where: { empresaId_telefone: { empresaId: request.empresaId, telefone } },
+        update: { nomeWpp: body.data.clienteNome ?? undefined },
+        create: {
+          empresaId: request.empresaId,
+          telefone,
+          nomeWpp: body.data.clienteNome ?? telefone,
+        },
+      })
+      leadId = lead.id
+    }
+
     return prisma.agendamento.create({
       data: {
         empresaId: request.empresaId,
         profissionalId: body.data.profissionalId,
-        leadId: body.data.leadId,
+        leadId,
         clienteNome: body.data.clienteNome,
-        clienteTelefone: body.data.clienteTelefone,
+        clienteTelefone: telefone,
         servicoNome,
         servicoId: body.data.servicoId,
         inicio,
