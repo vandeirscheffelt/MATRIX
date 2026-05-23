@@ -27,17 +27,17 @@ type NegocioCategory = "clinica" | "estetica" | "generico";
 
 function detectCategory(tipoNegocio?: string | null): NegocioCategory {
   const t = (tipoNegocio ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-  if (/clinic|saude|medic|odonto|fisio|nutri|psico|farmac/.test(t)) return "clinica";
-  if (/salao|estetica|estetico|beleza|spa|nail|barber|manicure/.test(t)) return "estetica";
+  if (/clinic|saude|medic|odonto|fisio|nutri|psico|farmac|veterinar/.test(t)) return "clinica";
+  if (/salao|estetica|estetico|beleza|spa|nail|barber|barbearia|manicure|unhas|sobrancelh|massoterapia/.test(t)) return "estetica";
   return "generico";
 }
 
 // Rótulo da entidade (sidebar, título da página, botão "Novo")
 function entityLabel(tipoNegocio?: string | null) {
   const t = (tipoNegocio ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-  if (/clinic|saude|medic|odonto|fisio|nutri|psico|farmac/.test(t))
+  if (/clinic|saude|medic|odonto|fisio|nutri|psico|farmac|veterinar/.test(t))
     return { singular: "Paciente", plural: "Pacientes" };
-  if (/salao|estetica|estetico|beleza|spa|nail|barber|manicure/.test(t))
+  if (/salao|estetica|estetico|beleza|spa|nail|barber|barbearia|manicure|unhas|sobrancelh|massoterapia/.test(t))
     return { singular: "Cliente", plural: "Clientes" };
   if (/imobil|imovel|alug/.test(t))
     return { singular: "Contato", plural: "Contatos" };
