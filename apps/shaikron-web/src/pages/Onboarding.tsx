@@ -149,6 +149,8 @@ export default function Onboarding() {
   const [saving, setSaving] = useState(false);
   const [promptDesatualizado, setPromptDesatualizado] = useState(false);
   const [regenerandoPrompt, setRegenerandoPrompt] = useState(false);
+  const [promptGerado, setPromptGerado] = useState<string | null>(null);
+  const [promptExpandido, setPromptExpandido] = useState(false);
   const [contextoDesatualizado, setContextoDesatualizado] = useState(false);
   const latestFormRef = useRef(form);
   const requestIdRef = useRef(0);
@@ -225,6 +227,7 @@ export default function Onboarding() {
       if (config?.coletarCadastroCompleto !== undefined) partial.coletarCadastroCompleto = config.coletarCadastroCompleto;
       if (config?.generoAssistente) partial.assistantGender = config.generoAssistente;
       if (config?.promptAtualizado === false) setPromptDesatualizado(true);
+      if (config?.prompt) setPromptGerado(config.prompt);
       if (Array.isArray(keywords) && keywords.length > 0) partial.keywords = keywords.map((k: any) => k.palavra ?? k);
       if (Array.isArray(faqs) && faqs.length > 0) partial.faqs = faqs.map((f: any) => ({ question: f.pergunta, answer: f.resposta }));
       reset(partial);
@@ -546,15 +549,20 @@ export default function Onboarding() {
             onClick={async () => {
               setRegenerandoPrompt(true);
               try {
-                const result = await api.post<{ prompt: string }>("/app/config/gerar-prompt", {});
+                const result = await api.post<{ prompt: string; error?: string }>("/app/config/gerar-prompt", {});
+                if (result?.error) throw new Error(result.error);
                 if (result?.prompt) {
                   await api.put("/app/config", { prompt: result.prompt });
                   await api.patch("/app/config/prompt-confirmado", {});
                   setPromptDesatualizado(false);
-                  toast.success("Prompt do assistente atualizado com sucesso!");
+                  setPromptGerado(result.prompt);
+                  setPromptExpandido(true);
+                  toast.success("Prompt atualizado! Confira o resultado abaixo.");
+                } else {
+                  toast.error("IA retornou resposta vazia. Tente novamente.");
                 }
-              } catch {
-                toast.error("Erro ao regenerar o prompt. Tente novamente.");
+              } catch (err: any) {
+                toast.error(err?.message ?? "Erro ao regenerar o prompt.");
               } finally {
                 setRegenerandoPrompt(false);
               }
@@ -566,6 +574,28 @@ export default function Onboarding() {
               <><Sparkles className="h-3 w-3 mr-1.5" /> Regenerar Prompt</>
             )}
           </Button>
+        </div>
+      )}
+
+      {promptGerado && (
+        <div className="mb-4 rounded-xl border border-border bg-card overflow-hidden">
+          <button
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary/50 transition-colors"
+            onClick={() => setPromptExpandido(v => !v)}
+          >
+            <span className="flex items-center gap-2">
+              <Bot className="h-4 w-4 text-primary" />
+              Prompt atual do assistente
+            </span>
+            <span className="text-xs text-muted-foreground">{promptExpandido ? "▲ Recolher" : "▼ Ver prompt"}</span>
+          </button>
+          {promptExpandido && (
+            <div className="px-4 pb-4">
+              <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-secondary rounded-lg p-4 max-h-96 overflow-y-auto leading-relaxed">
+                {promptGerado}
+              </pre>
+            </div>
+          )}
         </div>
       )}
 

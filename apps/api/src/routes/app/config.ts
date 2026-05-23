@@ -37,7 +37,7 @@ async function buildPromptContext(empresaId: string): Promise<string> {
     }),
     prisma.keyword.findMany({ where: { empresaId } }),
     (prisma as any).servico.findMany({
-      where: { empresaId, ativo: true, orientacoes: { not: null } },
+      where: { empresaId, ativo: true, AND: [{ orientacoes: { not: null } }, { orientacoes: { not: '' } }] },
       select: { nome: true, orientacoes: true },
     }),
   ])
@@ -383,12 +383,13 @@ export async function configRoutes(app: FastifyInstance) {
     const { default: OpenAI } = await import('openai')
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-5-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `Você é especialista em criar prompts para assistentes de IA no WhatsApp focados em agendamento.
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-5-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `Você é especialista em criar prompts para assistentes de IA no WhatsApp focados em agendamento.
 Crie um prompt de sistema completo e profissional usando EXATAMENTE as informações fornecidas pelo usuário.
 
 O prompt DEVE ser estruturado obrigatoriamente nos seguintes blocos, nesta ordem, com os títulos em maiúsculas entre colchetes:
@@ -423,10 +424,10 @@ Regras obrigatórias:
 - Cada bloco deve ser claro, direto e em tópicos curtos — sem parágrafos longos
 - Responda APENAS em ${idioma}
 - Retorne APENAS o prompt estruturado, sem explicações adicionais`,
-        },
-        {
-          role: 'user',
-          content: `Gere o prompt do assistente com base nestas configurações:
+          },
+          {
+            role: 'user',
+            content: `Gere o prompt do assistente com base nestas configurações:
 
 IDENTIDADE: ${identidadeInstrucao}
 TOM: ${tomInstrucao}
@@ -435,11 +436,15 @@ CONFIRMAÇÃO DE AGENDAMENTOS: ${confirmacaoInstrucao}
 
 DADOS DO NEGÓCIO:
 ${contexto}`,
-        },
-      ],
-    })
+          },
+        ],
+      })
 
-    const prompt = completion.choices[0]?.message?.content ?? ''
-    return { prompt }
+      const prompt = completion.choices[0]?.message?.content ?? ''
+      return { prompt }
+    } catch (err: any) {
+      const msg = err?.message ?? 'Erro ao gerar prompt com IA'
+      return reply.code(502).send({ error: msg })
+    }
   })
 }
