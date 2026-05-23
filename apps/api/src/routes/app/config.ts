@@ -26,7 +26,7 @@ const configBody = z.object({
 })
 
 async function buildPromptContext(empresaId: string): Promise<string> {
-  const [config, profissionais, keywords] = await Promise.all([
+  const [config, profissionais, keywords, servicos] = await Promise.all([
     prisma.configBot.findUnique({ where: { empresaId } }),
     prisma.profissional.findMany({
       where: { empresaId, ativo: true },
@@ -36,6 +36,10 @@ async function buildPromptContext(empresaId: string): Promise<string> {
       },
     }),
     prisma.keyword.findMany({ where: { empresaId } }),
+    (prisma as any).servico.findMany({
+      where: { empresaId, ativo: true, orientacoes: { not: null } },
+      select: { nome: true, orientacoes: true },
+    }),
   ])
 
   const parts: string[] = []
@@ -58,6 +62,11 @@ async function buildPromptContext(empresaId: string): Promise<string> {
       return `- ${p.nome}${servicos ? `: ${servicos}` : ''}${grade ? ` | atende: ${grade}${intervalo}` : ''}`
     })
     parts.push(`Equipe:\n${profs.join('\n')}`)
+  }
+
+  if (servicos.length > 0) {
+    const linhas = servicos.map((s: any) => `- ${s.nome}: ${s.orientacoes}`)
+    parts.push(`Orientacoes por servico (informe ao cliente apos o agendamento e sempre que perguntado):\n${linhas.join('\n')}`)
   }
 
   if (config?.contextoOperacional)
