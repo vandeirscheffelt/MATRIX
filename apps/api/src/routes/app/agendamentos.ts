@@ -44,8 +44,8 @@ async function verificarLimiteHorario(
   return null
 }
 
-// Telefone E.164 brasileiro: 55 + DDD (2 dígitos) + número (8 ou 9 dígitos) = 12 ou 13 dígitos
-const telefoneRegex = /^55\d{10,11}$/
+// Telefone WhatsApp BR: 55 + DDD (2 dígitos) + 9 dígitos (celular) = 13 dígitos
+const telefoneRegex = /^55\d{2}9\d{8}$/
 
 const agendamentoBody = z.object({
   profissionalId: z.string().uuid(),
