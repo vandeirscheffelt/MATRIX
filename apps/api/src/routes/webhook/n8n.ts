@@ -890,6 +890,12 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
       const removed = await prisma.notificacaoPendente.deleteMany({
         where: { id: notificacaoId, empresaId, enviada: false },
       })
+      // Remove entrada correspondente do histórico da IA01
+      await (prisma as any).$queryRawUnsafe(
+        `DELETE FROM public.n8n_chat_histories
+         WHERE message->'additional_kwargs'->>'notificacaoId' = $1`,
+        notificacaoId
+      )
       return { success: true, canceladas: removed.count }
     }
 
@@ -899,9 +905,23 @@ export async function n8nWebhookRoutes(app: FastifyInstance) {
     })
     if (!lead) return reply.send({ success: true, canceladas: 0 })
 
+    // Busca IDs das notificações antes de deletar para limpar o histórico
+    const pendentes = await prisma.notificacaoPendente.findMany({
+      where: { leadId: lead.id, empresaId, enviada: false },
+      select: { id: true },
+    })
     const removed = await prisma.notificacaoPendente.deleteMany({
       where: { leadId: lead.id, empresaId, enviada: false },
     })
+    // Remove todas as entradas correspondentes do histórico da IA01
+    if (pendentes.length > 0) {
+      const ids = pendentes.map((p: any) => p.id)
+      await (prisma as any).$queryRawUnsafe(
+        `DELETE FROM public.n8n_chat_histories
+         WHERE message->'additional_kwargs'->>'notificacaoId' = ANY($1::text[])`,
+        ids
+      )
+    }
     return { success: true, canceladas: removed.count }
   })
 
