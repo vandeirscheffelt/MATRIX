@@ -384,7 +384,7 @@ export async function configRoutes(app: FastifyInstance) {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5-mini',
       messages: [
         {
           role: 'system',
