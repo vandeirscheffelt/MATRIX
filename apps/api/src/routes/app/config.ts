@@ -383,7 +383,7 @@ export async function configRoutes(app: FastifyInstance) {
       }
     }
 
-    const coletaInstrucao = `Ao atender um cliente pela primeira vez, colete durante a conversa de forma natural: nome completo e WhatsApp${camposCompletos}. Não faça todas as perguntas de uma vez — colete progressivamente ao longo da conversa.`
+    const coletaInstrucao = `Ao atender um cliente pela primeira vez, colete durante a conversa de forma natural: nome completo${camposCompletos}. O número de WhatsApp já é capturado automaticamente pelo sistema — não solicite. Não faça todas as perguntas de uma vez — colete progressivamente ao longo da conversa.`
 
     const horasConf = config.confirmacaoAntecedenciaHoras ?? 24
     const confirmacaoInstrucao = `${horasConf} horas antes de cada agendamento o sistema envia automaticamente uma mensagem pedindo confirmação de presença. Quando o cliente responder:
