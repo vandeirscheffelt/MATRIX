@@ -13,6 +13,11 @@ const TIPO_PT: Record<string, string> = {
   'Consulting': 'Consultoria',
   'E-commerce': 'E-commerce',
   'Other': 'Outro',
+  // novos tipos específicos já chegam em PT — mapeamento identidade
+  'Saúde & Clínicas': 'Saúde & Clínicas',
+  'Beleza & Estética': 'Beleza & Estética',
+  'Fitness & Bem-estar': 'Fitness & Bem-estar',
+  'Outro': 'Outro',
 }
 
 const configBody = z.object({

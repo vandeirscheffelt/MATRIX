@@ -51,7 +51,55 @@ class CopilotErrorBoundary extends Component<{ children: ReactNode }, { hasError
   }
 }
 
-const businessTypes = ["Restaurant", "Clinic", "Salon", "Gym", "Real Estate", "Consulting", "E-commerce", "Other"];
+const BUSINESS_CATEGORIES = [
+  {
+    id: "saude",
+    label: "Saúde & Clínicas",
+    sub: ["Clínica Médica", "Clínica Odontológica", "Clínica Veterinária", "Clínica de Fisioterapia", "Clínica de Psicologia", "Clínica de Nutrição", "Clínica de Estética"],
+  },
+  {
+    id: "beleza",
+    label: "Beleza & Estética",
+    sub: ["Salão de Beleza", "Barbearia", "Studio de Unhas", "Studio de Sobrancelhas", "Spa & Massoterapia", "Centro de Estética"],
+  },
+  {
+    id: "fitness",
+    label: "Fitness & Bem-estar",
+    sub: ["Academia", "Studio de Pilates", "Studio de Yoga", "Personal Trainer", "CrossFit", "Artes Marciais"],
+  },
+  {
+    id: "alimentacao",
+    label: "Alimentação",
+    sub: ["Restaurante", "Lanchonete & Fast Food", "Pizzaria", "Cafeteria", "Doceria & Confeitaria"],
+  },
+  {
+    id: "educacao",
+    label: "Educação",
+    sub: ["Escola de Idiomas", "Escola de Música", "Reforço Escolar", "Cursos Profissionalizantes", "Studio de Dança"],
+  },
+  {
+    id: "servicos",
+    label: "Consultoria & Serviços",
+    sub: ["Consultoria Empresarial", "Advocacia", "Contabilidade", "Imobiliária", "Agência de Marketing", "Agência de Tecnologia"],
+  },
+  {
+    id: "comercio",
+    label: "Comércio",
+    sub: ["Loja Física", "E-commerce", "Petshop", "Ótica", "Farmácia"],
+  },
+  {
+    id: "outro",
+    label: "Outro",
+    sub: [],
+  },
+];
+
+function getCategoryForType(tipo: string): string | null {
+  for (const cat of BUSINESS_CATEGORIES) {
+    if (cat.sub.includes(tipo) || cat.id === tipo) return cat.id;
+  }
+  return null;
+}
 const toneOptions = ["Professional", "Friendly", "Casual", "Formal", "Empathetic", "Energetic"];
 const IMPROVE_ERROR_MESSAGE = "Couldn't improve the text. Try again.";
 const AI_TIMEOUT_MS = 4000;
@@ -151,6 +199,7 @@ export default function Onboarding() {
   const [regenerandoPrompt, setRegenerandoPrompt] = useState(false);
   const [promptGerado, setPromptGerado] = useState<string | null>(null);
   const [promptExpandido, setPromptExpandido] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [contextoDesatualizado, setContextoDesatualizado] = useState(false);
   const latestFormRef = useRef(form);
   const requestIdRef = useRef(0);
@@ -211,7 +260,11 @@ export default function Onboarding() {
       if (!isMountedRef.current) return;
       const partial: Record<string, any> = {};
       if (empresa?.nome) partial.businessName = empresa.nome;
-      if (config?.tipoNegocio) partial.businessType = config.tipoNegocio;
+      if (config?.tipoNegocio) {
+        partial.businessType = config.tipoNegocio;
+        const cat = getCategoryForType(config.tipoNegocio);
+        if (cat) setSelectedCategory(cat);
+      }
       if (config?.contextoOperacional) partial.description = config.contextoOperacional;
       if (config?.tomDisplay) partial.tone = config.tomDisplay;
       else if (config?.tom) partial.tone = config.tom === "FORMAL" ? "Formal" : "Informal";
@@ -635,26 +688,68 @@ export default function Onboarding() {
               />
             </div>
 
-            {/* Business Type */}
+            {/* Business Type — dois níveis */}
             <div id="field-business-type">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
                 {t("label.businessType")}
               </label>
+              {/* Nível 1: categorias */}
               <div className="flex flex-wrap gap-2">
-                {businessTypes.map((type) => (
+                {BUSINESS_CATEGORIES.map((cat) => (
                   <button
-                    key={type}
-                    onClick={() => { update("businessType", type); api.patch("/app/config/tipo-negocio", { tipoNegocio: type }).catch(() => null); setPromptDesatualizado(true); setContextoDesatualizado(true); }}
+                    key={cat.id}
+                    onClick={() => {
+                      if (selectedCategory === cat.id) { setSelectedCategory(null); return; }
+                      setSelectedCategory(cat.id);
+                      if (cat.sub.length === 0) {
+                        update("businessType", cat.label);
+                        api.patch("/app/config/tipo-negocio", { tipoNegocio: cat.label }).catch(() => null);
+                        setPromptDesatualizado(true);
+                        setContextoDesatualizado(true);
+                      }
+                    }}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
-                      form.businessType === type
+                      selectedCategory === cat.id
                         ? "border-primary bg-primary/15 text-primary glow-blue"
                         : "border-border bg-secondary text-secondary-foreground hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
                     }`}
                   >
-                    {t(`type.${type}`)}
+                    {cat.label}
                   </button>
                 ))}
               </div>
+              {/* Nível 2: subcategorias */}
+              {selectedCategory && (() => {
+                const cat = BUSINESS_CATEGORIES.find(c => c.id === selectedCategory);
+                if (!cat || cat.sub.length === 0) return null;
+                return (
+                  <div className="mt-2 pl-3 border-l-2 border-primary/30 flex flex-wrap gap-2">
+                    {cat.sub.map((sub) => (
+                      <button
+                        key={sub}
+                        onClick={() => {
+                          update("businessType", sub);
+                          api.patch("/app/config/tipo-negocio", { tipoNegocio: sub }).catch(() => null);
+                          setPromptDesatualizado(true);
+                          setContextoDesatualizado(true);
+                        }}
+                        className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
+                          form.businessType === sub
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-secondary/60 text-secondary-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                        }`}
+                      >
+                        {sub}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
+              {form.businessType && (
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  Selecionado: <span className="text-primary font-medium">{form.businessType}</span>
+                </p>
+              )}
             </div>
 
             {/* Description — gerado pela IA03, não editável pelo usuário */}
