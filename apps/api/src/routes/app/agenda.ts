@@ -16,7 +16,7 @@ const weekQuery = z.object({
   profissionalId: z.string().uuid().optional(),
 })
 
-type SlotStatus = 'DISPONIVEL' | 'AGENDADO' | 'BLOQUEADO'
+type SlotStatus = 'DISPONIVEL' | 'AGENDADO' | 'AGUARDANDO_CONFIRMACAO' | 'CONFIRMADO_CLIENTE' | 'BLOQUEADO'
 
 interface Slot {
   hora: string        // "08:00"
@@ -113,7 +113,7 @@ async function calcularAgendaDia(
   const agendamentos = await prisma.agendamento.findMany({
     where: {
       profissionalId,
-      status: { in: ['CONFIRMADO', 'REMARCADO', 'BLOQUEADO'] },
+      status: { in: ['CONFIRMADO', 'REMARCADO', 'BLOQUEADO', 'AGUARDANDO_CONFIRMACAO', 'CONFIRMADO_CLIENTE'] },
       inicio: { gte: inicioDiaUtc, lte: fimDiaUtc },
     },
     include: {
@@ -185,11 +185,14 @@ async function calcularAgendaDia(
           agendamentoId: (agendado as any).id,
         }
       }
+      const agStatus = (agendado as any).status
       return {
         hora: formatHora(inicio),
         horaFim: agFimHora,
         duracaoMin: agDuracaoMin,
-        status: 'AGENDADO',
+        status: (agStatus === 'AGUARDANDO_CONFIRMACAO' ? 'AGUARDANDO_CONFIRMACAO'
+          : agStatus === 'CONFIRMADO_CLIENTE' ? 'CONFIRMADO_CLIENTE'
+          : 'AGENDADO') as SlotStatus,
         agendamentoId: (agendado as any).id,
         leadNome: (agendado as any).lead?.nomeWpp ?? (agendado as any).lead?.telefone ?? (agendado as any).clienteNome,
         leadTelefone: (agendado as any).lead?.telefone ?? (agendado as any).clienteTelefone,

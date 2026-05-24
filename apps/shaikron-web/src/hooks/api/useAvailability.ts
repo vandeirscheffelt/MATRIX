@@ -56,6 +56,8 @@ export function useAvailability() {
           time: s.hora,
           professionalId: agenda.profissionalId,
           status: (s.status === "DISPONIVEL" ? "free"
+            : s.status === "AGUARDANDO_CONFIRMACAO" ? "awaiting"
+            : s.status === "CONFIRMADO_CLIENTE" ? "confirmed"
             : s.status === "AGENDADO" ? "booked"
             : "blocked") as SlotStatus,
           client: s.leadNome,

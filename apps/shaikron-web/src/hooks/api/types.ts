@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 
 // ─── Core Types ──────────────────────────────────────────────────────
-export type SlotStatus = "booked" | "free" | "blocked";
+export type SlotStatus = "booked" | "free" | "blocked" | "awaiting" | "confirmed";
 
 export interface Service {
   id: string;

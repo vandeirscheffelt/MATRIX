@@ -18,6 +18,8 @@ import { useAppointments, HOURS, type TimeSlot, type SlotStatus, type AiSuggesti
 // Status labels are resolved via t() at render time
 const statusBadgeMap: Record<SlotStatus, "active" | "pending" | "paused"> = {
   booked: "active",
+  awaiting: "active",
+  confirmed: "active",
   free: "pending",
   blocked: "paused",
 };
@@ -490,13 +492,16 @@ export default function Agenda() {
                   const spanRows = Math.max(1, Math.round(duration / 15));
                   const isBooked = slot.status === "booked";
                   const isBlocked = slot.status === "blocked";
+                  const isAwaiting = slot.status === "awaiting";
+                  const isConfirmed = slot.status === "confirmed";
 
                   return (
                     <div
                       key={`${slot.time}-${p.id}`}
                       className={cn(
                         "mx-0.5 my-0.5 rounded-md cursor-pointer overflow-hidden z-10 transition-opacity hover:opacity-90",
-                        isBooked && "bg-primary/20 border border-primary/40 p-1.5",
+                        (isBooked || isAwaiting) && "bg-primary/20 border border-primary/40 p-1.5",
+                        isConfirmed && "bg-emerald-500/20 border border-emerald-500/50 p-1.5",
                         isBlocked && "bg-muted/60 border border-dashed border-border/60 flex items-center px-1.5",
                       )}
                       style={{
@@ -505,11 +510,18 @@ export default function Agenda() {
                       }}
                       onClick={() => openSlot(slot, selectedDate)}
                     >
-                      {isBooked && (
+                      {(isBooked || isAwaiting) && (
                         <>
                           <p className="text-[11px] font-semibold text-primary leading-tight truncate">{slot.client}</p>
                           {spanRows > 1 && <p className="text-[10px] text-muted-foreground truncate mt-0.5">{slot.service}</p>}
                           {spanRows > 2 && <p className="text-[10px] text-muted-foreground/60">{slot.time} · {duration}min</p>}
+                        </>
+                      )}
+                      {isConfirmed && (
+                        <>
+                          <p className="text-[11px] font-semibold text-emerald-500 leading-tight truncate">✓ {slot.client}</p>
+                          {spanRows > 1 && <p className="text-[10px] text-emerald-500/70 truncate mt-0.5">{slot.service}</p>}
+                          {spanRows > 2 && <p className="text-[10px] text-emerald-500/50">{slot.time} · {duration}min</p>}
                         </>
                       )}
                       {isBlocked && (
@@ -556,7 +568,8 @@ export default function Agenda() {
                                 key={slot.professionalId}
                                 className={cn(
                                   "rounded px-1.5 py-1 cursor-pointer transition-colors text-[10px]",
-                                  slot.status === "booked" && "bg-primary/10 border border-primary/20 hover:bg-primary/15",
+                                  (slot.status === "booked" || slot.status === "awaiting") && "bg-primary/10 border border-primary/20 hover:bg-primary/15",
+                                  slot.status === "confirmed" && "bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/20",
                                   slot.status === "blocked" && "bg-muted hover:bg-muted/80",
                                   slot.status === "free" && "hover:bg-secondary/50",
                                 )}
@@ -566,7 +579,9 @@ export default function Agenda() {
                                   <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: `hsl(${p.color})` }} />
                                   <span className="font-medium text-muted-foreground truncate">{p.name}</span>
                                 </div>
-                                {slot.client && <p className="text-foreground truncate pl-2.5">{slot.client}</p>}
+                                {slot.client && <p className={cn("truncate pl-2.5", slot.status === "confirmed" ? "text-emerald-500 font-medium" : "text-foreground")}>
+                                  {slot.status === "confirmed" ? `✓ ${slot.client}` : slot.client}
+                                </p>}
                               </div>
                             );
                           })}
