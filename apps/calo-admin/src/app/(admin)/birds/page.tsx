@@ -112,7 +112,7 @@ export default function BirdsPage() {
       const payload: any = { ...form, price_cents: Number(form.price_cents) }
       if (!payload.father_id) delete payload.father_id
       if (!payload.mother_id) delete payload.mother_id
-      if (!payload.breeder_id) delete payload.breeder_id
+      if (!payload.breeder_id) payload.breeder_id = breeders[0]?.id
       if (!payload.birth_date) delete payload.birth_date
       if (modal === 'create') {
         await api.birds.create(payload)
