@@ -1,5 +1,13 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 
+export type ProductCategory =
+  | "apps"
+  | "financas"
+  | "beleza"
+  | "performance"
+  | "sono"
+  | "emagrecimento";
+
 export interface Product {
   id: string;
   product_name: string;
@@ -9,6 +17,7 @@ export interface Product {
   icon: string;
   highlight_badge: string;
   display_order: number;
+  category?: ProductCategory;
 }
 
 interface ProductsState {

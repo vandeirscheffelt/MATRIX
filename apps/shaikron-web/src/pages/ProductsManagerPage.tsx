@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Shield, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Package } from "lucide-react";
-import { useProducts, type Product } from "@/contexts/ProductsContext";
+import { useProducts, type Product, type ProductCategory } from "@/contexts/ProductsContext";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -21,6 +21,7 @@ const emptyForm = {
   icon: "📦",
   highlight_badge: "",
   display_order: 0,
+  category: "apps" as ProductCategory,
 };
 
 export default function ProductsManagerPage() {
@@ -47,6 +48,7 @@ export default function ProductsManagerPage() {
       icon: p.icon,
       highlight_badge: p.highlight_badge,
       display_order: p.display_order,
+      category: p.category ?? "apps",
     });
     setEditingId(p.id);
     setShowModal(true);
@@ -256,6 +258,23 @@ export default function ProductsManagerPage() {
                   onChange={(e) => setForm((f) => ({ ...f, display_order: parseInt(e.target.value) || 0 }))}
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select
+                value={form.category}
+                onValueChange={(v) => setForm((f) => ({ ...f, category: v as ProductCategory }))}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="apps">Apps</SelectItem>
+                  <SelectItem value="financas">Finanças</SelectItem>
+                  <SelectItem value="beleza">Beleza</SelectItem>
+                  <SelectItem value="performance">Performance</SelectItem>
+                  <SelectItem value="sono">Sono</SelectItem>
+                  <SelectItem value="emagrecimento">Emagrecimento e Longevidade</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>{t("pm.highlightBadge")}</Label>
