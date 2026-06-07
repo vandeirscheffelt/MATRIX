@@ -31,6 +31,7 @@ import { productsRoutes, productsPublicRoutes } from './routes/admin/products.js
 import { modulesRoutes, modulesPublicRoutes } from './routes/admin/modules.js'
 import { adminCouponsRoutes } from './routes/admin/coupons.js'
 import { tutorialsAdminRoutes, tutorialsPublicRoutes } from './routes/app/tutorials.js'
+import { productsAdminRoutes as marketplaceAdminRoutes, productsPublicRoutes as marketplacePublicRoutes } from './routes/app/products.js'
 import { n8nWebhookRoutes } from './routes/webhook/n8n.js'
 
 const app = Fastify({ logger: true })
@@ -91,6 +92,10 @@ await app.register(tutorialsPublicRoutes, { prefix: '/tutorials/public' })
 
 // Admin tutorials
 await app.register(tutorialsAdminRoutes, { prefix: '/admin/tutorials' })
+
+// Marketplace products (Outros Produtos / VITALIA)
+await app.register(marketplacePublicRoutes, { prefix: '/marketplace/public' })
+await app.register(marketplaceAdminRoutes, { prefix: '/admin/marketplace' })
 
 // Webhooks n8n — autenticados por x-webhook-secret
 await app.register(n8nWebhookRoutes, { prefix: '/webhook/n8n' })

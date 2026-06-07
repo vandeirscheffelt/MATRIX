@@ -80,13 +80,9 @@ export default function ProductsManagerPage() {
     setShowModal(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.product_name.trim()) {
       toast({ title: t("pm.nameRequired"), variant: "destructive" });
-      return;
-    }
-    if (!form.external_link.trim()) {
-      toast({ title: t("pm.linkRequired"), variant: "destructive" });
       return;
     }
 
@@ -97,24 +93,32 @@ export default function ProductsManagerPage() {
       external_link: form.external_link.trim(),
     };
 
-    if (editingId) {
-      updateProduct(editingId, data);
-      toast({ title: t("pm.productUpdated") });
-    } else {
-      addProduct(data);
-      toast({ title: t("pm.productCreated") });
+    try {
+      if (editingId) {
+        await updateProduct(editingId, data);
+        toast({ title: t("pm.productUpdated") });
+      } else {
+        await addProduct(data);
+        toast({ title: t("pm.productCreated") });
+      }
+      setShowModal(false);
+    } catch {
+      toast({ title: "Erro ao salvar produto", variant: "destructive" });
     }
-    setShowModal(false);
   };
 
-  const handleDelete = (id: string, name: string) => {
-    deleteProduct(id);
-    toast({ title: t("pm.deleted", { name }) });
+  const handleDelete = async (id: string, name: string) => {
+    try {
+      await deleteProduct(id);
+      toast({ title: t("pm.deleted", { name }) });
+    } catch {
+      toast({ title: "Erro ao excluir produto", variant: "destructive" });
+    }
   };
 
-  const toggleStatus = (p: Product) => {
+  const toggleStatus = async (p: Product) => {
     const newStatus = p.status === "active" ? "coming_soon" : "active";
-    updateProduct(p.id, { status: newStatus });
+    await updateProduct(p.id, { status: newStatus });
     const statusLabel = newStatus === "active" ? t("pm.active") : t("pm.comingSoon");
     toast({ title: t("pm.statusChanged", { status: statusLabel }) });
   };

@@ -679,6 +679,29 @@ model Tutorial {
 }
 
 // -----------------------------------------------------------------------------
+// Produtos (Outros Produtos / VITALIA marketplace)
+// -----------------------------------------------------------------------------
+
+model Product {
+  id               String   @id @default(uuid())
+  productName      String   @map("product_name")
+  shortDescription String   @map("short_description") @db.Text
+  status           String   @default("active")
+  externalLink     String   @map("external_link")
+  icon             String   @default("📦")
+  highlightBadge   String   @default("") @map("highlight_badge")
+  displayOrder     Int      @default(0) @map("display_order")
+  category         String   @default("apps")
+  displayMode      String   @default("icon") @map("display_mode")
+  images           String[]
+  criadoEm        DateTime @default(now()) @map("criado_em")
+  atualizadoEm    DateTime @updatedAt @map("atualizado_em")
+
+  @@map("products")
+  @@schema("atendente_ia")
+}
+
+// -----------------------------------------------------------------------------
 // Analytics
 // -----------------------------------------------------------------------------
 

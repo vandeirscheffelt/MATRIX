@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { api } from "@/lib/apiClient";
 
 export type ProductCategory =
   | "apps"
@@ -24,48 +25,56 @@ export interface Product {
 
 interface ProductsState {
   products: Product[];
-  addProduct: (product: Omit<Product, "id">) => void;
-  updateProduct: (id: string, updates: Partial<Omit<Product, "id">>) => void;
-  deleteProduct: (id: string) => void;
-}
-
-const STORAGE_KEY = "schaikron_products";
-
-function loadProducts(): Product[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+  loading: boolean;
+  addProduct: (product: Omit<Product, "id">) => Promise<void>;
+  updateProduct: (id: string, updates: Partial<Omit<Product, "id">>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  refetch: () => Promise<void>;
 }
 
 const ProductsContext = createContext<ProductsState>({
   products: [],
-  addProduct: () => {},
-  updateProduct: () => {},
-  deleteProduct: () => {},
+  loading: false,
+  addProduct: async () => {},
+  updateProduct: async () => {},
+  deleteProduct: async () => {},
+  refetch: async () => {},
 });
 
 export const ProductsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [products, setProducts] = useState<Product[]>(loadProducts);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading]   = useState(true);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-  }, [products]);
-
-  const addProduct = useCallback((product: Omit<Product, "id">) => {
-    setProducts(prev => [...prev, { ...product, id: crypto.randomUUID() }]);
+  const fetchProducts = useCallback(async () => {
+    try {
+      const data = await api.get<Product[]>("/marketplace/public");
+      setProducts(data);
+    } catch {
+      // falha silenciosa — array vazio
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const updateProduct = useCallback((id: string, updates: Partial<Omit<Product, "id">>) => {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+
+  const addProduct = useCallback(async (product: Omit<Product, "id">) => {
+    const created = await api.post<Product>("/admin/marketplace", product);
+    setProducts((prev) => [...prev, created]);
   }, []);
 
-  const deleteProduct = useCallback((id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
+  const updateProduct = useCallback(async (id: string, updates: Partial<Omit<Product, "id">>) => {
+    const updated = await api.patch<Product>(`/admin/marketplace/${id}`, updates);
+    setProducts((prev) => prev.map((p) => (p.id === id ? updated : p)));
+  }, []);
+
+  const deleteProduct = useCallback(async (id: string) => {
+    await api.delete(`/admin/marketplace/${id}`);
+    setProducts((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
   return (
-    <ProductsContext.Provider value={{ products, addProduct, updateProduct, deleteProduct }}>
+    <ProductsContext.Provider value={{ products, loading, addProduct, updateProduct, deleteProduct, refetch: fetchProducts }}>
       {children}
     </ProductsContext.Provider>
   );
