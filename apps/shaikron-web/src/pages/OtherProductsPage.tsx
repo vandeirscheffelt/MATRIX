@@ -66,12 +66,13 @@ function CatalogCard({ p, t }: { p: Product; t: (k: string) => string }) {
   return (
     <Card className="group overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30">
       {/* Foto principal */}
-      <div className="relative aspect-square bg-muted overflow-hidden">
+      <div className="relative bg-muted overflow-hidden flex items-center justify-center" style={{ minHeight: "220px", maxHeight: "320px" }}>
         {hasImages ? (
           <img
             src={imgs[activeIdx]}
             alt={p.product_name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
+            style={{ maxHeight: "320px" }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-6xl">
