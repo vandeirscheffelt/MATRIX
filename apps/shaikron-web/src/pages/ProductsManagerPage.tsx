@@ -93,7 +93,7 @@ export default function ProductsManagerPage() {
     const data = {
       ...form,
       product_name: form.product_name.trim(),
-      short_description: form.short_description.slice(0, 120),
+      short_description: form.short_description.slice(0, 300),
       external_link: form.external_link.trim(),
     };
 
@@ -246,11 +246,11 @@ export default function ProductsManagerPage() {
               <Label>{t("pm.shortDesc")}</Label>
               <Textarea
                 value={form.short_description}
-                onChange={(e) => setForm((f) => ({ ...f, short_description: e.target.value.slice(0, 120) }))}
+                onChange={(e) => setForm((f) => ({ ...f, short_description: e.target.value.slice(0, 300) }))}
                 placeholder={t("pm.shortDescPlaceholder")}
-                rows={2}
+                rows={4}
               />
-              <p className="text-xs text-muted-foreground text-right">{form.short_description.length}/120</p>
+              <p className="text-xs text-muted-foreground text-right">{form.short_description.length}/300</p>
             </div>
             <div className="space-y-2">
               <Label>{t("pm.externalLink")}</Label>

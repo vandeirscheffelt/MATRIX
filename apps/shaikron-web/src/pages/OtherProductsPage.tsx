@@ -123,7 +123,7 @@ function CatalogCard({ p, t }: { p: Product; t: (k: string) => string }) {
 
       <CardContent className="p-4 space-y-2">
         <h3 className="font-semibold text-foreground">{p.product_name}</h3>
-        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+        <p className="text-sm text-muted-foreground leading-relaxed">
           {p.short_description}
         </p>
         {p.status === "active" ? (
