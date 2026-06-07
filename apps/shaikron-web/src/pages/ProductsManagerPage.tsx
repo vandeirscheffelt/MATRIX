@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Shield, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Package } from "lucide-react";
+import { Shield, Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Package, Upload, X, Loader2 } from "lucide-react";
 import { useProducts, type Product, type ProductCategory } from "@/contexts/ProductsContext";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { supabase } from "@/lib/supabase";
 
 const emptyForm = {
   product_name: "",
@@ -32,6 +33,27 @@ export default function ProductsManagerPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    const uploaded: string[] = [];
+    for (const file of Array.from(files)) {
+      const ext = file.name.split(".").pop();
+      const path = `products/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: false });
+      if (error) {
+        toast({ title: `Erro ao enviar ${file.name}`, variant: "destructive" });
+        continue;
+      }
+      const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+      uploaded.push(data.publicUrl);
+    }
+    setForm((f) => ({ ...f, images: [...f.images, ...uploaded] }));
+    setUploading(false);
+  };
 
   const sorted = [...products].sort((a, b) => a.display_order - b.display_order);
 
@@ -193,14 +215,14 @@ export default function ProductsManagerPage() {
 
       {/* Create/Edit Modal */}
       <Dialog open={showModal} onOpenChange={(open) => !open && setShowModal(false)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>{editingId ? t("pm.editProduct") : t("pm.newProduct")}</DialogTitle>
             <DialogDescription>
               {editingId ? t("pm.editProductDesc") : t("pm.newProductDesc")}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="overflow-y-auto flex-1 pr-1 space-y-4">
             <div className="grid grid-cols-[60px_1fr] gap-3">
               <div className="space-y-2">
                 <Label>{t("pm.icon")}</Label>
@@ -313,49 +335,56 @@ export default function ProductsManagerPage() {
               </div>
             </div>
 
-            {/* URLs de imagens (só aparece no modo catálogo) */}
+            {/* Upload de imagens (só aparece no modo catálogo) */}
             {form.display_mode === "catalog" && (
-              <div className="space-y-2">
-                <Label>Imagens (URLs)</Label>
-                {form.images.map((url, i) => (
-                  <div key={i} className="flex gap-2">
-                    <Input
-                      value={url}
-                      onChange={(e) =>
-                        setForm((f) => {
-                          const imgs = [...f.images];
-                          imgs[i] = e.target.value;
-                          return { ...f, images: imgs };
-                        })
-                      }
-                      placeholder={`https://exemplo.com/foto-${i + 1}.jpg`}
-                      type="url"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="text-destructive hover:text-destructive shrink-0"
-                      onClick={() =>
-                        setForm((f) => ({ ...f, images: f.images.filter((_, j) => j !== i) }))
-                      }
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+              <div className="space-y-3">
+                <Label>Imagens</Label>
+
+                {/* Previews */}
+                {form.images.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {form.images.map((url, i) => (
+                      <div key={i} className="relative h-20 w-20 rounded-lg overflow-hidden border border-border">
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, images: f.images.filter((_, j) => j !== i) }))}
+                          className="absolute top-0.5 right-0.5 rounded-full bg-black/70 p-0.5 text-white hover:bg-black"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+
+                {/* Botão de upload */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleImageUpload(e.target.files)}
+                />
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
                   className="w-full"
-                  onClick={() => setForm((f) => ({ ...f, images: [...f.images, ""] }))}
+                  disabled={uploading}
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar imagem
+                  {uploading ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  ) : (
+                    <Upload className="h-3.5 w-3.5 mr-1" />
+                  )}
+                  {uploading ? "Enviando..." : "Selecionar imagens"}
                 </Button>
                 {form.images.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-1">
-                    Adicione ao menos uma URL de imagem para o carrossel.
+                  <p className="text-xs text-muted-foreground text-center">
+                    Selecione ao menos uma imagem para o carrossel.
                   </p>
                 )}
               </div>
