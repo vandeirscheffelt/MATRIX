@@ -22,6 +22,8 @@ const emptyForm = {
   highlight_badge: "",
   display_order: 0,
   category: "apps" as ProductCategory,
+  display_mode: "icon" as "icon" | "catalog",
+  images: [] as string[],
 };
 
 export default function ProductsManagerPage() {
@@ -49,6 +51,8 @@ export default function ProductsManagerPage() {
       highlight_badge: p.highlight_badge,
       display_order: p.display_order,
       category: p.category ?? "apps",
+      display_mode: p.display_mode ?? "icon",
+      images: p.images ?? [],
     });
     setEditingId(p.id);
     setShowModal(true);
@@ -276,6 +280,87 @@ export default function ProductsManagerPage() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Modo de exibição */}
+            <div className="space-y-3">
+              <Label>Modo de exibição</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, display_mode: "icon" }))}
+                  className={`rounded-lg border-2 p-3 text-center transition-colors ${
+                    form.display_mode === "icon"
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  <div className="text-2xl mb-1">🧩</div>
+                  <div className="text-xs font-medium">Ícone</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Emoji + texto</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, display_mode: "catalog" }))}
+                  className={`rounded-lg border-2 p-3 text-center transition-colors ${
+                    form.display_mode === "catalog"
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  <div className="text-2xl mb-1">🖼️</div>
+                  <div className="text-xs font-medium">Catálogo</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Foto + carrossel</div>
+                </button>
+              </div>
+            </div>
+
+            {/* URLs de imagens (só aparece no modo catálogo) */}
+            {form.display_mode === "catalog" && (
+              <div className="space-y-2">
+                <Label>Imagens (URLs)</Label>
+                {form.images.map((url, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Input
+                      value={url}
+                      onChange={(e) =>
+                        setForm((f) => {
+                          const imgs = [...f.images];
+                          imgs[i] = e.target.value;
+                          return { ...f, images: imgs };
+                        })
+                      }
+                      placeholder={`https://exemplo.com/foto-${i + 1}.jpg`}
+                      type="url"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive hover:text-destructive shrink-0"
+                      onClick={() =>
+                        setForm((f) => ({ ...f, images: f.images.filter((_, j) => j !== i) }))
+                      }
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setForm((f) => ({ ...f, images: [...f.images, ""] }))}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar imagem
+                </Button>
+                {form.images.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-1">
+                    Adicione ao menos uma URL de imagem para o carrossel.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>{t("pm.highlightBadge")}</Label>
               <Select

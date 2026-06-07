@@ -18,6 +18,7 @@ export interface Product {
   highlight_badge: string;
   display_order: number;
   category?: ProductCategory;
+  display_mode?: "icon" | "catalog";
   images?: string[];
 }
 

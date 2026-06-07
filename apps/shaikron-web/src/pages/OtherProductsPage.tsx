@@ -3,9 +3,9 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Puzzle, LayoutGrid, Image as ImageIcon } from "lucide-react";
+import { ExternalLink, Puzzle } from "lucide-react";
 import { useProducts } from "@/contexts/ProductsContext";
-import type { ProductCategory } from "@/contexts/ProductsContext";
+import type { ProductCategory, Product } from "@/contexts/ProductsContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 
@@ -22,14 +22,128 @@ const VITALIA_CATEGORIES: ProductCategory[] = [
   "financas", "beleza", "performance", "sono", "emagrecimento",
 ];
 
-type ViewMode = "icon" | "catalog";
+function IconCard({ p, t }: { p: Product; t: (k: string) => string }) {
+  return (
+    <Card className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30">
+      <CardContent className="p-5 space-y-3">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{p.icon}</span>
+            <div>
+              <h3 className="font-semibold text-foreground">{p.product_name}</h3>
+              {p.highlight_badge && (
+                <Badge
+                  variant="secondary"
+                  className="mt-1 text-xs bg-primary/10 text-primary border-primary/20"
+                >
+                  {p.highlight_badge}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">{p.short_description}</p>
+        {p.status === "active" ? (
+          <Button className="w-full" size="sm" onClick={() => window.open(p.external_link, "_blank")}>
+            <ExternalLink className="h-4 w-4 mr-1.5" />
+            {t("products.access")}
+          </Button>
+        ) : (
+          <Button className="w-full" size="sm" variant="secondary" disabled>
+            {t("products.comingSoon")}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CatalogCard({ p, t }: { p: Product; t: (k: string) => string }) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const imgs = p.images ?? [];
+  const hasImages = imgs.length > 0;
+
+  return (
+    <Card className="group overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30">
+      {/* Foto principal */}
+      <div className="relative aspect-square bg-muted overflow-hidden">
+        {hasImages ? (
+          <img
+            src={imgs[activeIdx]}
+            alt={p.product_name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-6xl">
+            {p.icon}
+          </div>
+        )}
+
+        <div className="absolute top-2 left-2">
+          {p.status === "active" ? (
+            <span className="rounded-full bg-emerald-500/90 text-white text-xs font-medium px-2.5 py-0.5 backdrop-blur-sm">
+              Disponível
+            </span>
+          ) : (
+            <span className="rounded-full bg-muted/90 text-muted-foreground text-xs font-medium px-2.5 py-0.5 backdrop-blur-sm">
+              Em breve
+            </span>
+          )}
+        </div>
+
+        {p.highlight_badge && (
+          <div className="absolute top-2 right-2">
+            <span className="rounded-full bg-primary/90 text-primary-foreground text-xs font-medium px-2.5 py-0.5 backdrop-blur-sm">
+              {p.highlight_badge}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Thumbnails */}
+      {imgs.length > 1 && (
+        <div className="flex gap-1.5 px-3 pt-2">
+          {imgs.map((src, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveIdx(i)}
+              className={cn(
+                "h-12 w-12 rounded-md overflow-hidden border-2 transition-colors flex-shrink-0",
+                activeIdx === i
+                  ? "border-primary"
+                  : "border-transparent opacity-60 hover:opacity-100"
+              )}
+            >
+              <img src={src} alt="" className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+
+      <CardContent className="p-4 space-y-2">
+        <h3 className="font-semibold text-foreground">{p.product_name}</h3>
+        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+          {p.short_description}
+        </p>
+        {p.status === "active" ? (
+          <Button className="w-full mt-1" size="sm" onClick={() => window.open(p.external_link, "_blank")}>
+            <ExternalLink className="h-4 w-4 mr-1.5" />
+            {t("products.access")}
+          </Button>
+        ) : (
+          <Button className="w-full mt-1" size="sm" variant="secondary" disabled>
+            {t("products.comingSoon")}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function OtherProductsPage() {
   const { products } = useProducts();
   const { t } = useLanguage();
-  const [activeTab, setActiveTab]   = useState<ProductCategory>("apps");
-  const [viewMode, setViewMode]     = useState<ViewMode>("icon");
-  const [thumbIndex, setThumbIndex] = useState<Record<string, number>>({});
+  const [activeTab, setActiveTab] = useState<ProductCategory>("apps");
 
   const isVitaliaTab = VITALIA_CATEGORIES.includes(activeTab);
 
@@ -40,51 +154,17 @@ export default function OtherProductsPage() {
     })
     .sort((a, b) => a.display_order - b.display_order);
 
-  const getThumb = (id: string) => thumbIndex[id] ?? 0;
-  const setThumb = (id: string, idx: number) =>
-    setThumbIndex((prev) => ({ ...prev, [id]: idx }));
-
   return (
     <AppLayout>
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Puzzle className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">{t("products.title")}</h1>
-              <p className="text-sm text-muted-foreground">{t("products.subtitle")}</p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+            <Puzzle className="h-5 w-5 text-primary" />
           </div>
-
-          {/* View mode toggle */}
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 p-1">
-            <button
-              onClick={() => setViewMode("icon")}
-              className={cn(
-                "rounded-md p-1.5 transition-colors",
-                viewMode === "icon"
-                  ? "bg-background shadow text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              title="Modo ícone"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("catalog")}
-              className={cn(
-                "rounded-md p-1.5 transition-colors",
-                viewMode === "catalog"
-                  ? "bg-background shadow text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              title="Modo catálogo"
-            >
-              <ImageIcon className="h-4 w-4" />
-            </button>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">{t("products.title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("products.subtitle")}</p>
           </div>
         </div>
 
@@ -129,148 +209,16 @@ export default function OtherProductsPage() {
           </Card>
         )}
 
-        {/* ── MODO ÍCONE ── */}
-        {visible.length > 0 && viewMode === "icon" && (
+        {/* Grid — cada card renderiza pelo seu próprio display_mode */}
+        {visible.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2">
-            {visible.map((p) => (
-              <Card
-                key={p.id}
-                className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30"
-              >
-                <CardContent className="p-5 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">{p.icon}</span>
-                      <div>
-                        <h3 className="font-semibold text-foreground">{p.product_name}</h3>
-                        {p.highlight_badge && (
-                          <Badge
-                            variant="secondary"
-                            className="mt-1 text-xs bg-primary/10 text-primary border-primary/20"
-                          >
-                            {p.highlight_badge}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {p.short_description}
-                  </p>
-                  {p.status === "active" ? (
-                    <Button
-                      className="w-full"
-                      size="sm"
-                      onClick={() => window.open(p.external_link, "_blank")}
-                    >
-                      <ExternalLink className="h-4 w-4 mr-1.5" />
-                      {t("products.access")}
-                    </Button>
-                  ) : (
-                    <Button className="w-full" size="sm" variant="secondary" disabled>
-                      {t("products.comingSoon")}
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* ── MODO CATÁLOGO ── */}
-        {visible.length > 0 && viewMode === "catalog" && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {visible.map((p) => {
-              const imgs = p.images ?? [];
-              const activeImg = imgs[getThumb(p.id)];
-              const hasImages = imgs.length > 0;
-
-              return (
-                <Card
-                  key={p.id}
-                  className="group overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30"
-                >
-                  {/* Foto principal */}
-                  <div className="relative aspect-square bg-muted overflow-hidden">
-                    {hasImages ? (
-                      <img
-                        src={activeImg}
-                        alt={p.product_name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-6xl">
-                        {p.icon}
-                      </div>
-                    )}
-
-                    {/* Badge status */}
-                    <div className="absolute top-2 left-2">
-                      {p.status === "active" ? (
-                        <span className="rounded-full bg-emerald-500/90 text-white text-xs font-medium px-2.5 py-0.5 backdrop-blur-sm">
-                          Disponível
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-muted/90 text-muted-foreground text-xs font-medium px-2.5 py-0.5 backdrop-blur-sm">
-                          Em breve
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Highlight badge */}
-                    {p.highlight_badge && (
-                      <div className="absolute top-2 right-2">
-                        <span className="rounded-full bg-primary/90 text-primary-foreground text-xs font-medium px-2.5 py-0.5 backdrop-blur-sm">
-                          {p.highlight_badge}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Thumbnails */}
-                  {imgs.length > 1 && (
-                    <div className="flex gap-1.5 px-3 pt-2">
-                      {imgs.map((src, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setThumb(p.id, i)}
-                          className={cn(
-                            "h-12 w-12 rounded-md overflow-hidden border-2 transition-colors flex-shrink-0",
-                            getThumb(p.id) === i
-                              ? "border-primary"
-                              : "border-transparent opacity-60 hover:opacity-100"
-                          )}
-                        >
-                          <img src={src} alt="" className="w-full h-full object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Info */}
-                  <CardContent className="p-4 space-y-2">
-                    <h3 className="font-semibold text-foreground">{p.product_name}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
-                      {p.short_description}
-                    </p>
-                    {p.status === "active" ? (
-                      <Button
-                        className="w-full mt-1"
-                        size="sm"
-                        onClick={() => window.open(p.external_link, "_blank")}
-                      >
-                        <ExternalLink className="h-4 w-4 mr-1.5" />
-                        {t("products.access")}
-                      </Button>
-                    ) : (
-                      <Button className="w-full mt-1" size="sm" variant="secondary" disabled>
-                        {t("products.comingSoon")}
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {visible.map((p) =>
+              (p.display_mode ?? "icon") === "catalog" ? (
+                <CatalogCard key={p.id} p={p} t={t} />
+              ) : (
+                <IconCard key={p.id} p={p} t={t} />
+              )
+            )}
           </div>
         )}
       </div>
