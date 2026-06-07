@@ -6,25 +6,17 @@ import { generateFAQs, getToneRecommendation, generateKeywords } from "./generat
 export function generateSuggestions(form: OnboardingFormState, missingFields: string[], t: (key: string, params?: Record<string, string | number>) => string, appLang?: string): Suggestion[] {
   const suggestions: Suggestion[] = [];
 
-  if (missingFields.includes("description")) {
-    if (!form.description.trim()) {
-      suggestions.push({
-        id: "desc-empty", type: "general", icon: FileText, label: "Contexto Operacional",
-        message: 'Seu assistente ainda não tem contexto operacional. Preencha o tipo de negócio e o nome do assistente, depois clique em "Gerar com IA" na seção Contexto Operacional.',
-        priority: 1,
-      });
-    } else if (form.description.trim().length <= 20) {
-      suggestions.push({
-        id: "desc-short", type: "general", icon: FileText, label: "Contexto Operacional",
-        message: 'O contexto operacional está muito curto. Clique em "Regenerar com IA" para que o Copiloto recrie um perfil completo com base nas suas configurações.',
-        priority: 2,
-      });
-    }
-  } else if (form.description.trim().length > 20 && form.description.trim().length < 80) {
+  if (!form.description.trim()) {
     suggestions.push({
-      id: "desc-improve", type: "general", icon: Wand2, label: "Contexto Operacional",
-      message: 'O contexto operacional pode ser mais detalhado. Se adicionou profissionais ou serviços, clique em "Regenerar com IA" para atualizar.',
-      priority: 5,
+      id: "desc-empty", type: "general", icon: FileText, label: "Prompt do Assistente",
+      message: 'Seu assistente ainda não tem prompt gerado. Selecione o tipo de negócio, tom e identidade, depois clique em "Regenerar Prompt" no aviso laranja no topo da página.',
+      priority: 1,
+    });
+  } else if (form.description.trim().length <= 20) {
+    suggestions.push({
+      id: "desc-short", type: "general", icon: FileText, label: "Prompt do Assistente",
+      message: 'O prompt do assistente parece incompleto. Use o botão "Regenerar Prompt" no topo para gerar um perfil completo com base nas suas configurações atuais.',
+      priority: 2,
     });
   }
 

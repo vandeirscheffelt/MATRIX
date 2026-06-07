@@ -59,17 +59,17 @@ export function useConfigGaps(form: OnboardingFormState, t: (key: string, params
       result.push({
         id: "no-desc",
         severity: "critical",
-        title: "Contexto Operacional não gerado",
-        description: `Use o botão "Gerar com IA" na seção Contexto Operacional para criar automaticamente o perfil do seu assistente.`,
-        fieldId: "field-description",
+        title: "Prompt do assistente não gerado",
+        description: 'Complete as configurações (tipo de negócio, tom, identidade) e clique em "Regenerar Prompt" no aviso laranja no topo da página.',
+        fieldId: "field-business-type",
       });
     } else if (descLen <= 40) {
       result.push({
         id: "weak-desc",
         severity: "important",
-        title: "Contexto Operacional muito curto",
-        description: `Use "Regenerar com IA" para que o Copiloto expanda o perfil com base em todas as suas configurações atuais.`,
-        fieldId: "field-description",
+        title: "Prompt muito curto",
+        description: 'Adicione mais informações (serviços, profissionais, FAQ) e clique em "Regenerar Prompt" para enriquecer o assistente.',
+        fieldId: "field-business-type",
       });
     }
 
