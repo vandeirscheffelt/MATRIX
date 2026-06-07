@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Sparkles, Wand2, CheckCircle2, MessageCircle, AlertTriangle } from "lucide-react";
+import { Sparkles, Wand2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -9,17 +9,11 @@ import { useKnowledgeGaps } from "./copilot/useKnowledgeGaps";
 import KnowledgeGapPanel from "./copilot/KnowledgeGapPanel";
 import ConfigGapPanel from "./copilot/ConfigGapPanel";
 import { useConfigGaps } from "./copilot/useConfigGaps";
-import GuidedSetup from "./GuidedSetup";
 import { toast } from "sonner";
 
-interface ExtendedAICopilotProps extends AICopilotProps {
-  onApplyField?: (field: any, value: any) => void;
-}
-
-export default function AICopilot({ form, progress, missingFields, onApplyDescription, onApplyFaqs, onApplyTone, onApplyKeywords, onApplyField, promptDesatualizado }: ExtendedAICopilotProps) {
+export default function AICopilot({ form, progress, missingFields, onApplyDescription, onApplyFaqs, onApplyTone, onApplyKeywords, promptDesatualizado }: AICopilotProps) {
   const { language, t } = useLanguage();
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
-  const [guidedMode, setGuidedMode] = useState(false);
   const { gaps, totalUnanswered, dismiss, generateFaqFromGap } = useKnowledgeGaps(form);
   const configGaps = useConfigGaps(form, t);
 
@@ -136,33 +130,7 @@ export default function AICopilot({ form, progress, missingFields, onApplyDescri
         </div>
       )}
 
-      {!guidedMode && progress < 60 && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full mb-4 text-xs border-primary/30 hover:bg-primary/10 hover:text-primary"
-          onClick={() => setGuidedMode(true)}
-        >
-          <MessageCircle className="h-3.5 w-3.5 mr-1.5" />
-          {t("copilot.guidedSetup")}
-        </Button>
-      )}
-
-      {guidedMode && onApplyField && (
-        <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
-          <GuidedSetup
-            form={form}
-            onApplyDescription={onApplyDescription}
-            onApplyFaqs={onApplyFaqs}
-            onApplyTone={onApplyTone}
-            onApplyKeywords={onApplyKeywords}
-            onApplyField={onApplyField}
-            onClose={() => setGuidedMode(false)}
-          />
-        </div>
-      )}
-
-      {!guidedMode && visibleSuggestions.length > 0 ? (
+      {visibleSuggestions.length > 0 ? (
         <div className="space-y-3">
           {visibleSuggestions.slice(0, 3).map((suggestion) => (
             <div
@@ -189,29 +157,27 @@ export default function AICopilot({ form, progress, missingFields, onApplyDescri
             </div>
           ))}
         </div>
-      ) : !guidedMode ? (
+      ) : (
         <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-4 text-center">
           <CheckCircle2 className="h-5 w-5 text-green-400 mx-auto mb-2" />
           <p className="text-xs text-green-400 font-medium">{t("copilot.lookingGreat")}</p>
           <p className="text-xs text-muted-foreground mt-1">{t("copilot.allWellConfigured")}</p>
         </div>
-      ) : null}
+      )}
 
-      {!guidedMode && configGaps.length > 0 && (
+      {configGaps.length > 0 && (
         <ConfigGapPanel gaps={configGaps} onFixNow={handleFixNow} />
       )}
 
-      {!guidedMode && (
-        <KnowledgeGapPanel
-          gaps={gaps}
-          totalUnanswered={totalUnanswered}
-          onAddAsFaq={handleAddGapAsFaq}
-          onDismiss={dismiss}
-          onGenerateAll={handleGenerateAllGaps}
-        />
-      )}
+      <KnowledgeGapPanel
+        gaps={gaps}
+        totalUnanswered={totalUnanswered}
+        onAddAsFaq={handleAddGapAsFaq}
+        onDismiss={dismiss}
+        onGenerateAll={handleGenerateAllGaps}
+      />
 
-      {missingFields.length > 0 && progress < 100 && !guidedMode && (
+      {missingFields.length > 0 && progress < 100 && (
         <div className="mt-4 pt-4 border-t border-border">
           <p className="text-xs text-muted-foreground">
             <span className="font-medium text-foreground">{missingFields.length}</span>
