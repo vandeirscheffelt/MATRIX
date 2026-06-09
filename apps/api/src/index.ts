@@ -47,6 +47,8 @@ await app.register(cors, {
     'https://app.shaikron.scheffelt.xyz',
     'https://admin.calo.scheffelt.xyz',
     'https://calo.scheffelt.xyz',
+    'https://mastersaas.xyz',
+    'https://www.mastersaas.xyz',
     'http://localhost:5173',
     'http://localhost:5174',
   ],
