@@ -84,6 +84,9 @@ async function criarOrder(customerId: number, usuariosExtras: number = 0, coupon
     products,
     ...(couponCode ? { coupon_code: couponCode } : {}),
   })
+  // Nota: AppMax não suporta metadata customizado por pedido via API v3.
+  // O tracking de afiliado é feito via parâmetro src no webhook de confirmação
+  // que é extraído do cookie ms_affiliate_ref lido pelo backend do Evolia.
   return Number(res.data?.id ?? res.id)
 }
 

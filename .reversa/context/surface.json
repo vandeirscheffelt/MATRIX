@@ -1,0 +1,88 @@
+{
+  "generated_at": "2026-06-08T00:00:00Z",
+  "project_root": "apps/mastersaas/frontend",
+  "languages": [
+    { "name": "TypeScript", "extensions": [".ts", ".tsx"], "file_count": 117 },
+    { "name": "CSS", "extensions": [".css"], "file_count": 1 },
+    { "name": "SQL", "extensions": [".sql"], "file_count": 2 }
+  ],
+  "primary_language": "TypeScript",
+  "frameworks": [
+    { "name": "TanStack Start", "version": "^1.167.14", "source": "package.json" },
+    { "name": "TanStack Router", "version": "^1.168.0", "source": "package.json" },
+    { "name": "React", "version": "^19.2.0", "source": "package.json" },
+    { "name": "Vite", "version": "^7.3.1", "source": "package.json" },
+    { "name": "Tailwind CSS", "version": "^4.2.1", "source": "package.json" },
+    { "name": "shadcn/ui", "version": "via components.json", "source": "components.json" },
+    { "name": "Supabase JS", "version": "^2.104.0", "source": "package.json" }
+  ],
+  "package_manager": "npm + bun",
+  "entry_points": [
+    { "path": "src/routes/__root.tsx", "type": "app_entry" },
+    { "path": "src/router.tsx", "type": "router_entry" }
+  ],
+  "config_files": [
+    "vite.config.ts",
+    "tsconfig.json",
+    "components.json",
+    "wrangler.jsonc",
+    "eslint.config.js",
+    "supabase/config.toml"
+  ],
+  "ci_cd": [],
+  "docker": null,
+  "deploy_target": "Cloudflare Workers",
+  "database_hints": [
+    { "path": "supabase/migrations/20260421201903_*.sql", "type": "supabase_migration", "tables": ["profiles"], "functions": ["generate_affiliate_code", "handle_new_user", "profiles_prevent_immutable_changes"] },
+    { "path": "supabase/migrations/20260421201938_*.sql", "type": "supabase_migration_patch", "note": "SECURITY DEFINER patch" }
+  ],
+  "test_framework": null,
+  "test_file_count": 0,
+  "modules": [
+    "auth",
+    "dashboard",
+    "links",
+    "products",
+    "sales",
+    "finance-affiliate",
+    "finance-admin",
+    "network",
+    "promotions",
+    "tutorials",
+    "news",
+    "reports",
+    "whatsapp-admin",
+    "referral-tracking",
+    "account",
+    "i18n-currency",
+    "smart-alerts"
+  ],
+  "total_files": 120,
+  "critical_notes": [
+    "Apenas tabela 'profiles' está materializada no backend — todo o resto é mock/localStorage",
+    "Dados bancários (PII) salvos em localStorage sem criptografia — risco imediato",
+    "Token WhatsApp salvo em localStorage — risco de segurança",
+    "Roles (admin/affiliate) não existem no backend — qualquer usuário autenticado acessa rotas admin",
+    "Tracking de cliques inexistente no servidor — apenas mockStats hardcoded",
+    "Sem testes automatizados configurados",
+    "Deploy target: Cloudflare Workers (não VPS)"
+  ],
+  "stores_mock": [
+    { "store": "products-store.ts", "persistence": "localStorage('products')" },
+    { "store": "promotions-store.ts", "persistence": "in-memory (some no reload)" },
+    { "store": "network-settings-store.ts", "persistence": "in-memory" },
+    { "store": "tutorials-store.ts", "persistence": "localStorage('mastersaas:tutorials:v1')" },
+    { "store": "news-store.ts", "persistence": "localStorage" },
+    { "store": "progress-store.ts", "persistence": "localStorage" },
+    { "store": "watched-videos-store.ts", "persistence": "localStorage" },
+    { "store": "referral-storage.ts", "persistence": "cookie 14d + localStorage" }
+  ],
+  "external_integrations": [
+    { "name": "Supabase", "status": "active", "used_for": "Auth + profiles table" },
+    { "name": "Cloudflare Workers", "status": "configured", "used_for": "deploy target" },
+    { "name": "Lovable Cloud", "status": "active", "used_for": "hosting + auth wrapper" },
+    { "name": "Stripe", "status": "absent_from_code", "used_for": "payment (blueprints only)" },
+    { "name": "Evolution API / WhatsApp", "status": "mock_only", "used_for": "admin UI mock" },
+    { "name": "Meta Cloud API", "status": "mock_only", "used_for": "admin UI mock" }
+  ]
+}

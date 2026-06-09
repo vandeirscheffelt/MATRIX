@@ -1,0 +1,1594 @@
+openapi: "3.1.0"
+
+info:
+  title: MasterSaaS API
+  version: "1.0.0"
+  description: |
+    Especificação OpenAPI gerada pelo Reversa v1.2.14 a partir de engenharia reversa do frontend.
+    O sistema atual opera em mock in-memory — esta spec define o contrato de backend a implementar.
+    Autenticação delegada ao Supabase Auth; endpoints usam Bearer JWT emitido pelo Supabase.
+
+servers:
+  - url: https://api.mastersaas.com/v1
+    description: Produção
+  - url: http://localhost:3000/v1
+    description: Local
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT emitido pelo Supabase Auth (anon key ou service_role key)
+
+  schemas:
+
+    # ─── Comum ────────────────────────────────────────────────────────────────
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: "Recurso não encontrado"
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total_pages:
+          type: integer
+
+    # ─── Auth / Profiles ──────────────────────────────────────────────────────
+    Profile:
+      type: object
+      required: [id, affiliate_code, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+          nullable: true
+        affiliate_code:
+          type: string
+          description: "Código único de 8 chars alfanuméricos. Imutável após criação."
+          example: "ABCD1234"
+        referred_by_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: "ID do afiliado que indicou este usuário. Imutável após set."
+        created_at:
+          type: string
+          format: date-time
+
+    # ─── Products ─────────────────────────────────────────────────────────────
+    CurrencyCode:
+      type: string
+      enum: [BRL, USD, EUR, ARS, CLP, COP, MXN, PEN]
+
+    ProductPrices:
+      type: object
+      additionalProperties:
+        type: number
+      description: "Mapa CurrencyCode → preço. Ex: { BRL: 197.00, USD: 39.00 }"
+
+    Product:
+      type: object
+      required: [slug, name]
+      properties:
+        slug:
+          type: string
+          example: "evolia-pro"
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        prices:
+          $ref: "#/components/schemas/ProductPrices"
+        commissionRate:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: "Taxa de comissão base em %"
+        commissionDuration:
+          type: string
+          enum: [Lifetime, "12 months", "6 months", "3 months", Custom]
+        active:
+          type: boolean
+          default: true
+        productUrl:
+          type: string
+          format: uri
+          description: "URL de checkout do produto"
+        productCode:
+          type: string
+          description: "Código interno do produto para montagem de links de afiliado"
+
+    ProductPrice:
+      type: object
+      required: [price, currency]
+      properties:
+        price:
+          type: number
+        currency:
+          $ref: "#/components/schemas/CurrencyCode"
+
+    # ─── Promotions ───────────────────────────────────────────────────────────
+    PromotionStatus:
+      type: string
+      enum: [active, scheduled, expired, disabled]
+
+    Promotion:
+      type: object
+      required: [id, productSlug, startDate, endDate]
+      properties:
+        id:
+          type: string
+          format: uuid
+        productSlug:
+          type: string
+        startDate:
+          type: string
+          format: date
+          description: "Início inclusivo — dia inteiro 00:00:00"
+        endDate:
+          type: string
+          format: date
+          description: "Fim inclusivo — tratado como 23:59:59.999"
+        commissionRateOverride:
+          type: number
+          nullable: true
+          description: "Override flat da taxa base. null = usa taxa do produto"
+        performanceEnabled:
+          type: boolean
+          default: false
+        performanceMinSales:
+          type: integer
+          nullable: true
+          description: "Número mínimo de vendas para atingir Performance Boost"
+        performanceRateIfReached:
+          type: number
+          nullable: true
+        performanceRateIfNotReached:
+          type: number
+          nullable: true
+        status:
+          $ref: "#/components/schemas/PromotionStatus"
+          readOnly: true
+        daysRemaining:
+          type: integer
+          readOnly: true
+          description: "Dias restantes até endDate (0 se expirado)"
+        maxAchievableRate:
+          type: number
+          readOnly: true
+          nullable: true
+
+    # ─── Sales ────────────────────────────────────────────────────────────────
+    Sale:
+      type: object
+      required: [id, affiliate_id, product_slug, revenue, currency, gateway, gateway_payment_id, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        affiliate_id:
+          type: string
+          format: uuid
+        product_slug:
+          type: string
+        revenue:
+          type: number
+          description: "Receita bruta na moeda da venda"
+        currency:
+          $ref: "#/components/schemas/CurrencyCode"
+        gateway:
+          type: string
+          enum: [stripe, appmax]
+          description: "Gateway que processou a venda"
+        gateway_payment_id:
+          type: string
+          description: "ID da transação no gateway (para reconciliação)"
+        phone:
+          type: string
+          nullable: true
+          description: "Telefone do comprador — capturado no checkout via LIADS. Usado para popular CRM e LIAS."
+        source:
+          type: string
+          nullable: true
+          description: "Parâmetro src do link de afiliado: MASTERSAAS|AFIL|{code}|{productCode}"
+        created_at:
+          type: string
+          format: date-time
+
+    # ─── Commissions ──────────────────────────────────────────────────────────
+    CommissionStatus:
+      type: string
+      enum: [pending, available, processing, paid, canceled, failed, refunded]
+      description: |
+        pending: aguardando holding 30 dias
+        available: liberado para saque
+        processing: aprovado pelo admin, pagamento em andamento
+        paid: pago (terminal)
+        canceled: cancelado (terminal)
+        failed: falha no pagamento (pode retry)
+        refunded: estornado (terminal)
+
+    Commission:
+      type: object
+      required: [id, sale_id, affiliate_id, revenue, commission, rate_snapshot, sale_date, hold_until, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sale_id:
+          type: string
+          format: uuid
+        affiliate_id:
+          type: string
+          format: uuid
+        campaign_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: "Snapshot da promoção ativa no momento da venda"
+        revenue:
+          type: number
+        commission:
+          type: number
+          description: "revenue × rate_snapshot / 100"
+        rate_snapshot:
+          type: number
+          description: "Taxa % no momento da venda — imutável"
+        sale_date:
+          type: string
+          format: date-time
+        hold_until:
+          type: string
+          format: date-time
+          description: "sale_date + 30 dias"
+        available_at:
+          type: string
+          format: date-time
+          nullable: true
+        paid_at:
+          type: string
+          format: date-time
+          nullable: true
+        canceled_at:
+          type: string
+          format: date-time
+          nullable: true
+        payment_id:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/CommissionStatus"
+        created_at:
+          type: string
+          format: date-time
+
+    CommissionHistory:
+      type: object
+      required: [id, commission_id, from_status, to_status, changed_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        commission_id:
+          type: string
+          format: uuid
+        from_status:
+          $ref: "#/components/schemas/CommissionStatus"
+        to_status:
+          $ref: "#/components/schemas/CommissionStatus"
+        changed_by:
+          type: string
+          format: uuid
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        changed_at:
+          type: string
+          format: date-time
+
+    AffiliateSummary:
+      type: object
+      properties:
+        balance_available:
+          type: number
+        balance_pending:
+          type: number
+        total_earned:
+          type: number
+        total_paid:
+          type: number
+
+    # ─── Finance / Withdrawals ────────────────────────────────────────────────
+    WithdrawalStatus:
+      type: string
+      enum: [requested, approved, processing, paid, rejected, canceled]
+
+    Withdrawal:
+      type: object
+      required: [id, affiliate_id, amount, status, requested_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        affiliate_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          description: "Valor em unidade monetária (BRL)"
+        pix_key:
+          type: string
+          nullable: true
+        bank_account:
+          type: object
+          nullable: true
+          properties:
+            bank:
+              type: string
+            agency:
+              type: string
+            account:
+              type: string
+            type:
+              type: string
+              enum: [checking, savings]
+        status:
+          $ref: "#/components/schemas/WithdrawalStatus"
+        rejection_reason:
+          type: string
+          nullable: true
+        requested_at:
+          type: string
+          format: date-time
+        processed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    # ─── Network ──────────────────────────────────────────────────────────────
+    NetworkSettings:
+      type: object
+      required: [enabled, defaultRatePct, eligibilityDays, minSalesRequired]
+      properties:
+        enabled:
+          type: boolean
+          default: true
+        defaultRatePct:
+          type: number
+          default: 5
+          description: "Taxa de comissão de rede em %"
+        eligibilityDays:
+          type: number
+          default: 30
+        minSalesRequired:
+          type: integer
+          default: 1
+
+    NetworkCampaign:
+      type: object
+      required: [id, name, startDate, endDate, enabled]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        ratePctOverride:
+          type: number
+          nullable: true
+        eligibilityDaysOverride:
+          type: integer
+          nullable: true
+        minSalesOverride:
+          type: integer
+          nullable: true
+        enabled:
+          type: boolean
+        status:
+          type: string
+          enum: [Active, Scheduled, Expired, Disabled]
+          readOnly: true
+
+    ReferredAffiliate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        display_name:
+          type: string
+          nullable: true
+        joinedAt:
+          type: string
+          format: date-time
+        salesCount:
+          type: integer
+        totalEarnings:
+          type: number
+        isActive:
+          type: boolean
+
+    # ─── Smart Alerts ─────────────────────────────────────────────────────────
+    AlertScope:
+      type: string
+      enum: [global, campaigns, finance, reports]
+
+    AlertSeverity:
+      type: string
+      enum: [info, success, warning, danger]
+
+    SmartAlert:
+      type: object
+      required: [id, scope, severity, title, description, createdAt]
+      properties:
+        id:
+          type: string
+          description: "ID determinístico baseado no conteúdo"
+        scope:
+          $ref: "#/components/schemas/AlertScope"
+        severity:
+          $ref: "#/components/schemas/AlertSeverity"
+        title:
+          type: string
+        description:
+          type: string
+        action:
+          type: object
+          nullable: true
+          properties:
+            label:
+              type: string
+            to:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # ─── Tutorials ────────────────────────────────────────────────────────────
+    TutorialCategory:
+      type: string
+      enum: [getting-started, first-sale, scaling-sales, campaigns]
+
+    Tutorial:
+      type: object
+      required: [id, youtubeUrl, category, ctaTo, order, active, required]
+      properties:
+        id:
+          type: string
+        youtubeUrl:
+          type: string
+          format: uri
+        youtubeId:
+          type: string
+          readOnly: true
+          description: "Extraído de youtubeUrl — suporta watch?v=, youtu.be/, embed/, shorts/"
+        category:
+          $ref: "#/components/schemas/TutorialCategory"
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        ctaTo:
+          type: string
+          description: "Rota interna de CTA (ex: /products)"
+        order:
+          type: integer
+        active:
+          type: boolean
+        required:
+          type: boolean
+
+    # ─── WhatsApp Integration ─────────────────────────────────────────────────
+    WhatsAppConnectionStatus:
+      type: string
+      enum: [connected, disconnected, pending_qr, error]
+
+    WhatsAppTemplate:
+      type: object
+      required: [id, name, body, triggerEvent]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        body:
+          type: string
+          description: "Template com variáveis {{1}}, {{2}}, ..."
+        triggerEvent:
+          type: string
+          enum: [new_sale, commission_available, withdrawal_approved, withdrawal_rejected, welcome]
+        active:
+          type: boolean
+          default: true
+
+# ─── Paths ────────────────────────────────────────────────────────────────────
+
+paths:
+
+  # ── Profiles ──────────────────────────────────────────────────────────────
+
+  /profiles/me:
+    get:
+      tags: [Profiles]
+      summary: Retorna perfil do usuário autenticado
+      description: |
+        Equivalente ao `fetchProfile(userId)` do hook de auth.
+        JWT extraído do Bearer token — não recebe userId como parâmetro.
+      responses:
+        "200":
+          description: Perfil encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+              example:
+                id: "a1b2c3d4-0000-0000-0000-000000000001"
+                display_name: "João Silva"
+                affiliate_code: "JOAO1234"
+                referred_by_id: null
+                created_at: "2026-01-10T14:30:00Z"
+        "401":
+          description: Não autenticado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    patch:
+      tags: [Profiles]
+      summary: Atualiza display_name do perfil
+      description: |
+        Apenas `display_name` pode ser atualizado.
+        `affiliate_code` e `referred_by_id` são imutáveis.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name:
+                  type: string
+                  maxLength: 100
+            example:
+              display_name: "João Atualizado"
+      responses:
+        "200":
+          description: Perfil atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          description: Não autenticado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Products ──────────────────────────────────────────────────────────────
+
+  /products:
+    get:
+      tags: [Products]
+      summary: Lista produtos do catálogo
+      parameters:
+        - name: active
+          in: query
+          schema:
+            type: boolean
+          description: "Filtrar apenas produtos ativos"
+        - name: currency
+          in: query
+          schema:
+            $ref: "#/components/schemas/CurrencyCode"
+          description: "Currency preferida para resolução de preço"
+      responses:
+        "200":
+          description: Lista de produtos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Product"
+              example:
+                data:
+                  - slug: "evolia-pro"
+                    name: "Evolia Pro"
+                    prices:
+                      BRL: 197.00
+                      USD: 39.00
+                    commissionRate: 30
+                    commissionDuration: "Lifetime"
+                    active: true
+
+    post:
+      tags: [Products]
+      summary: Cria ou atualiza produto (upsert por slug)
+      security:
+        - bearerAuth: []
+      description: |
+        Equivalente ao `upsertProduct`. Admin only.
+        Se `slug` existir, atualiza. Caso contrário, cria.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Product"
+      responses:
+        "200":
+          description: Produto criado ou atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Sem permissão (não é admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /products/{slug}/price:
+    get:
+      tags: [Products]
+      summary: Resolve preço de um produto na currency preferida
+      description: |
+        Lógica: preferred > fallbackCurrency > BRL.
+        Equivalente a `getProductPrice(product, preferred)`.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: currency
+          in: query
+          schema:
+            $ref: "#/components/schemas/CurrencyCode"
+      responses:
+        "200":
+          description: Preço resolvido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductPrice"
+              example:
+                price: 197.00
+                currency: "BRL"
+        "404":
+          description: Produto não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Promotions ────────────────────────────────────────────────────────────
+
+  /promotions:
+    get:
+      tags: [Promotions]
+      summary: Lista campanhas de comissão
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/PromotionStatus"
+        - name: product_slug
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lista de promoções
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Promotion"
+
+    post:
+      tags: [Promotions]
+      summary: Cria campanha de comissão (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Promotion"
+            example:
+              productSlug: "evolia-pro"
+              startDate: "2026-07-01"
+              endDate: "2026-07-31"
+              commissionRateOverride: 40
+              performanceEnabled: true
+              performanceMinSales: 5
+              performanceRateIfReached: 50
+              performanceRateIfNotReached: 35
+      responses:
+        "201":
+          description: Promoção criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Promotion"
+        "400":
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /promotions/{id}:
+    get:
+      tags: [Promotions]
+      summary: Detalhe de uma promoção
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Promoção encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Promotion"
+        "404":
+          description: Não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    patch:
+      tags: [Promotions]
+      summary: Atualiza promoção (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Promotion"
+      responses:
+        "200":
+          description: Promoção atualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Promotion"
+
+  /promotions/active:
+    get:
+      tags: [Promotions]
+      summary: Retorna promoção ativa para um produto (se houver)
+      parameters:
+        - name: product_slug
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Promoção ativa ou null
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/Promotion"
+                  - type: "null"
+
+  # ── Commissions ───────────────────────────────────────────────────────────
+
+  /commissions:
+    get:
+      tags: [Commissions]
+      summary: Lista comissões do afiliado autenticado
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/CommissionStatus"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Comissões do afiliado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Commission"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+                  summary:
+                    $ref: "#/components/schemas/AffiliateSummary"
+
+  /commissions/summary:
+    get:
+      tags: [Commissions]
+      summary: Resumo financeiro do afiliado (saldo disponível, pendente, total ganho)
+      responses:
+        "200":
+          description: Resumo financeiro
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AffiliateSummary"
+              example:
+                balance_available: 1250.00
+                balance_pending: 430.00
+                total_earned: 3200.00
+                total_paid: 1520.00
+
+  /admin/commissions:
+    get:
+      tags: [Commissions, Admin]
+      summary: Lista todas as comissões (admin)
+      parameters:
+        - name: affiliate_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/CommissionStatus"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: Comissões (visão admin)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Commission"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+
+  /admin/commissions/{id}/status:
+    patch:
+      tags: [Commissions, Admin]
+      summary: Transiciona status de uma comissão (admin)
+      description: |
+        Transições válidas:
+        - available → processing (admin aprova pagamento)
+        - processing → paid (pagamento confirmado)
+        - processing → failed (pagamento falhou — pode retry)
+        - failed → processing (retry)
+        - pending | available | processing → canceled
+        - paid → refunded (estorno)
+        Toda transição registra trilha em `commission_history`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  $ref: "#/components/schemas/CommissionStatus"
+                reason:
+                  type: string
+                  description: "Motivo obrigatório para canceled e rejected"
+                payment_id:
+                  type: string
+                  description: "ID do provider de pagamento (obrigatório para paid)"
+            example:
+              status: "processing"
+              reason: null
+              payment_id: null
+      responses:
+        "200":
+          description: Status atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Commission"
+        "409":
+          description: Transição inválida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Transição pending → paid não é permitida"
+
+  /commissions/{id}/history:
+    get:
+      tags: [Commissions]
+      summary: Trilha de auditoria de uma comissão
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Histórico de status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CommissionHistory"
+
+  # ── Withdrawals ───────────────────────────────────────────────────────────
+
+  /withdrawals:
+    get:
+      tags: [Withdrawals]
+      summary: Lista saques do afiliado autenticado
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/WithdrawalStatus"
+      responses:
+        "200":
+          description: Saques
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Withdrawal"
+
+    post:
+      tags: [Withdrawals]
+      summary: Solicita saque
+      description: |
+        Regras de negócio:
+        - Valor mínimo: R$ 100
+        - Só pode sacar saldo `available`
+        - Não pode ter saque `requested` ou `processing` em aberto
+        - Cria comissões de saque vinculadas (status → processing)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount:
+                  type: number
+                  minimum: 100
+                pix_key:
+                  type: string
+                bank_account:
+                  type: object
+                  properties:
+                    bank:
+                      type: string
+                    agency:
+                      type: string
+                    account:
+                      type: string
+                    type:
+                      type: string
+                      enum: [checking, savings]
+            example:
+              amount: 500.00
+              pix_key: "joao@email.com"
+      responses:
+        "201":
+          description: Saque solicitado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Withdrawal"
+        "400":
+          description: Saldo insuficiente ou valor abaixo do mínimo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Já existe saque pendente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /admin/withdrawals:
+    get:
+      tags: [Withdrawals, Admin]
+      summary: Lista todos os saques (admin)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/WithdrawalStatus"
+        - name: affiliate_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Saques (visão admin)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Withdrawal"
+
+  /admin/withdrawals/{id}/status:
+    patch:
+      tags: [Withdrawals, Admin]
+      summary: Aprova, rejeita ou confirma pagamento de saque (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  $ref: "#/components/schemas/WithdrawalStatus"
+                rejection_reason:
+                  type: string
+            example:
+              status: "approved"
+      responses:
+        "200":
+          description: Status atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Withdrawal"
+
+  # ── Network ───────────────────────────────────────────────────────────────
+
+  /network/settings:
+    get:
+      tags: [Network]
+      summary: Retorna configurações atuais da rede de afiliados
+      responses:
+        "200":
+          description: Configurações
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkSettings"
+
+    patch:
+      tags: [Network, Admin]
+      summary: Atualiza configurações da rede (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NetworkSettings"
+      responses:
+        "200":
+          description: Configurações atualizadas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkSettings"
+
+  /network/settings/resolved:
+    get:
+      tags: [Network]
+      summary: Retorna regras de rede resolvidas (base + override de campanha ativa)
+      description: |
+        Equivalente ao `resolveNetworkRules()`.
+        Retorna as regras efetivas considerando campanha de recrutamento ativa.
+      responses:
+        "200":
+          description: Regras resolvidas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ratePct:
+                    type: number
+                  eligibilityDays:
+                    type: number
+                  minSales:
+                    type: integer
+                  fromCampaign:
+                    $ref: "#/components/schemas/NetworkCampaign"
+                    nullable: true
+
+  /network/campaigns:
+    get:
+      tags: [Network, Admin]
+      summary: Lista campanhas de recrutamento
+      responses:
+        "200":
+          description: Campanhas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/NetworkCampaign"
+
+    post:
+      tags: [Network, Admin]
+      summary: Cria campanha de recrutamento (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NetworkCampaign"
+      responses:
+        "201":
+          description: Campanha criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkCampaign"
+
+  /network/referrals:
+    get:
+      tags: [Network]
+      summary: Lista afiliados indicados pelo usuário autenticado
+      responses:
+        "200":
+          description: Indicados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ReferredAffiliate"
+                  isEligible:
+                    type: boolean
+                    description: "Se o afiliado atual está elegível para receber comissão de rede"
+
+  /network/referrals/export:
+    get:
+      tags: [Network]
+      summary: Exporta lista de indicados em CSV
+      responses:
+        "200":
+          description: CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /network/link:
+    get:
+      tags: [Network]
+      summary: Retorna link de recrutamento do afiliado autenticado
+      responses:
+        "200":
+          description: Link de recrutamento
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  link:
+                    type: string
+                    format: uri
+                    example: "https://mastersaas.com/join/JOAO1234"
+
+  # ── Referral Tracking ─────────────────────────────────────────────────────
+
+  /referral/links:
+    get:
+      tags: [Referral]
+      summary: Retorna links de afiliado para todos os produtos ativos
+      responses:
+        "200":
+          description: Links por produto
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  main_link:
+                    type: string
+                    format: uri
+                    description: "Link geral de indicação (sem produto específico)"
+                  products:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        slug:
+                          type: string
+                        name:
+                          type: string
+                        affiliate_link:
+                          type: string
+                          format: uri
+                          description: "Formato: {baseUrl}/r/{code}/{slug}"
+
+  # ── Sales ─────────────────────────────────────────────────────────────────
+
+  /sales:
+    get:
+      tags: [Sales]
+      summary: Lista vendas do afiliado autenticado
+      parameters:
+        - name: product_slug
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: Vendas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Sale"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+
+  /admin/sales:
+    get:
+      tags: [Sales, Admin]
+      summary: Lista todas as vendas (admin)
+      parameters:
+        - name: affiliate_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Vendas (admin)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Sale"
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+
+  # ── Smart Alerts ──────────────────────────────────────────────────────────
+
+  /alerts:
+    get:
+      tags: [Alerts]
+      summary: Lista alertas proativos do afiliado
+      description: |
+        Alertas são calculados dinamicamente (não persistidos).
+        Ordenação: danger > warning > success > info, depois data desc.
+        Thresholds:
+        - Sales spike: ±15% entre metades do período
+        - Top affiliate: share >= 25% da receita recente
+        - Campaign ending: <= 3 dias restantes
+        - Payout: saldo disponível >= R$ 100
+      parameters:
+        - name: scope
+          in: query
+          schema:
+            $ref: "#/components/schemas/AlertScope"
+          description: "Filtrar por escopo. Sem filtro = retorna todos."
+      responses:
+        "200":
+          description: Alertas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SmartAlert"
+              example:
+                data:
+                  - id: "payout-1250.00-available"
+                    scope: "finance"
+                    severity: "success"
+                    title: "Saldo disponível para saque"
+                    description: "Você tem R$ 1.250,00 disponíveis para saque."
+                    action:
+                      label: "Sacar agora"
+                      to: "/finance"
+                    createdAt: "2026-06-08T00:00:00Z"
+
+  # ── Tutorials ─────────────────────────────────────────────────────────────
+
+  /tutorials:
+    get:
+      tags: [Tutorials]
+      summary: Lista tutoriais disponíveis
+      parameters:
+        - name: category
+          in: query
+          schema:
+            $ref: "#/components/schemas/TutorialCategory"
+        - name: active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Tutoriais ordenados por `order` ASC
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Tutorial"
+
+    post:
+      tags: [Tutorials, Admin]
+      summary: Cria ou atualiza tutorial (upsert por id — admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Tutorial"
+      responses:
+        "200":
+          description: Tutorial criado ou atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tutorial"
+
+  # ── WhatsApp Integration ──────────────────────────────────────────────────
+
+  /whatsapp/status:
+    get:
+      tags: [WhatsApp]
+      summary: Retorna status da conexão WhatsApp do admin
+      responses:
+        "200":
+          description: Status da conexão
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    $ref: "#/components/schemas/WhatsAppConnectionStatus"
+                  qr_code:
+                    type: string
+                    nullable: true
+                    description: "Base64 do QR code — presente apenas quando status=pending_qr"
+                  phone:
+                    type: string
+                    nullable: true
+
+  /whatsapp/templates:
+    get:
+      tags: [WhatsApp, Admin]
+      summary: Lista templates de mensagem configurados
+      responses:
+        "200":
+          description: Templates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WhatsAppTemplate"
+
+    post:
+      tags: [WhatsApp, Admin]
+      summary: Cria template de mensagem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhatsAppTemplate"
+      responses:
+        "201":
+          description: Template criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsAppTemplate"
+
+  # ── CRON / Admin Jobs ─────────────────────────────────────────────────────
+
+  /admin/jobs/release-commissions:
+    post:
+      tags: [Admin, Jobs]
+      summary: Libera comissões com holding expirada (pending → available)
+      description: |
+        Executado por CRON diário — não deve ser chamado diretamente em produção.
+        Identifica comissões com `hold_until < NOW()` e status `pending`,
+        transiciona para `available` e registra em `commission_history`.
+        Retorna contagem de comissões liberadas.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Job executado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  released:
+                    type: integer
+                  total_amount_released:
+                    type: number
+              example:
+                released: 12
+                total_amount_released: 3450.00
+
+tags:
+  - name: Profiles
+    description: Perfil do afiliado
+  - name: Products
+    description: Catálogo de produtos SaaS promovíveis
+  - name: Promotions
+    description: Campanhas com override de taxa de comissão
+  - name: Commissions
+    description: Ciclo de vida de comissões e trilha de auditoria
+  - name: Withdrawals
+    description: Solicitação e gestão de saques
+  - name: Network
+    description: Rede de coafiliação e campanhas de recrutamento
+  - name: Referral
+    description: Rastreamento de atribuição e geração de links
+  - name: Sales
+    description: Histórico de vendas
+  - name: Alerts
+    description: Alertas proativos derivados do dataset
+  - name: Tutorials
+    description: Conteúdo de capacitação de afiliados
+  - name: WhatsApp
+    description: Integração WhatsApp para notificações
+  - name: Admin
+    description: Endpoints exclusivos para administradores
+  - name: Jobs
+    description: Jobs de background e CRON

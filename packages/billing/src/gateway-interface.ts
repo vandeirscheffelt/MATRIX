@@ -15,6 +15,10 @@ export interface GatewayCheckoutParams {
   couponCode?: string   // código de cupom/promoção (Stripe: promotion_code; AppMax: coupon_code)
   discountType?: 'percent' | 'fixed'
   discountValue?: number
+  // MasterSaaS affiliate tracking
+  affiliateCode?: string   // código do afiliado extraído do cookie ms_affiliate_ref
+  productCode?:   string   // código do produto (ex: EVOLIA-PRO)
+  affiliateSrc?:  string   // string src completa: MASTERSAAS|AFIL|{code}|{productCode}
 }
 
 export interface GatewayPortalParams {

@@ -1,0 +1,40 @@
+{
+  "project": "MasterSaaS",
+  "progress": 100,
+  "currentTask": "Backend completo — pronto para deploy na VPS",
+  "completedTasks": [
+    "M01 — Migration SQL mastersaas.* aplicada",
+    "M02 — profiles estendida com campos de pagamento",
+    "M03 — Products CRUD",
+    "M04 — Promotions CRUD + resolve-rate",
+    "M05 — Referral redirect /r/:code/:slug + cookie 14d",
+    "M06 — Webhook Stripe MasterSaaS",
+    "M07 — Motor de comissões direct + network",
+    "M09 — CRON pg_cron agendado",
+    "M10 — Withdrawals completo",
+    "M11 — Finance Affiliate completo",
+    "M12 — Finance Admin completo",
+    "M13 — Network admin settings + campanhas",
+    "M14 — Network afiliado elegibilidade + referrals",
+    "M15 — Tutorials + News",
+    "M16 — Smart Alerts",
+    "M17 — WhatsApp proxy server-side (GAP-SEC-01 fechado)",
+    "Metadata afiliado no checkout Evolia (gateway-interface + stripe-provider + billing.ts)",
+    "notifyAffiliate() integrado nos webhooks (new_sale, withdrawal_approved/rejected)",
+    "Instância 'mastersaas' criada na Evolution API"
+  ],
+  "pendingTasks": [
+    "Deploy na VPS (git push + docker compose build + up)",
+    "Criar webhook no Stripe Dashboard → https://api.shaikron.scheffelt.xyz/mastersaas/webhook/stripe → copiar secret para STRIPE_WEBHOOK_SECRET_MASTERSAAS",
+    "Adicionar mastersaas às schemas expostas no Supabase Dashboard (Settings → API)",
+    "Escanear QR code da instância 'mastersaas' na Evolution API para conectar WhatsApp",
+    "Frontend Evolia: ler cookie ms_affiliate_ref e passar affiliateCode/productCode/affiliateSrc no POST /app/billing/checkout",
+    "Conectar frontend MasterSaaS (Lovable) à API real substituindo mocks"
+  ],
+  "logs": [
+    "> [Claude] 2026-06-09 — Backend 100% completo: 17 módulos implementados, TypeScript limpo",
+    "> [Claude] 2026-06-09 — gateway-interface + stripe-provider atualizados com metadata de afiliado",
+    "> [Claude] 2026-06-09 — notifyAffiliate() integrado em commission-engine e withdrawals",
+    "> [Claude] 2026-06-09 — Evolution API: instância mastersaas criada (QR code pendente de scan)"
+  ]
+}

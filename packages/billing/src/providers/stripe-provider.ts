@@ -59,7 +59,14 @@ export class StripeProvider implements IPaymentGateway {
         trial_period_days: params.trialDays,
         metadata: { empresaId: params.empresaId },
       },
-      metadata: { empresaId: params.empresaId },
+      metadata: {
+        empresaId:     params.empresaId,
+        // MasterSaaS affiliate tracking — lido pelo webhook /mastersaas/webhook/stripe
+        affiliate_code: params.affiliateCode ?? '',
+        product_code:   params.productCode   ?? '',
+        src:            params.affiliateSrc  ?? '',
+        phone:          params.userPhone     ?? '',
+      },
     })
 
     return {

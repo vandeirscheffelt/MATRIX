@@ -1,0 +1,43 @@
+# Reversa — Configuração do Projeto
+# Este arquivo é gerenciado pelo instalador. Para customizações, edite config.user.toml
+
+[project]
+name = "MasterSaaS"
+version = "1.0.0"
+
+[user]
+name = "Sr. Scheffelt"
+chat_language = "pt-BR"
+doc_language = "PortuguÊs"
+
+[output]
+folder = "_Reversa_MasterSaaS"
+
+[agents]
+installed = [
+  "reversa",
+  "reversa-scout",
+  "reversa-archaeologist",
+  "reversa-detective",
+  "reversa-architect",
+  "reversa-writer",
+  "reversa-reviewer",
+  "reversa-visor",
+  "reversa-data-master",
+  "reversa-design-system",
+  "reversa-agents-help",
+  "reversa-reconstructor"
+]
+
+[engines]
+installed = [
+  "claude-code",
+  "codex",
+  "gemini-cli",
+  "antigravity",
+  "opencode"
+]
+
+[analysis]
+answer_mode = "chat"
+doc_level = "completo"

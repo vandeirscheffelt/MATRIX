@@ -214,10 +214,28 @@ export default function AccountPage() {
     try {
       const successUrl = `${window.location.origin}/billing/success`;
       const cancelUrl = `${window.location.origin}/account`;
+
+      // Lê cookie de atribuição MasterSaaS (definido pela rota /r/:code/:slug)
+      const msCookie = document.cookie.split(';').find(c => c.trim().startsWith('ms_affiliate_ref='))
+      let affiliateTracking: Record<string, string> = {}
+      if (msCookie) {
+        try {
+          const parsed = JSON.parse(decodeURIComponent(msCookie.split('=').slice(1).join('=')))
+          if (parsed.code) {
+            affiliateTracking = {
+              affiliateCode: parsed.code,
+              productCode:   parsed.productCode ?? 'EVOLIA-PRO',
+              affiliateSrc:  `MASTERSAAS|AFIL|${parsed.code}|${parsed.productCode ?? 'EVOLIA-PRO'}`,
+            }
+          }
+        } catch { /* cookie malformado — ignorar */ }
+      }
+
       const data = await api.post<any>("/app/billing/checkout", {
         successUrl, cancelUrl, paymentMethod, userCpf,
         usuariosExtras: aiUserCount,
         ...(couponCode.trim() ? { couponCode: couponCode.trim() } : {}),
+        ...affiliateTracking,
       });
       if (data.url) {
         window.location.href = data.url;

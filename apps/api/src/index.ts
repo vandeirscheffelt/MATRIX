@@ -1,5 +1,6 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
+import cookie from '@fastify/cookie'
 import helmet from '@fastify/helmet'
 import multipart from '@fastify/multipart'
 import rateLimit from '@fastify/rate-limit'
@@ -37,6 +38,7 @@ import { n8nWebhookRoutes } from './routes/webhook/n8n.js'
 const app = Fastify({ logger: true })
 
 await app.register(helmet)
+await app.register(cookie)
 await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } })
 await app.register(cors, {
   origin: [
@@ -99,6 +101,38 @@ await app.register(marketplaceAdminRoutes, { prefix: '/admin/marketplace' })
 
 // Webhooks n8n — autenticados por x-webhook-secret
 await app.register(n8nWebhookRoutes, { prefix: '/webhook/n8n' })
+
+// ─── MasterSaaS ──────────────────────────────────────────────────────────────
+import { msProductsPublicRoutes, msProductsAdminRoutes } from './routes/mastersaas/products.js'
+import { msPromotionsPublicRoutes, msPromotionsAdminRoutes } from './routes/mastersaas/promotions.js'
+import { msReferralRoutes } from './routes/mastersaas/referral.js'
+import { msStripeWebhookRoutes } from './routes/mastersaas/webhook-stripe.js'
+import { msAppMaxWebhookRoutes } from './routes/mastersaas/webhook-appmax.js'
+import { msAdminJobsRoutes } from './routes/mastersaas/admin-jobs.js'
+import { msWithdrawalsAffiliateRoutes, msWithdrawalsAdminRoutes } from './routes/mastersaas/withdrawals.js'
+import { msFinanceAffiliateRoutes } from './routes/mastersaas/finance-affiliate.js'
+import { msFinanceAdminRoutes } from './routes/mastersaas/finance-admin.js'
+import { msNetworkAffiliateRoutes, msNetworkAdminRoutes } from './routes/mastersaas/network.js'
+import { msTutorialsRoutes } from './routes/mastersaas/tutorials.js'
+import { msAlertsRoutes } from './routes/mastersaas/alerts.js'
+import { msWhatsAppRoutes } from './routes/mastersaas/whatsapp.js'
+await app.register(msProductsPublicRoutes,    { prefix: '/mastersaas/products' })
+await app.register(msProductsAdminRoutes,     { prefix: '/mastersaas/admin/products' })
+await app.register(msPromotionsPublicRoutes,  { prefix: '/mastersaas/promotions' })
+await app.register(msPromotionsAdminRoutes,   { prefix: '/mastersaas/admin/promotions' })
+await app.register(msReferralRoutes,          { prefix: '/mastersaas/r' })
+await app.register(msStripeWebhookRoutes,     { prefix: '/mastersaas/webhook/stripe' })
+await app.register(msAppMaxWebhookRoutes,     { prefix: '/mastersaas/webhook/appmax' })
+await app.register(msAdminJobsRoutes,              { prefix: '/mastersaas/admin/jobs' })
+await app.register(msWithdrawalsAffiliateRoutes,   { prefix: '/mastersaas/me/withdrawals' })
+await app.register(msWithdrawalsAdminRoutes,       { prefix: '/mastersaas/admin/withdrawals' })
+await app.register(msFinanceAffiliateRoutes,       { prefix: '/mastersaas/me' })
+await app.register(msFinanceAdminRoutes,           { prefix: '/mastersaas/admin/finance' })
+await app.register(msNetworkAffiliateRoutes,       { prefix: '/mastersaas/me/network' })
+await app.register(msNetworkAdminRoutes,           { prefix: '/mastersaas/admin/network' })
+await app.register(msTutorialsRoutes,              { prefix: '/mastersaas' })
+await app.register(msAlertsRoutes,                 { prefix: '/mastersaas/me/alerts' })
+await app.register(msWhatsAppRoutes,               { prefix: '/mastersaas/admin/whatsapp' })
 
 // Calo — sistema de venda de calopsitas
 const { birdsRoutes } = await import('./routes/calo/birds.js')

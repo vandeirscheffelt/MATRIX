@@ -1,0 +1,103 @@
+{
+  "version": "1.2.14",
+  "project": "MasterSaaS",
+  "user_name": "Sr. Scheffelt",
+  "chat_language": "pt-BR",
+  "doc_language": "PortuguÊs",
+  "answer_mode": "chat",
+  "doc_level": "detalhado",
+  "output_folder": "_Reversa_MasterSaaS",
+  "phase": "revisao",
+  "completed": [],
+  "pending": [
+    "reconhecimento",
+    "escavacao",
+    "interpretacao",
+    "geracao",
+    "revisao"
+  ],
+  "redator_progress": {
+    "total": 20,
+    "completed": 20,
+    "current": null,
+    "done": ["sdd/auth.md", "sdd/referral-tracking.md", "sdd/products.md", "sdd/promotions.md", "sdd/sales-subscriptions.md", "sdd/commissions.md", "sdd/network.md", "sdd/finance-affiliate.md", "sdd/finance-admin.md", "sdd/withdrawals-payout.md", "sdd/tutorials-news.md", "sdd/smart-alerts.md", "sdd/whatsapp-integration.md", "openapi/mastersaas-api.yaml", "user-stories/affiliate.md", "user-stories/admin.md", "user-stories/onboarding.md", "traceability/code-spec-matrix.md", "traceability/coverage-report.md", "traceability/gaps.md"]
+  },
+  "checkpoints": {
+    "scout": {
+      "completed_at": "2026-06-08T00:00:00Z",
+      "files_generated": ["_Reversa_MasterSaaS/inventory.md","_Reversa_MasterSaaS/dependencies.md",".reversa/context/surface.json"],
+      "modules_found": 17,
+      "total_files": 120
+    },
+    "archaeologist": {
+      "completed_at": "2026-06-08T01:00:00Z",
+      "modules_analyzed": 17,
+      "entities_found": 12,
+      "critical_gaps": 11,
+      "files_generated": [
+        "_Reversa_MasterSaaS/code-analysis.md",
+        "_Reversa_MasterSaaS/data-dictionary.md",
+        "_Reversa_MasterSaaS/flowcharts/auth.md",
+        "_Reversa_MasterSaaS/flowcharts/promotions.md",
+        "_Reversa_MasterSaaS/flowcharts/network.md",
+        "_Reversa_MasterSaaS/flowcharts/smart-alerts.md",
+        ".reversa/context/modules.json"
+      ]
+    }
+  },
+  "engines": [
+    "claude-code",
+    "codex",
+    "gemini-cli",
+    "antigravity",
+    "opencode"
+  ],
+  "agents": [
+    "reversa",
+    "reversa-scout",
+    "reversa-archaeologist",
+    "reversa-detective",
+    "reversa-architect",
+    "reversa-writer",
+    "reversa-reviewer",
+    "reversa-visor",
+    "reversa-data-master",
+    "reversa-design-system",
+    "reversa-agents-help",
+    "reversa-reconstructor"
+  ],
+  "created_files": [
+    ".claude\\skills\\reversa",
+    ".agents\\skills\\reversa",
+    ".claude\\skills\\reversa-scout",
+    ".agents\\skills\\reversa-scout",
+    ".claude\\skills\\reversa-archaeologist",
+    ".agents\\skills\\reversa-archaeologist",
+    ".claude\\skills\\reversa-detective",
+    ".agents\\skills\\reversa-detective",
+    ".claude\\skills\\reversa-architect",
+    ".agents\\skills\\reversa-architect",
+    ".claude\\skills\\reversa-writer",
+    ".agents\\skills\\reversa-writer",
+    ".claude\\skills\\reversa-reviewer",
+    ".agents\\skills\\reversa-reviewer",
+    ".claude\\skills\\reversa-visor",
+    ".agents\\skills\\reversa-visor",
+    ".claude\\skills\\reversa-data-master",
+    ".agents\\skills\\reversa-data-master",
+    ".claude\\skills\\reversa-design-system",
+    ".agents\\skills\\reversa-design-system",
+    ".claude\\skills\\reversa-agents-help",
+    ".agents\\skills\\reversa-agents-help",
+    ".claude\\skills\\reversa-reconstructor",
+    ".agents\\skills\\reversa-reconstructor",
+    "AGENTS.md",
+    "GEMINI.md",
+    ".reversa\\state.json",
+    ".reversa\\config.toml",
+    ".reversa\\config.user.toml",
+    ".reversa\\plan.md",
+    ".reversa\\version",
+    ".reversa\\_config\\manifest.yaml"
+  ]
+}

@@ -1,0 +1,240 @@
+{
+  "generated_at": "2026-06-08T00:00:00Z",
+  "modules": [
+    {
+      "name": "auth",
+      "path": "src/hooks/use-auth.tsx + src/routes/login.tsx + src/routes/signup.tsx + src/routes/join.$code.tsx + src/integrations/supabase/ + src/lib/referral-storage.ts",
+      "purpose": "Autenticação (email/senha, OTP, Google OAuth), criação de perfil com referral automático, persistência de sessão",
+      "primary_files": ["src/hooks/use-auth.tsx", "src/integrations/supabase/client.ts", "src/lib/referral-storage.ts"],
+      "functions": [
+        { "name": "signUp", "file": "src/hooks/use-auth.tsx", "params": ["email: string", "password: string", "displayName?: string"], "returns": "Promise<{error: string|null}>", "confidence": "confirmed" },
+        { "name": "signIn", "file": "src/hooks/use-auth.tsx", "params": ["email: string", "password: string"], "returns": "Promise<{error: string|null}>", "confidence": "confirmed" },
+        { "name": "signInWithGoogle", "file": "src/hooks/use-auth.tsx", "params": [], "returns": "Promise<{error: string|null}>", "confidence": "confirmed" },
+        { "name": "sendEmailOtp", "file": "src/hooks/use-auth.tsx", "params": ["email: string"], "returns": "Promise<{error: string|null}>", "confidence": "confirmed" },
+        { "name": "verifyEmailOtp", "file": "src/hooks/use-auth.tsx", "params": ["email: string", "token: string"], "returns": "Promise<{error: string|null}>", "confidence": "confirmed" },
+        { "name": "fetchProfile", "file": "src/hooks/use-auth.tsx", "params": ["userId: string"], "returns": "Promise<Profile|null>", "confidence": "confirmed" },
+        { "name": "setRefCode", "file": "src/lib/referral-storage.ts", "params": ["raw: string|null"], "returns": "void", "confidence": "confirmed" },
+        { "name": "getRefCode", "file": "src/lib/referral-storage.ts", "params": [], "returns": "string|null", "confidence": "confirmed" },
+        { "name": "markWelcomePending", "file": "src/lib/referral-storage.ts", "params": ["inviterCode: string"], "returns": "void", "confidence": "confirmed" }
+      ],
+      "entities": [
+        {
+          "name": "Profile",
+          "fields": [
+            { "name": "id", "type": "string (uuid)", "required": true },
+            { "name": "display_name", "type": "string|null", "required": false },
+            { "name": "affiliate_code", "type": "string", "required": true },
+            { "name": "referred_by_id", "type": "string|null (uuid)", "required": false },
+            { "name": "created_at", "type": "string (ISO)", "required": true }
+          ],
+          "confidence": "confirmed"
+        }
+      ],
+      "business_rules": [
+        { "description": "referred_by_code enviado via raw_user_meta_data no signup → trigger handle_new_user resolve referred_by_id", "confidence": "confirmed" },
+        { "description": "affiliate_code imutável após criação", "confidence": "confirmed" },
+        { "description": "referred_by_id imutável após set", "confidence": "confirmed" },
+        { "description": "Auto-referência bloqueada no trigger", "confidence": "confirmed" },
+        { "description": "setRefCode normaliza: UPPERCASE + remove não-alfanumérico + limite 16 chars", "confidence": "confirmed" },
+        { "description": "ref_code limpo após signup bem-sucedido para não reatribuir", "confidence": "confirmed" },
+        { "description": "Profile fetch deferred via setTimeout(0) para evitar deadlock Supabase", "confidence": "confirmed" },
+        { "description": "Senha mínima: 6 caracteres", "confidence": "confirmed" },
+        { "description": "OTP: 6 dígitos, tipo email", "confidence": "confirmed" }
+      ],
+      "dependencies": ["supabase-auth", "referral-tracking"],
+      "algorithms": ["setRefCode-normalization", "profile-fetch-deferred"],
+      "complexity": "high"
+    },
+    {
+      "name": "products",
+      "path": "src/lib/products-store.ts + src/lib/mock-data.ts",
+      "purpose": "Catálogo de produtos SaaS promovíveis com pricing multi-currency e comissão configurável",
+      "primary_files": ["src/lib/products-store.ts", "src/lib/mock-data.ts"],
+      "functions": [
+        { "name": "getProductPrice", "file": "src/lib/mock-data.ts", "params": ["product: Product", "preferred?: CurrencyCode"], "returns": "{price: number, currency: CurrencyCode}", "confidence": "confirmed" },
+        { "name": "upsertProduct", "file": "src/lib/products-store.ts", "params": ["product: Product"], "returns": "void", "confidence": "confirmed" },
+        { "name": "useProducts", "file": "src/lib/products-store.ts", "params": [], "returns": "Product[]", "confidence": "confirmed" }
+      ],
+      "entities": [
+        {
+          "name": "Product",
+          "fields": [
+            { "name": "slug", "type": "string", "required": true },
+            { "name": "name", "type": "string", "required": true },
+            { "name": "prices", "type": "Partial<Record<CurrencyCode, number>>", "required": false },
+            { "name": "commissionRate", "type": "number (0-100%)", "required": false },
+            { "name": "commissionDuration", "type": "Lifetime|12 months|6 months|3 months|Custom", "required": false },
+            { "name": "active", "type": "boolean", "required": false },
+            { "name": "sales_copy", "type": "SalesCopy|SalesCopyByLocale", "required": false }
+          ],
+          "confidence": "confirmed"
+        }
+      ],
+      "business_rules": [
+        { "description": "getProductPrice: preferred > fallbackCurrency > BRL", "confidence": "confirmed" },
+        { "description": "Campos price/currency são @deprecated — usar prices map", "confidence": "confirmed" },
+        { "description": "productUrl e productCode ausentes no tipo mas necessários (blueprint)", "confidence": "unknown" }
+      ],
+      "dependencies": ["i18n-currency"],
+      "algorithms": ["getProductPrice-resolution"],
+      "complexity": "medium"
+    },
+    {
+      "name": "promotions",
+      "path": "src/lib/promotions-store.ts",
+      "purpose": "Campanhas com override de taxa de comissão e Performance Boost condicional por volume de vendas",
+      "primary_files": ["src/lib/promotions-store.ts"],
+      "functions": [
+        { "name": "resolveEffectiveRate", "file": "src/lib/promotions-store.ts", "params": ["p: Promotion", "affiliateSalesInCampaign?: number"], "returns": "number|undefined", "confidence": "confirmed" },
+        { "name": "getPromotionStatus", "file": "src/lib/promotions-store.ts", "params": ["p: Promotion", "now?: Date"], "returns": "PromotionStatus", "confidence": "confirmed" },
+        { "name": "getActivePromotionForProduct", "file": "src/lib/promotions-store.ts", "params": ["slug: string", "now?: Date"], "returns": "Promotion|undefined", "confidence": "confirmed" },
+        { "name": "daysRemaining", "file": "src/lib/promotions-store.ts", "params": ["p: Promotion", "now?: Date"], "returns": "number", "confidence": "confirmed" },
+        { "name": "maxAchievableRate", "file": "src/lib/promotions-store.ts", "params": ["p: Promotion"], "returns": "number|undefined", "confidence": "confirmed" }
+      ],
+      "entities": [
+        {
+          "name": "Promotion",
+          "fields": [
+            { "name": "id", "type": "string", "required": true },
+            { "name": "productSlug", "type": "string", "required": true },
+            { "name": "startDate", "type": "string (ISO)", "required": true },
+            { "name": "endDate", "type": "string (ISO)", "required": true },
+            { "name": "commissionRateOverride", "type": "number", "required": false },
+            { "name": "performanceEnabled", "type": "boolean", "required": false },
+            { "name": "performanceMinSales", "type": "number", "required": false },
+            { "name": "performanceRateIfReached", "type": "number", "required": false },
+            { "name": "performanceRateIfNotReached", "type": "number", "required": false }
+          ],
+          "confidence": "confirmed"
+        }
+      ],
+      "business_rules": [
+        { "description": "endDate é tratado como 23:59:59.999 para incluir o dia inteiro", "confidence": "confirmed" },
+        { "description": "resolveEffectiveRate: Performance Boost usa >= para threshold (inclusivo)", "confidence": "confirmed" },
+        { "description": "Status é calculado, nunca armazenado", "confidence": "confirmed" },
+        { "description": "Comissão já gerada é snapshot — mudança de taxa não retroage", "confidence": "inferred" }
+      ],
+      "dependencies": ["products"],
+      "algorithms": ["resolveEffectiveRate", "getPromotionStatus", "daysRemaining"],
+      "complexity": "high"
+    },
+    {
+      "name": "network",
+      "path": "src/lib/network-settings-store.ts + src/lib/network-data.ts",
+      "purpose": "Rede de indicação 1 nível com comissão configurável e campanhas de recrutamento",
+      "primary_files": ["src/lib/network-settings-store.ts", "src/lib/network-data.ts"],
+      "functions": [
+        { "name": "resolveNetworkRules", "file": "src/lib/network-settings-store.ts", "params": ["now?: Date"], "returns": "ResolvedNetworkRules", "confidence": "confirmed" },
+        { "name": "isReferralEligible", "file": "src/lib/network-settings-store.ts", "params": ["lastPersonalSaleAt: string|null", "rules: ResolvedNetworkRules", "recentSalesCount?: number"], "returns": "boolean", "confidence": "confirmed" },
+        { "name": "buildReferralLink", "file": "src/lib/network-data.ts", "params": ["code?: string"], "returns": "string", "confidence": "confirmed" }
+      ],
+      "entities": [
+        {
+          "name": "NetworkSettings",
+          "fields": [
+            { "name": "enabled", "type": "boolean", "required": true, "default": "true" },
+            { "name": "defaultRatePct", "type": "number", "required": true, "default": "5" },
+            { "name": "eligibilityDays", "type": "number", "required": true, "default": "30" },
+            { "name": "minSalesRequired", "type": "number", "required": true, "default": "1" }
+          ],
+          "confidence": "confirmed"
+        }
+      ],
+      "business_rules": [
+        { "description": "REFERRAL_RATE = 0.05 (5%) constante na network-data.ts", "confidence": "confirmed" },
+        { "description": "Campanha ativa sobrescreve regras base com ?. (mantém base se override ausente)", "confidence": "confirmed" },
+        { "description": "isReferralEligible: recentSalesCount default = 1", "confidence": "confirmed" }
+      ],
+      "dependencies": ["auth", "sales"],
+      "algorithms": ["resolveNetworkRules", "isReferralEligible"],
+      "complexity": "medium"
+    },
+    {
+      "name": "smart-alerts",
+      "path": "src/lib/alerts-data.ts",
+      "purpose": "Sistema de alertas proativos derivados do dataset — detecta spikes, top affiliates, campanhas expirando, comissões pendentes",
+      "primary_files": ["src/lib/alerts-data.ts"],
+      "functions": [
+        { "name": "generateAlerts", "file": "src/lib/alerts-data.ts", "params": [], "returns": "SmartAlert[]", "confidence": "confirmed" },
+        { "name": "alertsForScope", "file": "src/lib/alerts-data.ts", "params": ["scope: AlertScope"], "returns": "SmartAlert[]", "confidence": "confirmed" }
+      ],
+      "entities": [
+        {
+          "name": "SmartAlert",
+          "fields": [
+            { "name": "id", "type": "string (determinístico)", "required": true },
+            { "name": "scope", "type": "global|campaigns|finance|reports", "required": true },
+            { "name": "severity", "type": "info|success|warning|danger", "required": true },
+            { "name": "title", "type": "string", "required": true },
+            { "name": "description", "type": "string", "required": true },
+            { "name": "action", "type": "{label, to}?", "required": false },
+            { "name": "createdAt", "type": "string (ISO)", "required": true }
+          ],
+          "confidence": "confirmed"
+        }
+      ],
+      "business_rules": [
+        { "description": "Sales spike: threshold ±15% comparando metades do período", "confidence": "confirmed" },
+        { "description": "Top affiliate: alerta se share >= 25% da receita recente", "confidence": "confirmed" },
+        { "description": "Campaign ending: alerta se <= 3 dias restantes", "confidence": "confirmed" },
+        { "description": "Payout alert: threshold R$100 disponível", "confidence": "confirmed" },
+        { "description": "Ordenação: danger > warning > success > info, depois data desc", "confidence": "confirmed" }
+      ],
+      "dependencies": ["promotions", "finance-affiliate", "finance-admin", "sales"],
+      "algorithms": ["generateAlerts-split-period", "generateAlerts-sorting"],
+      "complexity": "medium"
+    },
+    {
+      "name": "tutorials",
+      "path": "src/lib/tutorials-store.ts",
+      "purpose": "Conteúdo de capacitação por categoria com deep-link e tracking de progresso",
+      "primary_files": ["src/lib/tutorials-store.ts"],
+      "functions": [
+        { "name": "extractYoutubeId", "file": "src/lib/tutorials-store.ts", "params": ["url: string"], "returns": "string|null", "confidence": "confirmed" },
+        { "name": "upsertTutorial", "file": "src/lib/tutorials-store.ts", "params": ["t: Tutorial"], "returns": "void", "confidence": "confirmed" }
+      ],
+      "entities": [
+        {
+          "name": "Tutorial",
+          "fields": [
+            { "name": "id", "type": "string", "required": true },
+            { "name": "youtubeUrl", "type": "string", "required": true },
+            { "name": "category", "type": "getting-started|first-sale|scaling-sales|campaigns", "required": true },
+            { "name": "ctaTo", "type": "string (rota interna)", "required": true },
+            { "name": "order", "type": "number", "required": true },
+            { "name": "active", "type": "boolean", "required": true },
+            { "name": "required", "type": "boolean", "required": true }
+          ],
+          "confidence": "confirmed"
+        }
+      ],
+      "business_rules": [
+        { "description": "extractYoutubeId: suporta watch?v=, youtu.be/, embed/, shorts/, bare ID 11 chars", "confidence": "confirmed" },
+        { "description": "Categorias são fixas (4 valores)", "confidence": "confirmed" }
+      ],
+      "dependencies": [],
+      "algorithms": ["extractYoutubeId"],
+      "complexity": "low"
+    },
+    {
+      "name": "referral-tracking",
+      "path": "src/routes/join.$code.tsx + src/lib/referral-storage.ts",
+      "purpose": "Captura e persistência de atribuição de afiliado antes do cadastro",
+      "primary_files": ["src/routes/join.$code.tsx", "src/lib/referral-storage.ts"],
+      "functions": [
+        { "name": "buildAffiliateLink", "file": "src/lib/mock-data.ts", "params": ["productSlug: string", "code?: string"], "returns": "string", "confidence": "confirmed" },
+        { "name": "buildMainLink", "file": "src/lib/mock-data.ts", "params": ["code?: string"], "returns": "string", "confidence": "confirmed" }
+      ],
+      "business_rules": [
+        { "description": "Formato link: {baseUrl}/r/{code}/{productSlug}", "confidence": "confirmed" },
+        { "description": "Formato referral: {baseUrl}/join/{code}", "confidence": "confirmed" },
+        { "description": "src format: MASTERSAAS|AFIL|{ref}|{productCode}", "confidence": "inferred" },
+        { "description": "Rota /r/:userId/:productSlug não encontrada no código — pode estar ausente", "confidence": "unknown" },
+        { "description": "setAffiliateParent (cookie 14d) não encontrado — ausente ou em arquivo não lido", "confidence": "unknown" }
+      ],
+      "dependencies": ["auth", "products"],
+      "algorithms": [],
+      "complexity": "medium"
+    }
+  ]
+}
